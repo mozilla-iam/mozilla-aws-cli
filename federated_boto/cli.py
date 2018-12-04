@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 
 """Console script for federated_boto."""
+import os
 import sys
+
 import click
+
+import login
 
 
 @click.command()
@@ -15,4 +19,9 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+    #sys.exit(main())  # pragma: no cover
+
+    client_id = 'client_id'
+    tenant = 'tenant'
+    audience = 'audience'
+    login.login(client_id, tenant, audience)
