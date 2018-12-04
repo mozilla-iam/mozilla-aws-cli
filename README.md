@@ -1,25 +1,8 @@
-==============
-federated-boto
-==============
-
-
-
-
+# federated-boto
 
 
 CLI application that handled federated authentication for AWS users
 
+## Sequence diagram
 
-
-Features
---------
-
-* TODO
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+![Sequence diagram](https://raw.githubusercontent.com/mozilla-iam/federated-boto/docs/img/sequence.png)
