@@ -39,5 +39,6 @@ type of the corresponding value is given by the `type` column.
 profile = "retrieved from command-line arguments"
 ace_address = "retrieved from command-line arguments"
 
-secret_token = authenticate(profile, ace_address)
+results = authenticate(profile, ace_address)
+token = results['token']
 ```
