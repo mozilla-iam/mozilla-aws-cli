@@ -1,6 +1,12 @@
 import http.server
 import logging
 from urllib.parse import urlparse, parse_qs
+import socket
+import errno
+
+# These ports must be configured in the IdP's allowed callback URL list
+POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801,
+                  50800, 50801, 60800, 60801]
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -37,15 +43,26 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 def get_available_port():
-    """
+    """Find an available port on localhost and return it.
 
-    Find an available port on localhost and return it
     :return:
     """
-    return 30000
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    for port in POSSIBLE_PORTS:
+        try:
+            s.bind(("127.0.0.1", port))
+            s.close()
+            return port
+        except socket.error as e:
+            if e.errno == errno.EADDRINUSE:
+                logging.debug('Port {} is in use'.format(port))
+                pass
+            else:
+                raise
+    return False
 
 
-def get_code(port=30000):
+def get_code(port=POSSIBLE_PORTS[0]):
     """
 
     Launch listener on port
@@ -66,9 +83,12 @@ def get_code(port=30000):
         raise
 
 
-if __name__ == "__main__":
+def main():
     port=get_available_port()
     c, s, e = get_code(port)
     logger.debug('code is {}'.format(c))
     logger.debug('state is {}'.format(s))
     logger.debug('error is {}'.format(e))
+
+if __name__ == "__main__":
+    main()
