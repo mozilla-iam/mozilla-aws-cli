@@ -11,7 +11,11 @@ with open('README.md') as readme_file:
 with open('HISTORY.md') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=6.0', ]
+requirements = [
+    'Click>=6.0',
+    'jwt==0.5.4',
+    'python-jose==3.0.1'
+]
 
 setup_requirements = ['pytest-runner', ]
 
