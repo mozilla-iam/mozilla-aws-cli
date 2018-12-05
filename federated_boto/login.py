@@ -6,8 +6,12 @@ import secrets
 import urllib
 import urllib.parse
 import webbrowser
-from federated_boto import listener
+import logging
+import listener
 
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
@@ -37,7 +41,7 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     state = base64_without_padding(secrets.token_bytes(32))
 
     port = listener.get_available_port()
-    redirect_uri = 'http://localhost:{}/'.format(port)
+    redirect_uri = 'http://localhost:{}/redirect_uri'.format(port)
 
     url_parameters = {
         'audience': audience,
@@ -55,7 +59,9 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
 
     # Open the browser window to the login url
     # Start the listener
+    logger.debug('About to spawn browser window to {}'.format(url))
     webbrowser.open_new(url)
+    logger.debug('About to begin listener on port {}'.format(port))
     code, state, error_message = listener.get_code(port)
 
     if code is None:
@@ -79,4 +85,12 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
     data = r.json()
 
-    print(data)
+    return data
+
+
+def main():
+    print(login())
+
+
+if __name__ == "__main__":
+    main()
