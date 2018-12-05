@@ -7,7 +7,6 @@ CLI application that handled federated authentication for AWS users
 
 ![Sequence diagram](https://raw.githubusercontent.com/mozilla-iam/federated-boto/master/docs/img/sequence.png)
 
-
 ## Prerequisites
 
 * An OIDC provider like Auth0
@@ -23,3 +22,8 @@ CLI application that handled federated authentication for AWS users
   * Signing Algorithm : `RS256`
   * Identifier : A URL of some kind that you'll use in the `audience` CLI config
     file setting.
+
+## Instructions
+
+`cp config.yaml.inc config.yaml`
+`python federated_boto/cli.py`
