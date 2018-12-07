@@ -68,24 +68,18 @@ def get_available_port():
 
 
 def get_code(port=POSSIBLE_PORTS[0]):
-    """
+    """Listen on port and receive a single request, returning code and state
 
-    Launch listener on port
-    Wait until listener is hit or timeout is met
-    Return code and state passed as arguments to the callback path
-
-    :return:
+    :param port: Port number to listen on
+    :return: 3-tuple of code, state and error message
     """
     logger.debug('About to launch listener')
 
-    try:
-        httpd = http.server.HTTPServer(
-            ('127.0.0.1', port),
-            RequestHandler)
-        httpd.handle_request()
-        return code, state, error_message
-    except:
-        raise
+    httpd = http.server.HTTPServer(
+        ('127.0.0.1', port),
+        RequestHandler)
+    httpd.handle_request()
+    return code, state, error_message
 
 
 def main():
