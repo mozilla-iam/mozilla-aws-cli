@@ -10,7 +10,6 @@ POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801,
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # Until we figure out how to emit data from RequestHandler, we'll use globals =(
 code = None
@@ -19,6 +18,12 @@ error_message = None
 
 
 class RequestHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        logger.debug("%s - - [%s] %s\n" %
+                     (self.address_string(),
+                      self.log_date_time_string(),
+                      format % args))
+
     def do_GET(self):
         global code, state, error_message
         try:
@@ -55,7 +60,7 @@ def get_available_port():
             return port
         except socket.error as e:
             if e.errno == errno.EADDRINUSE:
-                logging.debug('Port {} is in use'.format(port))
+                logger.debug('Port {} is in use'.format(port))
                 pass
             else:
                 raise
@@ -63,24 +68,18 @@ def get_available_port():
 
 
 def get_code(port=POSSIBLE_PORTS[0]):
-    """
+    """Listen on port and receive a single request, returning code and state
 
-    Launch listener on port
-    Wait until listener is hit or timeout is met
-    Return code and state passed as arguments to the callback path
-
-    :return:
+    :param port: Port number to listen on
+    :return: 3-tuple of code, state and error message
     """
     logger.debug('About to launch listener')
 
-    try:
-        httpd = http.server.HTTPServer(
-            ('127.0.0.1', port),
-            RequestHandler)
-        httpd.handle_request()
-        return code, state, error_message
-    except:
-        raise
+    httpd = http.server.HTTPServer(
+        ('127.0.0.1', port),
+        RequestHandler)
+    httpd.handle_request()
+    return code, state, error_message
 
 
 def main():

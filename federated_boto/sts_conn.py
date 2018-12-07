@@ -6,7 +6,6 @@ from xml.etree import ElementTree
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 def get_credentials(bearer_token, role_arn):

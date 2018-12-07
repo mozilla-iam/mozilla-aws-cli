@@ -3,22 +3,49 @@
 import click
 import requests
 import logging
-from jose import jwt
+import platform
+from jose import jwt  # This is optional so we can probably remove it and the code that uses it
 from config import parse_config
 from login import login
 import sts_conn
 
+ENV_VARIABLE_NAME_MAP = {
+    'AccessKeyId': 'AWS_ACCESS_KEY_ID',
+    'SecretAccessKey': 'AWS_SECRET_ACCESS_KEY',
+    'SessionToken': 'AWS_SESSION_TOKEN'
+}
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+
+
+def get_aws_env_variables(credentials):
+    result = ''
+    verb = 'set' if platform.system() == 'Windows' else 'export'
+
+    for key in [x for x in credentials if x in ENV_VARIABLE_NAME_MAP]:
+        result += '{} {}={}\n'.format(
+            verb,
+            ENV_VARIABLE_NAME_MAP[key],
+            credentials[key]
+        )
+    return result
 
 
 @click.command()
-@click.option('--config_file', default='config.yaml',
-              help='Relative path to config file')
-@click.option('--role_arn', required=True, help='RoleARN to assume')
-def main(config_file, role_arn):
+@click.option(
+    '-c', '--config-file', default='config.yaml',
+    help='Relative path to config file')
+@click.option('-r', '--role-arn', required=True, help='RoleARN to assume')
+@click.option(
+    '-o', '--output', default='envvar', type=click.Choice(['envvar', 'sha1']),
+    help='How to output the AWS API keys')
+@click.option('-v', '--verbose', is_flag=True, help="Print debugging messages")
+def main(config_file, role_arn, output, verbose):
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
     # Parse config file
     config = parse_config(config_file)
     config['openid-configuration'] = requests.get(
@@ -28,7 +55,6 @@ def main(config_file, role_arn):
     logger.debug('JWKS : {}'.format(config['jwks']))
 
     logger.debug('Config : {}'.format(config))
-    click.echo("Obtaining temporary credentials for {0}".format(role_arn))
 
     bearer_token = login(
         config['openid-configuration']['authorization_endpoint'],
@@ -51,7 +77,9 @@ def main(config_file, role_arn):
     )
 
     logger.debug(credentials)
-    return 0
+
+    if output == 'envvar':
+        print(get_aws_env_variables(credentials))
 
 
 if __name__ == "__main__":

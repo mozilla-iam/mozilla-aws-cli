@@ -11,7 +11,7 @@ import listener
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
 
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
@@ -60,7 +60,7 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     # Open the browser window to the login url
     # Start the listener
     logger.debug('About to spawn browser window to {}'.format(url))
-    webbrowser.open_new(url)
+    webbrowser.get('firefox').open(url)  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console : https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
     logger.debug('About to begin listener on port {}'.format(port))
     code, state, error_message = listener.get_code(port)
 
