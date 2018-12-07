@@ -22,8 +22,19 @@ CLI application that handled federated authentication for AWS users
   * Signing Algorithm : `RS256`
   * Identifier : A URL of some kind that you'll use in the `audience` CLI config
     file setting.
+* An AWS Identity provider
+  * with an audience value of the Auth0 application client_id
+  * with a [valid thumbprint](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc_verify-thumbprint.html)
 
 ## Instructions
 
 `cp config.yaml.inc config.yaml`
 `python federated_boto/cli.py`
+
+## Notes
+
+
+```
+# https://community.auth0.com/t/custom-claims-without-namespace/10999
+# https://community.auth0.com/t/how-to-set-audience-for-aws-iam-identity-provider-configuration/12951
+```

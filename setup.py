@@ -13,7 +13,6 @@ with open('HISTORY.md') as history_file:
 
 requirements = [
     'Click>=6.0',
-    'jwt==0.5.4',
     'python-jose==3.0.1'
 ]
 
