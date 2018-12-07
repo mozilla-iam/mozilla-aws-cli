@@ -85,7 +85,7 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
     data = r.json()
 
-    return data
+    return data['access_token']
 
 
 def main():
