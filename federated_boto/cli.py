@@ -16,7 +16,7 @@ ENV_VARIABLE_NAME_MAP = {
 }
 
 logging.basicConfig()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
@@ -43,6 +43,7 @@ def get_aws_env_variables(credentials):
     help='How to output the AWS API keys')
 @click.option('-v', '--verbose', is_flag=True, help="Print debugging messages")
 def main(config_file, role_arn, output, verbose):
+    """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -56,25 +57,27 @@ def main(config_file, role_arn, output, verbose):
 
     logger.debug('Config : {}'.format(config))
 
-    bearer_token = login(
+    tokens = login(
         config['openid-configuration']['authorization_endpoint'],
         config['openid-configuration']['token_endpoint'],
         config['client_id'],
-        config['audience'])
+        config['scope'])
 
-    logger.debug('Bearer token : {}'.format(bearer_token))
+    logger.debug('ID token : {}'.format(tokens['id_token']))
 
-    bearer_dict = jwt.decode(
-        token=bearer_token,
+    id_token_dict = jwt.decode(
+        token=tokens['id_token'],
         key=config['jwks'],
-        audience=config['audience']
+        audience=config['client_id']
     )
-    logger.debug('Bearer dict : {}'.format(bearer_dict))
+    logger.debug('ID token dict : {}'.format(id_token_dict))
 
     credentials = sts_conn.get_credentials(
-        bearer_token,
+        tokens['id_token'],
         role_arn=role_arn
     )
+    if not credentials:
+        exit(1)
 
     logger.debug(credentials)
 
