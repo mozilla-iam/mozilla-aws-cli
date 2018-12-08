@@ -16,20 +16,31 @@ CLI application that handled federated authentication for AWS users
   * Allowed Callback URLs : A list of the localhost URLs created from the 
     POSSIBLE_PORTS list of ports
   * The `client_id` for this application will be used in the CLI config file
-* An Auth0 [api](https://auth0.com/docs/apis)
-  * Name : Recommended to use the same name as the Auth0 application created
-    above for clarity
-  * Signing Algorithm : `RS256`
-  * Identifier : A URL of some kind that you'll use in the `audience` CLI config
-    file setting.
 * An AWS Identity provider
   * with an audience value of the Auth0 application client_id
   * with a [valid thumbprint](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc_verify-thumbprint.html)
 
 ## Instructions
 
+## Create a config
+
 `cp config.yaml.inc config.yaml`
-`python federated_boto/cli.py`
+
+* `well_known_url`: The 
+  [OpenID Connect Discovery Endpoint URL](https://openid.net/specs/openid-connect-discovery-1_0.html).
+  ([Auth0](https://auth0.com/docs/protocols/oidc/openid-connect-discovery))
+* client_id: The Auth0 `client_id` generated when the Auth0 
+  [application](https://auth0.com/docs/applications) was created in the 
+  prerequisites
+* scope: A space delimited list of 
+  [OpenID Connect Scopes](https://auth0.com/docs/scopes/current/oidc-scopes).
+  For example `openid` and the scope where access control information is made
+  available. Mozilla SSO would use `openid https://sso.mozilla.com/claim/groups`
+
+
+## Run the tool
+
+`python federated_boto/cli.py --role-arn arn:aws:iam::123456789012:role/example-role`
 
 ## Notes
 

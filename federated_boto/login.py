@@ -27,13 +27,17 @@ def generate_challenge(code_verifier):
 def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
           token_endpoint='https://auth.mozilla.auth0.com/oauth/token',
           client_id='N7lULzWtfVUDGymwDs0yDEq6ZcwmFazj',
-          audience='https://infosec.mozilla.org/aws-federated-cli'):
-    """
+          scope='openid'):
+    """Follow the PKCE auth flow by spawning a browser for the user to login,
+    passing a redirect_uri that points to a localhost listener. Once ther user
+    logs into the IdP in the browser, the IdP will redirect the user to the
+    localhost listener, making the OIDC code available to the CLI. CLI then
+    exchanges the code for an tokens with the IdP and returns the tokens
 
-    :param authorization_endpoint:
-    :param token_endpoint:
-    :param client_id:
-    :param audience:
+    :param authorization_endpoint: URL of the OIDC authorization endpoint obtained from the discovery document
+    :param token_endpoint: URL of the OIDC token endpoint obtained from the discovery document
+    :param client_id: OIDC client_id of the native OIDC application
+    :param scope: OIDC scopes of claims to request
     :return:
     """
     code_verifier = base64_without_padding(secrets.token_bytes(32))
@@ -44,8 +48,7 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     redirect_uri = 'http://localhost:{}/redirect_uri'.format(port)
 
     url_parameters = {
-        'audience': audience,
-        'scope': 'profile',
+        'scope': scope,
         'response_type': 'code',
         'redirect_uri': redirect_uri,
         'client_id': client_id,
@@ -53,6 +56,8 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
         'code_challenge_method': 'S256',
         'state': state
     }
+    # We don't set audience here because Auth0 will set the audience on it's
+    # own
     url = '{}?{}'.format(
         authorization_endpoint,
         urllib.parse.urlencode(url_parameters))
@@ -80,12 +85,11 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
             'client_id': client_id,
             'code_verifier': code_verifier,
             'code': code,
-            'audience': audience,
             'redirect_uri': redirect_uri}
     r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
     data = r.json()
 
-    return data['access_token']
+    return data
 
 
 def main():
