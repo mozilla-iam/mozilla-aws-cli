@@ -72,12 +72,12 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     if code is None:
         print("Error: session replay or similar attack in progress. Please "
               "log out of all connections.")
-        exit(-1)
+        exit(1)
 
     if error_message is not None:
         print("An error occurred:")
         print(error_message)
-        exit(-1)
+        exit(1)
 
     # Exchange the code for a token
     headers = {'Content-Type': 'application/json'}
