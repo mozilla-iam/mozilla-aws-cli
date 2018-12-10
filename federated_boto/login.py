@@ -67,11 +67,15 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     logger.debug('About to spawn browser window to {}'.format(url))
     webbrowser.get('firefox').open(url)  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console : https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
     logger.debug('About to begin listener on port {}'.format(port))
-    code, state, error_message = listener.get_code(port)
+    code, response_state, error_message = listener.get_code(port)
 
     if code is None:
         print("Error: session replay or similar attack in progress. Please "
               "log out of all connections.")
+        exit(1)
+
+    if state != response_state:
+        print("Error: State returned from IdP doesn't match state sent")
         exit(1)
 
     if error_message is not None:
