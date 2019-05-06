@@ -1,10 +1,9 @@
 import base64
 import hashlib
 import json
+import os
 import requests
-import secrets
 import urllib
-import urllib.parse
 import webbrowser
 import logging
 import listener
@@ -15,19 +14,20 @@ logger = logging.getLogger(__name__)
 
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
-    return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
 
 
 def generate_challenge(code_verifier):
     # https://tools.ietf.org/html/rfc7636#section-4.2
-    return base64_without_padding(
-        hashlib.sha256(code_verifier.encode()).digest())
+    return base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
 
 
-def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
-          token_endpoint='https://auth.mozilla.auth0.com/oauth/token',
-          client_id='N7lULzWtfVUDGymwDs0yDEq6ZcwmFazj',
-          scope='openid'):
+def login(
+    authorization_endpoint="https://auth.mozilla.auth0.com/authorize",
+    token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
+    client_id="",
+    scope="openid",
+):
     """Follow the PKCE auth flow by spawning a browser for the user to login,
     passing a redirect_uri that points to a localhost listener. Once ther user
     logs into the IdP in the browser, the IdP will redirect the user to the
@@ -40,38 +40,37 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
     :param scope: OIDC scopes of claims to request
     :return:
     """
-    code_verifier = base64_without_padding(secrets.token_bytes(32))
+    code_verifier = base64_without_padding(os.urandom(32))
     code_challenge = generate_challenge(code_verifier)
-    state = base64_without_padding(secrets.token_bytes(32))
+    state = base64_without_padding(os.urandom(32))
 
     port = listener.get_available_port()
-    redirect_uri = 'http://localhost:{}/redirect_uri'.format(port)
+    redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
     url_parameters = {
-        'scope': scope,
-        'response_type': 'code',
-        'redirect_uri': redirect_uri,
-        'client_id': client_id,
-        'code_challenge': code_challenge,
-        'code_challenge_method': 'S256',
-        'state': state
+        "scope": scope,
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "client_id": client_id,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "state": state,
     }
     # We don't set audience here because Auth0 will set the audience on it's
     # own
-    url = '{}?{}'.format(
-        authorization_endpoint,
-        urllib.parse.urlencode(url_parameters))
+    url = "{}?{}".format(authorization_endpoint, urllib.urlencode(url_parameters))
 
     # Open the browser window to the login url
     # Start the listener
-    logger.debug('About to spawn browser window to {}'.format(url))
-    webbrowser.get('firefox').open(url)  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console : https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
-    logger.debug('About to begin listener on port {}'.format(port))
+    logger.debug("About to spawn browser window to {}".format(url))
+    webbrowser.get("firefox").open(
+        url
+    )  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console : https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
+    logger.debug("About to begin listener on port {}".format(port))
     code, response_state, error_message = listener.get_code(port)
 
     if code is None:
-        print("Error: session replay or similar attack in progress. Please "
-              "log out of all connections.")
+        print("Something wrong happened, could not retrieve session data")
         exit(1)
 
     if state != response_state:
@@ -84,12 +83,14 @@ def login(authorization_endpoint='https://auth.mozilla.auth0.com/authorize',
         exit(1)
 
     # Exchange the code for a token
-    headers = {'Content-Type': 'application/json'}
-    body = {'grant_type': 'authorization_code',
-            'client_id': client_id,
-            'code_verifier': code_verifier,
-            'code': code,
-            'redirect_uri': redirect_uri}
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "grant_type": "authorization_code",
+        "client_id": client_id,
+        "code_verifier": code_verifier,
+        "code": code,
+        "redirect_uri": redirect_uri,
+    }
     r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
     data = r.json()
 
