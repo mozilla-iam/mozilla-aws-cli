@@ -6,7 +6,7 @@ import requests
 import urllib
 import webbrowser
 import logging
-import listener
+from .listener import get_code, get_available_port
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def login(
     code_challenge = generate_challenge(code_verifier)
     state = base64_without_padding(os.urandom(32))
 
-    port = listener.get_available_port()
+    port = get_available_port()
     redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
     url_parameters = {
@@ -68,7 +68,7 @@ def login(
     )  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console :
     # https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
     logger.debug("About to begin listener on port {}".format(port))
-    code, response_state, error_message = listener.get_code(port)
+    code, response_state, error_message = get_code(port)
 
     if code is None:
         print("Something wrong happened, could not retrieve session data")

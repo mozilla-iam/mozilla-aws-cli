@@ -5,10 +5,9 @@ import requests
 import logging
 import platform
 from jose import jwt  # This is optional so we can probably remove it and the code that uses it
-from config import parse_config
-from login import login
-import sts_conn
-
+from .config import parse_config
+from .login import login
+from .sts_conn import get_credentials
 ENV_VARIABLE_NAME_MAP = {
     'AccessKeyId': 'AWS_ACCESS_KEY_ID',
     'SecretAccessKey': 'AWS_SECRET_ACCESS_KEY',
@@ -72,7 +71,7 @@ def main(config_file, role_arn, output, verbose):
     )
     logger.debug('ID token dict : {}'.format(id_token_dict))
 
-    credentials = sts_conn.get_credentials(
+    credentials = get_credentials(
         tokens['id_token'],
         role_arn=role_arn
     )
