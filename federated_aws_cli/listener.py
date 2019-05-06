@@ -34,6 +34,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             error_description = get_arg(query, "error_description")
             error_message = "{}: {}".format(error, error_description) if error is not None else None
         except Exception as e:
+            logger.error("Could not handle request: {}".format(e))
             self.send_response(500)
         else:
             self.send_response(200)
