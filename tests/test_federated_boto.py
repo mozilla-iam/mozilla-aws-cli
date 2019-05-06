@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tests for `federated_boto` package."""
+"""Tests for `federated_aws_cli` package."""
 
 import pytest
 
 from click.testing import CliRunner
 
-from federated_boto import federated_boto
-from federated_boto import cli
+from federated_aws_cli import federated_aws_cli
+from federated_aws_cli import cli
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def test_command_line_interface():
     runner = CliRunner()
     result = runner.invoke(cli.main)
     assert result.exit_code == 0
-    assert 'federated_boto.cli.main' in result.output
+    assert 'federated_aws_cli.cli.main' in result.output
     help_result = runner.invoke(cli.main, ['--help'])
     assert help_result.exit_code == 0
     assert '--help  Show this message and exit.' in help_result.output

@@ -112,7 +112,7 @@ class FakeBearer(object):
     #     claims = {
     #         'iss': 'https://auth-dev.mozilla.auth0.com/',
     #         'sub': 'mc1l0G4sJI2eQfdWxqgVNcRAD9EAgHib@clients',
-    #         'aud': 'https://federated-boto',
+    #         'aud': 'https://federated-aws-cli',
     #         'iat': (datetime.utcnow() - timedelta(seconds=3100)).strftime('%s'),
     #         'exp': (datetime.utcnow() + timedelta(seconds=3100)).strftime('%s'),
     #         'scope': scope,

@@ -51,7 +51,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 lint: ## check style with flake8
-	flake8 federated_boto tests
+	flake8 federated_aws_cli tests
 
 test: ## run tests quickly with the default Python
 	py.test
@@ -60,15 +60,15 @@ test-all: ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source federated_boto -m pytest
+	coverage run --source federated_aws_cli -m pytest
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/federated_boto.rst
+	rm -f docs/federated_aws_cli.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ federated_boto
+	sphinx-apidoc -o docs/ federated_aws_cli
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html

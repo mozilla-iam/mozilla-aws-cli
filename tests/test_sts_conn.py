@@ -1,7 +1,7 @@
 from auth0 import FakeBearer, rsa_public_key
 
 
-from federated_boto.sts_conn import deserialize_bearer_token
+from federated_aws_cli.sts_conn import deserialize_bearer_token
 
 
 class TestSTSConn():
