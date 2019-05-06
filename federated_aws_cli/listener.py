@@ -1,8 +1,11 @@
 import http.server
 import logging
-from urllib.parse import urlparse, parse_qs
 import socket
 import errno
+try:
+    from urllib.parse import urlparse, parse_qs
+except ImportError:
+    from urlparse import urlparse, parse_qs
 
 # These ports must be configured in the IdP's allowed callback URL list
 POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801, 50800, 50801, 60800, 60801]
