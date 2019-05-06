@@ -1,4 +1,4 @@
-* federated-boto version:
+* federated-aws-cli version:
 * Python version:
 * Operating System:
 

@@ -1,11 +1,11 @@
-# federated-boto
+# federated-aws-cli
 
 
 CLI application that handled federated authentication for AWS users
 
 ## Sequence diagram
 
-[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-boto/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
+[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ CLI application that handled federated authentication for AWS users
 * A well-known `openid-configuration` URL
 * An Auth0 [application](https://auth0.com/docs/applications) created
   * Type : Native
-  * Allowed Callback URLs : A list of the localhost URLs created from the 
+  * Allowed Callback URLs : A list of the localhost URLs created from the
     POSSIBLE_PORTS list of ports
   * The `client_id` for this application will be used in the CLI config file
 * An AWS Identity provider
@@ -26,13 +26,13 @@ CLI application that handled federated authentication for AWS users
 
 `cp config.yaml.inc config.yaml`
 
-* `well_known_url`: The 
+* `well_known_url`: The
   [OpenID Connect Discovery Endpoint URL](https://openid.net/specs/openid-connect-discovery-1_0.html).
   ([Auth0](https://auth0.com/docs/protocols/oidc/openid-connect-discovery))
-* client_id: The Auth0 `client_id` generated when the Auth0 
-  [application](https://auth0.com/docs/applications) was created in the 
+* client_id: The Auth0 `client_id` generated when the Auth0
+  [application](https://auth0.com/docs/applications) was created in the
   prerequisites
-* scope: A space delimited list of 
+* scope: A space delimited list of
   [OpenID Connect Scopes](https://auth0.com/docs/scopes/current/oidc-scopes).
   For example `openid` and the scope where access control information is made
   available. Mozilla SSO would use `openid https://sso.mozilla.com/claim/groups`
@@ -40,7 +40,7 @@ CLI application that handled federated authentication for AWS users
 
 ## Run the tool
 
-`python federated_boto/cli.py --role-arn arn:aws:iam::123456789012:role/example-role`
+`python federated_aws_cli/cli.py --role-arn arn:aws:iam::123456789012:role/example-role`
 
 ## Notes
 

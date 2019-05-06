@@ -1,7 +1,7 @@
 ```mermaid
 sequenceDiagram
 
-participant CLI as Federated boto CLI tool
+participant CLI as Federated AWS CLI tool
 participant B as Web Browser
 participant IdP as Identity Provider (Auth0)
 participant STS as AWS STS

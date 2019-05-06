@@ -16,7 +16,7 @@ def get_credentials(bearer_token, role_arn):
     :return: dict : Dictionary of credential information
     """
     local_username = pwd.getpwuid(os.getuid())[0]
-    role_session_name = 'federated-boto-{}'.format(local_username)
+    role_session_name = 'federated-aws-cli-{}'.format(local_username)
     sts_url = "https://sts.amazonaws.com/"
     parameters = {
         'Action': 'AssumeRoleWithWebIdentity',

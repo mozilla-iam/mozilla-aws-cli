@@ -25,5 +25,5 @@ deploy:
     secure: PLEASE_REPLACE_ME
   on:
     tags: true
-    repo: mozilla-iam/federated_boto
+    repo: mozilla-iam/federated_aws_cli
     python: 3.6
