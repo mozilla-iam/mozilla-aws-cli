@@ -92,7 +92,7 @@ def login(
         "redirect_uri": redirect_uri,
     }
     r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
-    data = r.json()
+    data = json.loads(r.text)
 
     return data
 
