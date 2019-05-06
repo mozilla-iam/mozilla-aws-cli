@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
 import click
 import requests
 import logging
 import platform
 from jose import jwt  # This is optional so we can probably remove it and the code that uses it
-from config import parse_config
-from login import login
-import sts_conn
+from federated_aws_cli.config import parse_config
+from federated_aws_cli.login import login
+from federated_aws_cli import sts_conn
 
 ENV_VARIABLE_NAME_MAP = {
     "AccessKeyId": "AWS_ACCESS_KEY_ID",

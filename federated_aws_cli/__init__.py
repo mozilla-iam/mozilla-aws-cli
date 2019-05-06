@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from federated_aws_cli import config
+from federated_aws_cli import listener
+from federated_aws_cli import login
+from federated_aws_cli import sts_conn
 
-"""Top-level package for federated-aws-cli."""
-
-__author__ = """Mozilla Infosec"""
-__email__ = 'infosec@mozilla.com'
-__version__ = '0.0.1'
+__all__ = [config, listener, login, sts_conn]
