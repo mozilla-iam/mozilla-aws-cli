@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import base64
 import hashlib
 import json
@@ -6,7 +7,7 @@ import requests
 import urllib
 import webbrowser
 import logging
-import listener
+from federated_aws_cli import listener
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
