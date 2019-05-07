@@ -4,9 +4,15 @@ import hashlib
 import json
 import os
 import requests
-import urllib
 import webbrowser
 import logging
+
+try:
+    # P3
+    from urllib.parse import urlencode
+except ImportError:
+    # P2 Compat
+    from urllib import urlencode
 from federated_aws_cli import listener
 
 logging.basicConfig()
@@ -59,7 +65,7 @@ def login(
     }
     # We don't set audience here because Auth0 will set the audience on it's
     # own
-    url = "{}?{}".format(authorization_endpoint, urllib.urlencode(url_parameters))
+    url = "{}?{}".format(authorization_endpoint, urlencode(url_parameters))
 
     # Open the browser window to the login url
     # Start the listener
