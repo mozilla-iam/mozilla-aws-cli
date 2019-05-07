@@ -4,7 +4,13 @@ import os
 import logging
 import platform
 from dateutil import parser
-from datetime import datetime, timezone
+from datetime import datetime
+
+try:
+    from datetime import timezone
+except ImportError:
+    # P2
+    pass
 from xml.etree import ElementTree
 
 logging.basicConfig()
@@ -55,7 +61,11 @@ class StsCredentials:
 
         # Instruct we base ourselves on UTC
         os.environ["TZ"] = "UTC"
-        now = datetime.now(timezone.utc)
+        try:
+            now = datetime.now(timezone.utc)
+        except NameError:
+            # P2
+            now = datetime.now()
         exp = parser.parse(self.Expiration)
         diff = exp - now
         # Make this a timestamp
