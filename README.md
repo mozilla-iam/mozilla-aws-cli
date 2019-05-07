@@ -131,3 +131,44 @@ building the federated-aws-cli
   group list size issue is becoming a problem. To do so we'll want to see
   * The size of the `amr` assertion being passed each time a user logs in
   * If AWS ever returns a `PackedPolicyTooLarge` error
+
+### Supported IAM Policy Features
+
+The Auth0 rule which finds the intersection in the groups a user is a member of
+with the union of all groups used in all AWS accounts IAM policies won't
+support [all IAM policy operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html#Conditions_String).
+Here are the various use cases and whether they are supported or not
+
+An AWS account holder wants to
+
+* enable users that are members of group "foo" to assume role 
+  arn:aws:iam::123456789012:role/baz
+  * supported
+  * `StringLike`, `StringEquals`
+* enable users that are members of group "foo" as well as users that are members
+  of group "bar" to assume role arn:aws:iam::123456789012:role/baz
+  * supported
+  * `StringLike`, `StringEquals` for a list of values
+* enable users that are members of both group "foo" and group "bar" to assume
+  role arn:aws:iam::123456789012:role/baz
+  * not supported
+  * multiple `StringLike` or `StringEquals` conditions
+* enable users that are members of any group like "fo*" to assume role
+  arn:aws:iam::123456789012:role/baz
+  * supported
+  * `StringLike` with wildcards
+* enable users that are members of group "foo" but not allow users that are
+  members of group "FOO" to assume role arn:aws:iam::123456789012:role/baz
+  * not supported
+  * when assembling the group list to pass to AWS, we will do case insensitive
+    matching. Additionally, there shouldn't ever be a case where two groups
+    exist with the same characters in their name but different cases
+  * multiple `StringEquals` conditions where the values differ only in case
+* enable users that are not members of group "bar" to assume role
+  arn:aws:iam::123456789012:role/baz
+  * not supported
+  * `StringNotEquals`, `StringNotLike`
+* enable users that are members of group "foo" but not members of group "bar"
+  to assume role arn:aws:iam::123456789012:role/baz
+  * not supported
+  * multiple conditions including `StringNotEquals`, `StringNotLike`
