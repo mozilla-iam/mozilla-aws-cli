@@ -2,11 +2,11 @@
 
 from __future__ import absolute_import
 import click
-import requests
 import logging
+from xdg import XDG_CACHE_HOME
 from jose import jwt  # This is optional so we can probably remove it and the code that uses it
 from federated_aws_cli.config import parse_config
-from federated_aws_cli.login import login
+from federated_aws_cli.login import PkceLogin
 from federated_aws_cli import sts_conn
 
 
@@ -26,28 +26,17 @@ def main(config_file, role_arn, output, verbose):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
+    logger.debug("Using {} cache directory".format(XDG_CACHE_HOME))
 
-    # Parse config file
     config = parse_config(config_file)
-    config["openid-configuration"] = requests.get(config["well_known_url"]).json()
-    config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
-    logger.debug("JWKS : {}".format(config["jwks"]))
-
     logger.debug("Config : {}".format(config))
 
-    tokens = login(
-        config["openid-configuration"]["authorization_endpoint"],
-        config["openid-configuration"]["token_endpoint"],
-        config["client_id"],
-        config["scope"],
-    )
-
-    logger.debug("ID token : {}".format(tokens["id_token"]))
-
-    id_token_dict = jwt.decode(token=tokens["id_token"], key=config["jwks"], audience=config["client_id"])
+    pkce = PkceLogin(config["well_known_url"], config["client_id"], config["scope"])
+    pkce.get_id_token()
+    id_token_dict = jwt.decode(token=pkce.tokens["id_token"], key=pkce.jwks, audience=pkce.client_id)
     logger.debug("ID token dict : {}".format(id_token_dict))
 
-    sts = sts_conn.StsCredentials(tokens["id_token"], role_arn)
+    sts = sts_conn.StsCredentials(pkce.tokens["id_token"], role_arn)
     sts.refresh_credentials()
 
     if output == "envvar":
