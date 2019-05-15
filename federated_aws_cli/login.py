@@ -60,6 +60,10 @@ class PkceLogin:
         # https://tools.ietf.org/html/rfc7636#section-4.2
         return self.base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
 
+    def as_env_variables(self):
+        print("ID_TOKEN={}".format(self.tokens["id_token"]))
+        print("ID_TOKEN_EXPIRES_IN={}".format(self.tokens["expires_in"]))
+
     def refresh_id_token(self, laytime=120):
         """
         Refresh credentials as necessary if expired

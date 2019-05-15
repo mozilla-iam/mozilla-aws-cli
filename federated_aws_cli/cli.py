@@ -41,6 +41,7 @@ def main(config_file, role_arn, output, verbose):
 
     if output == "envvar":
         print(sts.as_env_variables())
+        print(pkce.as_env_variables())
 
 
 if __name__ == "__main__":
