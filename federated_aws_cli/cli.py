@@ -32,7 +32,7 @@ def main(config_file, role_arn, output, verbose):
     logger.debug("Config : {}".format(config))
 
     pkce = PkceLogin(config["well_known_url"], config["client_id"], config["scope"])
-    pkce.get_id_token()
+    pkce.refresh_id_token()
     id_token_dict = jwt.decode(token=pkce.tokens["id_token"], key=pkce.jwks, audience=pkce.client_id)
     logger.debug("ID token dict : {}".format(id_token_dict))
 

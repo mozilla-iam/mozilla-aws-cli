@@ -7,7 +7,13 @@ import requests
 import requests_cache
 import webbrowser
 import logging
+from datetime import datetime
 
+try:
+    from datetime import timezone
+except ImportError:
+    # P2
+    pass
 try:
     # P3
     from urllib.parse import urlencode
@@ -54,8 +60,33 @@ class PkceLogin:
         # https://tools.ietf.org/html/rfc7636#section-4.2
         return self.base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
 
-    def get_id_token(self):
-        return self.get_wait_for_id_token()
+    def refresh_id_token(self, laytime=120):
+        """
+        Refresh credentials as necessary if expired
+        :laytime: int: How many seconds of laytime between requests to get new credentials, when approaching the
+        expiration window
+        """
+        if self.tokens is None:
+            logger.debug("We have no id_token, getting a new one")
+            return self.get_wait_for_id_token()
+
+        # Instruct we base ourselves on UTC
+        os.environ["TZ"] = "UTC"
+        try:
+            now = datetime.now(timezone.utc)
+        except NameError:
+            # P2
+            now = datetime.now()
+        exp = datetime.fromtimestamp(self.tokens["expires_in"])
+        diff = exp - now
+        # Make this a timestamp
+        ts = diff.total_seconds()
+
+        if ts < laytime:
+            logger.debug("id_token is about to expire, getting new one")
+            return self.get_wait_for_id_token()
+
+        logger.debug("id_token is still valid: {}".format(self.tokens["expires_in"]))
 
     def get_wait_for_id_token(self):
         """

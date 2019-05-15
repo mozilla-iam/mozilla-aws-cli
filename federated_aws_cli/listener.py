@@ -2,6 +2,7 @@ import http.server
 import logging
 import socket
 import errno
+
 try:
     from urllib.parse import urlparse, parse_qs
 except ImportError:
