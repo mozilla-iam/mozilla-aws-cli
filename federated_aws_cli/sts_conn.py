@@ -97,7 +97,6 @@ class StsCredentials:
             raise Exception("AWS STS Call failed")
 
         logger.debug("STS Call Response headers : {}".format(resp.headers))
-        logger.debug("STS Call Response : {}".format(resp.text))
 
         root = ElementTree.fromstring(resp.content)
         # Create a dictionary of the children of

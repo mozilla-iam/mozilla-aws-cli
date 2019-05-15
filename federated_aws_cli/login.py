@@ -55,6 +55,9 @@ class PkceLogin:
         return self.base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
 
     def get_id_token(self):
+        return self.get_wait_for_id_token()
+
+    def get_wait_for_id_token(self):
         """
         Follow the PKCE auth flow by spawning a browser for the user to login,
         passing a redirect_uri that points to a localhost listener. Once ther user
@@ -62,7 +65,7 @@ class PkceLogin:
         localhost listener, making the OIDC code available to the CLI. CLI then
         exchanges the code for an tokens with the IdP and returns the tokens
 
-        :return: id token dict
+        :return: id token dict containing  {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'token_type': 'Bearer'}
         """
         self.__deferred_init__()
         url_parameters = {
@@ -89,16 +92,15 @@ class PkceLogin:
         code, response_state, error_message = listener.get_code(self.port)
 
         if code is None:
-            print("Something wrong happened, could not retrieve session data")
+            logger.error("Something wrong happened, could not retrieve session data")
             exit(1)
 
         if self.state != response_state:
-            print("Error: State returned from IdP doesn't match state sent")
+            logger.error("Error: State returned from IdP doesn't match state sent")
             exit(1)
 
         if error_message is not None:
-            print("An error occurred:")
-            print(error_message)
+            logger.error(error_message)
             exit(1)
 
         # Exchange the code for a token
@@ -114,6 +116,8 @@ class PkceLogin:
             r = requests.post(self.token_endpoint, headers=headers, data=json.dumps(body))
             data = json.loads(r.text)
 
+        # Contains:
+        # {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'token_type': 'Bearer'}
         self.tokens = data
-        logger.debug("WARNING - SECRET DATA EXPOSURE: Received tokens {}".format(self.tokens))
+        logger.debug("Got new tokens through PKCE")
         return self.tokens
