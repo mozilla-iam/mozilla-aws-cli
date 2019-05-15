@@ -47,7 +47,7 @@ class StsCredentials:
 
         for key in ENV_VARIABLE_NAME_MAP:
             result += "{} {}={}\n".format(verb, ENV_VARIABLE_NAME_MAP[key], self.__dict__[key])
-        return result
+        return result[:-1]
 
     def refresh_credentials(self, laytime=120):
         """

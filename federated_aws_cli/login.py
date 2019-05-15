@@ -3,10 +3,13 @@ import base64
 import hashlib
 import json
 import os
+import platform
 import requests
 import requests_cache
 import webbrowser
 import logging
+import time
+from dateutil import parser
 from datetime import datetime
 
 try:
@@ -61,8 +64,13 @@ class PkceLogin:
         return self.base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
 
     def as_env_variables(self):
-        print("ID_TOKEN={}".format(self.tokens["id_token"]))
-        print("ID_TOKEN_EXPIRES_IN={}".format(self.tokens["expires_in"]))
+        """
+        :return: str of environment
+        """
+        verb = "set" if platform.system() == "Windows" else "export"
+        data = "{} ID_TOKEN={}\n".format(verb, self.tokens["id_token"])
+        data += '{} ID_TOKEN_EXPIRES_AT="{}"'.format(verb, self.tokens["expires_at"])
+        return data
 
     def refresh_id_token(self, laytime=120):
         """
@@ -70,9 +78,16 @@ class PkceLogin:
         :laytime: int: How many seconds of laytime between requests to get new credentials, when approaching the
         expiration window
         """
+        self.__deferred_init__()
         if self.tokens is None:
-            logger.debug("We have no id_token, getting a new one")
-            return self.get_wait_for_id_token()
+            tmp_token = os.environ.get("ID_TOKEN")
+            tmp_exp = os.environ.get("ID_TOKEN_EXPIRES_AT")
+            if tmp_token is not None and tmp_exp is not None:
+                self.tokens = {"id_token": tmp_token, "expires_at": tmp_exp}
+                logger.debug("Loaded existing id_token from the environment")
+            else:
+                logger.debug("We have no id_token, getting a new one")
+                return self.get_wait_for_id_token()
 
         # Instruct we base ourselves on UTC
         os.environ["TZ"] = "UTC"
@@ -81,7 +96,7 @@ class PkceLogin:
         except NameError:
             # P2
             now = datetime.now()
-        exp = datetime.fromtimestamp(self.tokens["expires_in"])
+        exp = parser.parse(self.tokens["expires_at"])
         diff = exp - now
         # Make this a timestamp
         ts = diff.total_seconds()
@@ -90,7 +105,7 @@ class PkceLogin:
             logger.debug("id_token is about to expire, getting new one")
             return self.get_wait_for_id_token()
 
-        logger.debug("id_token is still valid: {}".format(self.tokens["expires_in"]))
+        logger.debug("id_token is still valid: {}".format(self.tokens["expires_at"]))
 
     def get_wait_for_id_token(self):
         """
@@ -100,7 +115,8 @@ class PkceLogin:
         localhost listener, making the OIDC code available to the CLI. CLI then
         exchanges the code for an tokens with the IdP and returns the tokens
 
-        :return: id token dict containing  {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'token_type': 'Bearer'}
+        :return: id token dict containing  {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'expires_at':
+        'date', 'token_type': 'Bearer'}
         """
         self.__deferred_init__()
         url_parameters = {
@@ -154,5 +170,9 @@ class PkceLogin:
         # Contains:
         # {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'token_type': 'Bearer'}
         self.tokens = data
-        logger.debug("Got new tokens through PKCE")
+        # We need to compute that as OIDC gives us a delta, not an absolute time
+        # We store this in `expires_at`
+        now = time.time()
+        self.tokens["expires_at"] = datetime.fromtimestamp(now + int(data["expires_in"])) + "+00:00"
+        logger.debug("Got new tokens through PKCE, these expire at: {}".format(self.tokens["expires_at"]))
         return self.tokens
