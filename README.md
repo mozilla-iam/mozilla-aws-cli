@@ -79,8 +79,9 @@ building the federated-aws-cli
     `id_token` length of 800 characters triggers this error.
 * Currently, when a user logs into Auth0 for the first time and performs a Duo
   MFA authentication, Auth0 overwrites the `amr` assertion that we create with
-  a new list containing a single element `["mfa"]`. We've opened a bug with
-  Auth0 in hopes that they will change to *appending* to the `amr` assertion.
+  a new list containing a single element `["mfa"]`. We've 
+  [opened a bug with Auth0](https://support.auth0.com/tickets/00427989) in hopes
+  that they will change to *appending* to the `amr` assertion.
   * If they make this change, the `amr` assertion would, in that case, contain
     the list of groups *and* what would appear like a group called `mfa`. We
     would need to do some checks to ensure that nobody starts using a real group
