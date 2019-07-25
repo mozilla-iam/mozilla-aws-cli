@@ -5,12 +5,10 @@ python:
   - '3.6'
   - '2.7'
 
-# Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-install: pip install -U tox-travis
-
 jobs:
   include:
     - stage: cli
+      install: pip install -U tox-travis
       script: tox
       # Assuming you have installed the travis-ci CLI tool, after you
       # create the Github repo and add it to Travis, run the
@@ -27,6 +25,7 @@ jobs:
           repo: mozilla-iam/federated_aws_cli
           python: 3.6
     - stage: lambda
+      install: pip install -U tox-travis
       python: '3.6'
       before_script: cd cloudformation/functions
       script: tox
