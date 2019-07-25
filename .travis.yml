@@ -8,20 +8,26 @@ python:
 # Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
 install: pip install -U tox-travis
 
-# Command to run tests, e.g. python setup.py test
-script: tox
+jobs:
+  include:
+    - stage: cli
+      script: tox
+      # Assuming you have installed the travis-ci CLI tool, after you
+      # create the Github repo and add it to Travis, run the
+      # following command to finish PyPI deployment setup:
+      # $ travis encrypt --add deploy.password
+      deploy:
+        provider: pypi
+        distributions: sdist bdist_wheel
+        user: mozilla-infosec
+        password:
+          secure: PLEASE_REPLACE_ME
+        on:
+          tags: true
+          repo: mozilla-iam/federated_aws_cli
+          python: 3.6
+    - stage: lambda
+      python: '3.6'
+      before_script: cd cloudformation/functions
+      script: tox
 
-# Assuming you have installed the travis-ci CLI tool, after you
-# create the Github repo and add it to Travis, run the
-# following command to finish PyPI deployment setup:
-# $ travis encrypt --add deploy.password
-deploy:
-  provider: pypi
-  distributions: sdist bdist_wheel
-  user: mozilla-infosec
-  password:
-    secure: PLEASE_REPLACE_ME
-  on:
-    tags: true
-    repo: mozilla-iam/federated_aws_cli
-    python: 3.6
