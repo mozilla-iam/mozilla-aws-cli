@@ -22,7 +22,6 @@ def get_paginated_results(
     :param dict action_args: Optional additional arguments to pass to action method
     :return: list of responses from all pages
     """
-
     action_args = {} if action_args is None else action_args
     credentials = {} if credentials is None else credentials
     return [
