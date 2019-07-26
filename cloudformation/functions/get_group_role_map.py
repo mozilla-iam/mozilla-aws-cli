@@ -10,7 +10,7 @@ def get_paginated_results(
     product: str,
     action: str,
     key: str,
-    credentials: SimpleDict = None,
+    client_args: SimpleDict = None,
     action_args: SimpleDict = None,
 ) -> list:
     """Paginate through AWS API responses, combining them into a list
@@ -18,18 +18,18 @@ def get_paginated_results(
     :param str product: AWS product name
     :param str action: AWS API action name
     :param str key: The parent key in the paginated response
-    :param dict credentials: Optional AWS API credentials
+    :param dict client_args: Optional AWS API credentials
     :param dict action_args: Optional additional arguments to pass to action
                              method
     :return: list of responses from all pages
     """
     action_args = {} if action_args is None else action_args
-    credentials = {} if credentials is None else credentials
+    client_args = {} if client_args is None else client_args
     return [
         response_element
         for sublist in [
             api_response[key]
-            for api_response in boto3.client(product, **credentials)
+            for api_response in boto3.client(product, **client_args)
             .get_paginator(action)
             .paginate(**action_args)
         ]
