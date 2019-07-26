@@ -19,7 +19,8 @@ def get_paginated_results(
     :param str action: AWS API action name
     :param str key: The parent key in the paginated response
     :param dict credentials: Optional AWS API credentials
-    :param dict action_args: Optional additional arguments to pass to action method
+    :param dict action_args: Optional additional arguments to pass to action
+                             method
     :return: list of responses from all pages
     """
     action_args = {} if action_args is None else action_args
@@ -66,7 +67,7 @@ def get_federated_groups_for_policy(policy_document: Dict) -> List[str]:
 
 
 def get_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
-    """Build map of IAM roles to the OIDC claimed groups relevant in those roles' assumption policies.
+    """Build map of IAM roles to OIDC groups used in assumption policies.
 
     Given a list of IAM Role ARNs to assume, iterate over those roles,
     assuming each of them. Acting as each of these assumed roles, query for all
@@ -94,17 +95,25 @@ def get_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
         aws_account_id = assumed_role_arn.split(':')[4]
         client_sts = boto3.client('sts')
         response = client_sts.assume_role(
-            RoleArn=assumed_role_arn, RoleSessionName='Federated-Login-Policy-Collector'
+            RoleArn=assumed_role_arn,
+            RoleSessionName='Federated-Login-Policy-Collector',
         )
         assumed_role_credentials[aws_account_id] = {
             'aws_access_key_id': response['Credentials']['AccessKeyId'],
-            'aws_secret_access_key': response['Credentials']['SecretAccessKey'],
+            'aws_secret_access_key': response['Credentials'][
+                'SecretAccessKey'
+            ],
             'aws_session_token': response['Credentials']['SessionToken'],
         }
         roles = get_paginated_results(
-            'iam', 'list_roles', 'Roles', assumed_role_credentials[aws_account_id]
+            'iam',
+            'list_roles',
+            'Roles',
+            assumed_role_credentials[aws_account_id],
         )
         for role in roles:
-            groups = get_federated_groups_for_policy(role['AssumeRolePolicyDocument'])
+            groups = get_federated_groups_for_policy(
+                role['AssumeRolePolicyDocument']
+            )
             role_group_map[role['Arn']] = groups
     return flip_map(role_group_map)

@@ -25,3 +25,11 @@ deploy:
     tags: true
     repo: mozilla-iam/federated_aws_cli
     python: 3.6
+
+jobs:
+  include:
+    - stage: lambda
+      language: python
+      python: '3.6'
+      before_script: cd cloudformation/functions
+      script: tox
