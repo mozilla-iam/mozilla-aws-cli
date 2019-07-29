@@ -46,7 +46,7 @@ class PkceLogin:
         self.port = port if port is not None else listener.get_available_port()
         self.redirect_uri = "http://localhost:{}/redirect_uri".format(self.port)
 
-    def __deferred_init__(self):
+    def _deferred_init__(self):
         self.openid_configuration = requests.get(self.well_known_url).json()
         self.jwks = requests.get(self.openid_configuration["jwks_uri"]).json()
         self.authorization_endpoint = self.openid_configuration["authorization_endpoint"]
@@ -78,7 +78,7 @@ class PkceLogin:
         :laytime: int: How many seconds of laytime between requests to get new credentials, when approaching the
         expiration window
         """
-        self.__deferred_init__()
+        self._deferred_init__()
         if self.tokens is None:
             tmp_token = os.environ.get("ID_TOKEN")
             tmp_exp = os.environ.get("ID_TOKEN_EXPIRES_AT")
@@ -118,7 +118,7 @@ class PkceLogin:
         :return: id token dict containing  {'access_token': '...', 'id_token': '...', 'expires_in': 86400, 'expires_at':
         'date', 'token_type': 'Bearer'}
         """
-        self.__deferred_init__()
+        self._deferred_init__()
         url_parameters = {
             "scope": self.scope,
             "response_type": "code",
