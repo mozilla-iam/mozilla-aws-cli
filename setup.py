@@ -16,7 +16,7 @@ requirements = [
     "PyYAML==5.1",
     "python-dateutil",
     "requests-cache==0.5.0",
-    "xdg==4.0.0",
+    "pyxdg==0.26",
 ]
 setup_requirements = ["pytest-runner"]
 test_requirements = ["pytest", "pytest-cov"]

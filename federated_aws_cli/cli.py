@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 import click
 import logging
-from xdg import XDG_CACHE_HOME
+from xdg.BaseDirectory import xdg_cache_home as XDG_CACHE_HOME
 from jose import jwt  # This is optional so we can probably remove it and the code that uses it
 from federated_aws_cli.config import parse_config
 from federated_aws_cli.login import PkceLogin

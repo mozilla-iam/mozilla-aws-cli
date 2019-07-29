@@ -23,7 +23,7 @@ try:
 except ImportError:
     # P2 Compat
     from urllib import urlencode
-from xdg import XDG_CACHE_HOME
+from xdg.BaseDirectory import xdg_cache_home as XDG_CACHE_HOME
 from federated_aws_cli import listener
 
 logging.basicConfig()
