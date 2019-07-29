@@ -96,8 +96,7 @@ class PkceLogin:
         except NameError:
             # P2
             now = datetime.now()
-        exp = parser.parse(self.tokens["expires_at"])
-        diff = exp - now
+        diff = parser.parse(self.tokens["expires_at"]) - now
         # Make this a timestamp
         ts = diff.total_seconds()
 
