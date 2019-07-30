@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import collections
 import boto3
 
@@ -10,8 +10,8 @@ def get_paginated_results(
     product: str,
     action: str,
     key: str,
-    client_args: SimpleDict = None,
-    action_args: SimpleDict = None,
+    client_args: Optional[SimpleDict] = None,
+    action_args: Optional[SimpleDict] = None,
 ) -> list:
     """Paginate through AWS API responses, combining them into a list
 
