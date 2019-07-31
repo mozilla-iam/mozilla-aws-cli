@@ -4,7 +4,16 @@ from json import loads
 from json.decoder import JSONDecodeError
 
 
+INVALID_OPERATORS = (
+    "StringNotEquals", "ForAnyValue:StringNotEquals",
+    "StringNotLike", "ForAnyValue:StringNotLike"
+)
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
+VALID_OPERATORS = (
+    "StringEquals", "ForAnyValue:StringEquals",
+    "StringLike", "ForAnyValue:StringLike",
+)
+
 VALID_AMRS = (
     "auth-dev.mozilla.auth0.com/:amr",
     "auth.mozilla.auth0.com/:amr",
@@ -47,10 +56,26 @@ def get_groups_from_policy(policy) -> list:
                 VALID_FEDERATED_PRINCIPAL_KEYS):
             continue
 
+        operator_count = 0
+        for operator in statement.get("Condition", {}).keys():
+            # StringNotLike, etc. are not supported
+            if operator in INVALID_OPERATORS:
+                return []
+            # Is a valid operator and contains a valid :amr entry
+            elif (operator in VALID_OPERATORS and
+                    any(amr in VALID_AMRS for amr in
+                        statement["Condition"][operator].keys())):
+                operator_count += 1
+
+        # Multiple operators are not supported
+        if operator_count != 1:
+            return []
+
         # For clarity:
         # operator --> StringEquals, ForAnyValue:StringLike
         # conditions --> dictionary mapping, e.g. StringEquals: {}
         # condition: auth-dev.mozilla.auth0.com/:amr
+        operator_count = 0
         for operator, conditions in statement.get("Condition", {}).items():
             for condition in conditions:
                 if condition in VALID_AMRS:
