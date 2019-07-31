@@ -1,5 +1,5 @@
 from typing import List
-from .get_group_role_map import get_paginated_results
+from .build_group_role_map import get_paginated_results
 
 # AWS Account : infosec-prod
 TABLE_CATEGORY = 'AWS Security Auditing Service'

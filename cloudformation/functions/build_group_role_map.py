@@ -66,7 +66,7 @@ def get_federated_groups_for_policy(policy_document: Dict) -> List[str]:
     return []
 
 
-def get_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
+def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
     """Build map of IAM roles to OIDC groups used in assumption policies.
 
     Given a list of IAM Role ARNs to assume, iterate over those roles,

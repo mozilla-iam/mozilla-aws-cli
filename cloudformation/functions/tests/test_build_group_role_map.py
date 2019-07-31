@@ -1,6 +1,6 @@
 import boto3
 from moto import mock_iam, mock_sts
-from ..get_group_role_map import get_group_role_map
+from ..build_group_role_map import build_group_role_map
 
 
 @mock_iam
@@ -52,7 +52,7 @@ def test_get_role_group_map():
         AssumeRolePolicyDocument=assume_role_policy_document_with_conditions,
         Description='Test role with federated conditions',
     )
-    groups = get_group_role_map([role_to_assume_arn])
+    groups = build_group_role_map([role_to_assume_arn])
 
     assert len(groups) == 0
 
