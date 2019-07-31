@@ -53,7 +53,7 @@ def get_groups_from_policy(policy) -> list:
         # condition: auth-dev.mozilla.auth0.com/:amr
         for operator, conditions in statement.get("Condition", {}).items():
             for condition in conditions:
-                if condition.endswith(":amr") and condition in VALID_AMRS:
+                if condition in VALID_AMRS:
                     groups = conditions[condition]
                     groups = [groups] if isinstance(groups, basestring) \
                         else groups
