@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Returns": [],
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::1337:oidc-provider/auth-dev.mozilla.auth0.com/"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "auth-dev.mozilla.auth0.com/:aud": "xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"
+        },
+        "ForAnyValue:StringLike": {
+          "auth-dev.mozilla.auth0.com/:amr": "one_group"
+        }
+      }
+    }
+  ]
+}
