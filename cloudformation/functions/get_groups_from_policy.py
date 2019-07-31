@@ -5,6 +5,10 @@ from json.decoder import JSONDecodeError
 
 
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
+VALID_AMRS = (
+    "auth-dev.mozilla.auth0.com/:amr",
+    "auth.mozilla.auth0.com/:amr",
+)
 VALID_FEDERATED_PRINCIPAL_KEYS = (
     "arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/",
     "arn:aws:iam::371522382791:oidc-provider/auth.mozilla.auth0.com/",
@@ -49,7 +53,7 @@ def get_groups_from_policy(policy) -> list:
         # condition: auth-dev.mozilla.auth0.com/:amr
         for operator, conditions in statement.get("Condition", {}).items():
             for condition in conditions:
-                if condition.endswith(":amr"):
+                if condition.endswith(":amr") and condition in VALID_AMRS:
                     groups = conditions[condition]
                     groups = [groups] if isinstance(groups, basestring) \
                         else groups
