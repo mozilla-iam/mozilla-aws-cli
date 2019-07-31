@@ -1,10 +1,8 @@
-import logging
 import sys
 
 from json import loads
 from json.decoder import JSONDecodeError
 
-logger = logging.getLogger(__name__)
 
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
 VALID_FEDERATED_PRINCIPAL_KEYS = (
@@ -16,10 +14,6 @@ VALID_FEDERATED_PRINCIPAL_KEYS = (
 # Python 2 compatibility
 if sys.version_info > (3, 0):
     basestring = str
-
-
-def __get_groups():
-    pass
 
 
 def get_groups_from_policy(policy) -> list:
