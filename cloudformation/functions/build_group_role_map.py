@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import collections
 import boto3
 
@@ -10,8 +10,8 @@ def get_paginated_results(
     product: str,
     action: str,
     key: str,
-    client_args: SimpleDict = None,
-    action_args: SimpleDict = None,
+    client_args: Optional[SimpleDict] = None,
+    action_args: Optional[SimpleDict] = None,
 ) -> list:
     """Paginate through AWS API responses, combining them into a list
 
@@ -37,8 +37,8 @@ def get_paginated_results(
     ]
 
 
-def flip_map(arn_group_map: DictOfLists) -> DictOfLists:
-    """Flip the map of ARN to group list to group to ARN list
+def flip_map(dict_of_lists: DictOfLists) -> DictOfLists:
+    """Flip a map of keys to lists to a map of list elements to lists of keys
 
     Flips an input like
 
@@ -51,12 +51,12 @@ def flip_map(arn_group_map: DictOfLists) -> DictOfLists:
      'team_bar': ['arn:aws:iam::123...', 'arn:aws:iam::456...'],
      'team_baz': ['arn:aws:iam::456...']}
 
-    :param dict arn_group_map: ARN to group list map
-    :return: Group to ARN list map
+    :param dict dict_of_lists: dictionary of lists
+    :return: The flipped map
     """
     group_arn_map = collections.defaultdict(list)
-    for arn in arn_group_map:
-        for group in arn_group_map[arn]:
+    for arn in dict_of_lists:
+        for group in dict_of_lists[arn]:
             group_arn_map[group].append(arn)
     return group_arn_map
 
@@ -66,7 +66,7 @@ def get_federated_groups_for_policy(policy_document: Dict) -> List[str]:
     return []
 
 
-def get_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
+def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
     """Build map of IAM roles to OIDC groups used in assumption policies.
 
     Given a list of IAM Role ARNs to assume, iterate over those roles,
