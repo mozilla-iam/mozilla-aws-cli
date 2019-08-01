@@ -1,16 +1,10 @@
+import builtins
 import json
 import os
 import os.path
-import sys
 from cloudformation.functions.get_groups_from_policy import (
     get_groups_from_policy
 )
-
-# P2 / P3 compatibility
-if sys.version_info > (3, 0):
-    import builtins
-else:
-    import __builtins__ as builtins
 
 
 # Open every policy in the policies directory

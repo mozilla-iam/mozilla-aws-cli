@@ -1,5 +1,3 @@
-import sys
-
 from json import loads
 from json.decoder import JSONDecodeError
 
@@ -24,11 +22,6 @@ VALID_FEDERATED_PRINCIPAL_KEYS = (
 )
 
 
-# Python 2 compatibility
-if sys.version_info > (3, 0):
-    basestring = str
-
-
 def get_groups_from_policy(policy) -> list:
     # groups will be stored as a set to prevent duplicates and then return
     # a list when everything is finished
@@ -36,7 +29,7 @@ def get_groups_from_policy(policy) -> list:
 
     # be flexible on being passed a dictionary (parsed policy) or a string
     # (unparsed policy)
-    if isinstance(policy, basestring):
+    if isinstance(policy, str):
         try:
             policy = loads(policy)
         except JSONDecodeError:
@@ -80,7 +73,7 @@ def get_groups_from_policy(policy) -> list:
             for condition in conditions:
                 if condition in VALID_AMRS:
                     groups = conditions[condition]
-                    groups = [groups] if isinstance(groups, basestring) \
+                    groups = [groups] if isinstance(groups, str) \
                         else groups
 
                     # Only the StringLike operator allows globbing or ?
