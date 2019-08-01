@@ -89,7 +89,7 @@ def get_groups_from_policy(policy) -> list:
                     if (operator in UNGLOBBABLE_OPERATORS and
                         any([
                             ["*" in group for group in groups],
-                            [":" in group for group in groups]
+                            ["?" in group for group in groups]
                             ])):
                         raise ValueError
 
