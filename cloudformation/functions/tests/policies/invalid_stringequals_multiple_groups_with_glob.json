@@ -1,6 +1,6 @@
 {
   "Version": "2012-10-17",
-  "Exception": "ValueError",
+  "Exception": "InvalidPolicyError",
   "Statement": [
     {
       "Effect": "Allow",

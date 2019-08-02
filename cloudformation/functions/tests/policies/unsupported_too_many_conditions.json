@@ -1,6 +1,6 @@
 {
   "Version": "2012-10-17",
-  "Exception": "ValueError",
+  "Exception": "UnsupportedPolicyError",
   "Statement": [
     {
       "Effect": "Allow",
@@ -10,10 +10,10 @@
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "auth-dev.mozilla.auth0.com/:aud": "xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"
+          "auth-dev.mozilla.auth0.com/:amr": "one_group"
         },
-        "ForAnyValue:StringEquals": {
-          "auth-dev.mozilla.auth0.com/:amr": "one_group*"
+        "ForAnyValue:StringLike": {
+          "auth-dev.mozilla.auth0.com/:amr": "two_groups*"
         }
       }
     }

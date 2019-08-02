@@ -2,11 +2,11 @@ from json import loads
 from json.decoder import JSONDecodeError
 
 
-INVALID_OPERATORS = (
+UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
+UNSUPPORTED_OPERATORS = (
     "StringNotEquals", "ForAnyValue:StringNotEquals",
     "StringNotLike", "ForAnyValue:StringNotLike"
 )
-UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
 VALID_OPERATORS = (
     "StringEquals", "ForAnyValue:StringEquals",
     "StringLike", "ForAnyValue:StringLike",
@@ -22,6 +22,14 @@ VALID_FEDERATED_PRINCIPAL_KEYS = (
 )
 
 
+class InvalidPolicyError(Exception):
+    pass
+
+
+class UnsupportedPolicyError(Exception):
+    pass
+
+
 def get_groups_from_policy(policy) -> list:
     # groups will be stored as a set to prevent duplicates and then return
     # a list when everything is finished
@@ -33,10 +41,10 @@ def get_groups_from_policy(policy) -> list:
         try:
             policy = loads(policy)
         except JSONDecodeError:
-            return []
+            raise InvalidPolicyError
 
     if not isinstance(policy, dict):
-        raise ValueError
+        raise InvalidPolicyError
 
     # If policy lacks a statement, we can bail out
     if 'Statement' not in policy:
@@ -52,8 +60,8 @@ def get_groups_from_policy(policy) -> list:
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():
             # StringNotLike, etc. are not supported
-            if operator in INVALID_OPERATORS:
-                return []
+            if operator in UNSUPPORTED_OPERATORS:
+                raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
             elif (operator in VALID_OPERATORS and
                     any(amr in VALID_AMRS for amr in
@@ -61,8 +69,8 @@ def get_groups_from_policy(policy) -> list:
                 operator_count += 1
 
         # Multiple operators are not supported
-        if operator_count != 1:
-            return []
+        if operator_count > 1:
+            raise UnsupportedPolicyError
 
         # For clarity:
         # operator --> StringEquals, ForAnyValue:StringLike
@@ -84,7 +92,7 @@ def get_groups_from_policy(policy) -> list:
                             ["*" in group for group in groups],
                             ["?" in group for group in groups]
                             ])):
-                        raise ValueError
+                        raise InvalidPolicyError
 
                     policy_groups.update(groups)
 
