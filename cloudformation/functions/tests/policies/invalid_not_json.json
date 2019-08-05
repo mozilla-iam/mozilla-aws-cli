@@ -1,0 +1,7 @@
+{
+  "Version": "2012-10-17",
+  "Returns": [],
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {

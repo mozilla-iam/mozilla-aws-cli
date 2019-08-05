@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Exception": "InvalidPolicyError",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "auth-dev.mozilla.auth0.com/:aud": "xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"
+        },
+        "ForAnyValue:StringEquals": {
+          "auth-dev.mozilla.auth0.com/:amr": ["one_group", "two_groups*", "three_groups"]
+        }
+      }
+    }
+  ]
+}
