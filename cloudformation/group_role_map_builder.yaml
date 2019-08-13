@@ -115,3 +115,11 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt GroupRoleMapBuilderScheduledRule.Arn
+  GroupRoleMapBuilderFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      # Let's hope that the Lambda function doesn't execute before this LogGroup
+      # resource is created, creating the LogGroup with no expiration and
+      # preventing this resource from creating
+      LogGroupName: !Join [ '/', ['/aws/lambda', !Ref 'GroupRoleMapBuilderFunction' ] ]
+      RetentionInDays: 14
