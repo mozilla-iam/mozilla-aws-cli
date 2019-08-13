@@ -1,7 +1,7 @@
 import boto3
 from moto import mock_dynamodb2
-from ..get_security_audit_role_arns import get_security_audit_role_arns
-from ..get_security_audit_role_arns import (
+from ..group_role_map_builder import get_security_audit_role_arns
+from ..group_role_map_builder import (
     TABLE_CATEGORY,
     TABLE_INDEX_NAME,
     TABLE_ATTRIBUTE_NAME,
