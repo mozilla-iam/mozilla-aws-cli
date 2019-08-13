@@ -12,7 +12,6 @@ Parameters:
   S3BucketName:
     Type: String
     Description: The S3 bucket to store the group role map file in
-    Default: mozilla-infosec-auth0-rule-assets
   S3FilePath:
     Type: String
     Description: The path to the group role map file
@@ -98,7 +97,9 @@ Resources:
           Value: group-role-map-builder
         - Key: stack
           Value: !Ref AWS::StackName
-      Timeout: 20
+        - Key: source
+          Value: https://github.com/mozilla-iam/federated-aws-cli/tree/master/cloudformation
+      Timeout: 900
   GroupRoleMapBuilderScheduledRule:
     Type: AWS::Events::Rule
     Properties:
@@ -107,7 +108,7 @@ Resources:
       State: "ENABLED"
       Targets:
         - Arn: !GetAtt GroupRoleMapBuilderFunction.Arn
-          Id: "InvitationManager"
+          Id: "GroupRoleMapBuilder"
   PermissionForEventsToInvokeLambda:
     Type: AWS::Lambda::Permission
     Properties:
@@ -116,3 +117,11 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt GroupRoleMapBuilderScheduledRule.Arn
+  GroupRoleMapBuilderFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      # Let's hope that the Lambda function doesn't execute before this LogGroup
+      # resource is created, creating the LogGroup with no expiration and
+      # preventing this resource from creating
+      LogGroupName: !Join [ '/', ['/aws/lambda', !Ref 'GroupRoleMapBuilderFunction' ] ]
+      RetentionInDays: 14

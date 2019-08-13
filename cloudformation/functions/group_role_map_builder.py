@@ -9,6 +9,9 @@ import boto3
 
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
+logging.getLogger('boto3').propagate = False
+logging.getLogger('botocore').propagate = False
+logging.getLogger('urllib3').propagate = False
 
 # AWS Account : infosec-prod
 TABLE_CATEGORY = os.getenv('TABLE_CATEGORY', 'AWS Security Auditing Service')
@@ -18,9 +21,7 @@ TABLE_ATTRIBUTE_NAME = os.getenv(
 )
 TABLE_NAME = os.getenv('TABLE_NAME', 'cloudformation-stack-emissions')
 TABLE_REGION = os.getenv('TABLE_REGION', 'us-west-2')
-S3_BUCKET_NAME = os.getenv(
-    'S3_BUCKET_NAME', 'mozilla-infosec-auth0-rule-assets'
-)
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 S3_FILE_PATH = os.getenv('S3_FILE_PATH', 'access-group-iam-role-map.json')
 VALID_AMRS = os.getenv(
     'VALID_AMRS', 'auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr'
@@ -311,6 +312,7 @@ def store_group_arn_map(new_group_arn_map: DictOfLists) -> bool:
                                    roles
     :return: True if the new map differs from the one stored, otherwise False
     """
+    assert S3_BUCKET_NAME is not None
     existing_group_arn_map = get_group_role_map(new_group_arn_map)
     if existing_group_arn_map is False:
         # The new_map is the same as the existing_map
@@ -383,6 +385,7 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
     role_group_map = {}
     for assumed_role_arn in assumed_role_arns:
         aws_account_id = assumed_role_arn.split(':')[4]
+        logger.debug('Fetching policies from {}'.format(aws_account_id))
         client_sts = boto3.client('sts')
         limiting_policy = {
             'Version': '2012-10-17',
@@ -390,11 +393,18 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
                 {'Effect': 'Allow', 'Action': 'iam:ListRoles', 'Resource': '*'}
             ],
         }
-        response = client_sts.assume_role(
-            RoleArn=assumed_role_arn,
-            RoleSessionName='Federated-Login-Policy-Collector',
-            Policy=json.dumps(limiting_policy),
-        )
+        try:
+            response = client_sts.assume_role(
+                RoleArn=assumed_role_arn,
+                RoleSessionName='Federated-Login-Policy-Collector',
+                Policy=json.dumps(limiting_policy),
+            )
+        except client_sts.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'AccessDenied':
+                logger.error(
+                    'AWS Account {} IAM role {} is not assumable : {}'.format(
+                        aws_account_id, assumed_role_arn, e))
+            continue
         assumed_role_credentials[aws_account_id] = {
             'aws_access_key_id': response['Credentials']['AccessKeyId'],
             'aws_secret_access_key': response['Credentials'][
@@ -450,11 +460,8 @@ def lambda_handler(event, context):
         )
     )
     group_role_map = build_group_role_map(security_audit_role_arns)
-    logger.debug(
-        'Role map built : {}'.format(serialize_group_role_map(group_role_map))
-    )
     map_changed = store_group_arn_map(group_role_map)
     if map_changed:
-        logger.info('Group role map in S3 updated')
+        logger.info('Group role map in S3 updated : {}'.format(group_role_map))
 
     return group_role_map
