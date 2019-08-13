@@ -385,6 +385,7 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
     role_group_map = {}
     for assumed_role_arn in assumed_role_arns:
         aws_account_id = assumed_role_arn.split(':')[4]
+        logger.debug('Fetching policies from {}'.format(aws_account_id))
         client_sts = boto3.client('sts')
         limiting_policy = {
             'Version': '2012-10-17',
@@ -392,11 +393,18 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
                 {'Effect': 'Allow', 'Action': 'iam:ListRoles', 'Resource': '*'}
             ],
         }
-        response = client_sts.assume_role(
-            RoleArn=assumed_role_arn,
-            RoleSessionName='Federated-Login-Policy-Collector',
-            Policy=json.dumps(limiting_policy),
-        )
+        try:
+            response = client_sts.assume_role(
+                RoleArn=assumed_role_arn,
+                RoleSessionName='Federated-Login-Policy-Collector',
+                Policy=json.dumps(limiting_policy),
+            )
+        except client_sts.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'AccessDenied':
+                logger.error(
+                    'AWS Account {} IAM role {} is not assumable : {}'.format(
+                        aws_account_id, assumed_role_arn, e))
+            continue
         assumed_role_credentials[aws_account_id] = {
             'aws_access_key_id': response['Credentials']['AccessKeyId'],
             'aws_secret_access_key': response['Credentials'][
