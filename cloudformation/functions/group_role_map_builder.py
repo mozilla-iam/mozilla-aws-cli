@@ -18,9 +18,7 @@ TABLE_ATTRIBUTE_NAME = os.getenv(
 )
 TABLE_NAME = os.getenv('TABLE_NAME', 'cloudformation-stack-emissions')
 TABLE_REGION = os.getenv('TABLE_REGION', 'us-west-2')
-S3_BUCKET_NAME = os.getenv(
-    'S3_BUCKET_NAME', 'mozilla-infosec-auth0-rule-assets'
-)
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 S3_FILE_PATH = os.getenv('S3_FILE_PATH', 'access-group-iam-role-map.json')
 VALID_AMRS = os.getenv(
     'VALID_AMRS', 'auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr'
@@ -311,6 +309,7 @@ def store_group_arn_map(new_group_arn_map: DictOfLists) -> bool:
                                    roles
     :return: True if the new map differs from the one stored, otherwise False
     """
+    assert S3_BUCKET_NAME is not None
     existing_group_arn_map = get_group_role_map(new_group_arn_map)
     if existing_group_arn_map is False:
         # The new_map is the same as the existing_map

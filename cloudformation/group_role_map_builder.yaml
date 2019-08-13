@@ -12,7 +12,6 @@ Parameters:
   S3BucketName:
     Type: String
     Description: The S3 bucket to store the group role map file in
-    Default: mozilla-infosec-auth0-rule-assets
   S3FilePath:
     Type: String
     Description: The path to the group role map file
