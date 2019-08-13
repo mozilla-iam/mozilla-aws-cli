@@ -1,5 +1,5 @@
 STACK_NAME		:= GroupRoleMapBuilder
-PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME	:= public.us-west-2.security.mozilla.org
+PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME	:= public.us-west-2.infosec.mozilla.org
 DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME	:= public.us-west-2.security.allizom.org
 LAMBDA_CODE_STORAGE_S3_PREFIX		:= group-role-map-builder
 PROD_ACCOUNT_ID	:= 371522382791
