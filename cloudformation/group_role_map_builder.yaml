@@ -106,7 +106,7 @@ Resources:
       State: "ENABLED"
       Targets:
         - Arn: !GetAtt GroupRoleMapBuilderFunction.Arn
-          Id: "InvitationManager"
+          Id: "GroupRoleMapBuilder"
   PermissionForEventsToInvokeLambda:
     Type: AWS::Lambda::Permission
     Properties:
