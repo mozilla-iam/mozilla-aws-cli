@@ -99,7 +99,7 @@ Resources:
           Value: !Ref AWS::StackName
         - Key: source
           Value: https://github.com/mozilla-iam/federated-aws-cli/tree/master/cloudformation
-      Timeout: 20
+      Timeout: 900
   GroupRoleMapBuilderScheduledRule:
     Type: AWS::Events::Rule
     Properties:
