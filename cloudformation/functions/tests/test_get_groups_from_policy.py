@@ -2,7 +2,7 @@ import builtins
 import os
 import os.path
 
-from cloudformation.functions.get_groups_from_policy import (  # noqa, called via globals()
+from ..group_role_map_builder import (  # noqa, called via globals()
     get_groups_from_policy,
     InvalidPolicyError,
     UnsupportedPolicyError

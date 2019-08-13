@@ -1,16 +1,16 @@
 from unittest.mock import patch
-from ..compare_group_arn_maps import (
+from ..group_role_map_builder import (
     store_group_arn_map,
     get_group_role_map,
     S3_BUCKET_NAME,
 )
-from .. import compare_group_arn_maps
+from .. import group_role_map_builder
 import boto3
 from moto import mock_s3
 
 # https://stackoverflow.com/a/23844656/168874
 @mock_s3
-@patch.object(compare_group_arn_maps, 'emit_event_to_mozdef')
+@patch.object(group_role_map_builder, 'emit_event_to_mozdef')
 def test_store_group_arn_map(emit_event_to_mozdef):
     client = boto3.client('s3')
     client.create_bucket(Bucket=S3_BUCKET_NAME)

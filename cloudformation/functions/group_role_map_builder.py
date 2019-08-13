@@ -1,0 +1,460 @@
+from typing import Dict, List, Optional, Iterable
+import collections
+import json
+from json.decoder import JSONDecodeError
+import hashlib
+import os
+import logging
+import boto3
+
+logger = logging.getLogger(__name__)
+logging.getLogger().setLevel(logging.INFO)
+
+# AWS Account : infosec-prod
+TABLE_CATEGORY = os.getenv('TABLE_CATEGORY', 'AWS Security Auditing Service')
+TABLE_INDEX_NAME = os.getenv('TABLE_INDEX_NAME', 'category')
+TABLE_ATTRIBUTE_NAME = os.getenv(
+    'TABLE_ATTRIBUTE_NAME', 'SecurityAuditIAMRoleArn'
+)
+TABLE_NAME = os.getenv('TABLE_NAME', 'cloudformation-stack-emissions')
+TABLE_REGION = os.getenv('TABLE_REGION', 'us-west-2')
+S3_BUCKET_NAME = os.getenv(
+    'S3_BUCKET_NAME', 'mozilla-infosec-auth0-rule-assets'
+)
+S3_FILE_PATH = os.getenv('S3_FILE_PATH', 'access-group-iam-role-map.json')
+VALID_AMRS = os.getenv(
+    'VALID_AMRS', 'auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr'
+).split(',')
+VALID_FEDERATED_PRINCIPAL_KEYS = os.getenv(
+    'VALID_FEDERATED_PRINCIPAL_KEYS',
+    'arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/'
+    ',arn:aws:iam::371522382791:oidc-provider/auth.mozilla.auth0.com/',
+).split(',')
+UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
+UNSUPPORTED_OPERATORS = (
+    "StringNotEquals",
+    "ForAnyValue:StringNotEquals",
+    "StringNotLike",
+    "ForAnyValue:StringNotLike",
+)
+VALID_OPERATORS = (
+    "StringEquals",
+    "ForAnyValue:StringEquals",
+    "StringLike",
+    "ForAnyValue:StringLike",
+)
+
+# via : https://tools.ietf.org/html/rfc4287#section-4.2.7.2
+S3_FILE_LINK_HEADER = os.getenv(
+    'S3_FILE_LINK_HEADER',
+    '<https://github.com/mozilla-iam/federated-aws-cli/tree/master/'
+    'cloudformation>; rel="via"',
+)
+
+SimpleDict = Dict[str, str]
+DictOfLists = Dict[str, list]
+
+
+class InvalidPolicyError(Exception):
+    pass
+
+
+class UnsupportedPolicyError(Exception):
+    pass
+
+
+class MozDefMessageStub:
+    """This is a placeholder stub class which goes away when we switch to
+    libmozdef"""
+
+    def __init__(
+        self,
+        summary,
+        source,
+        hostname='',
+        severity='INFO',
+        category='event',
+        processid=1,
+        processname='',
+        tags=None,
+        details=None,
+        timestamp=None,
+        utctimestamp=None,
+    ):
+        pass
+
+    def send(self, pathway=None, validator=None):
+        return True
+
+
+def get_paginated_results(
+    product: str,
+    action: str,
+    key: str,
+    client_args: Optional[SimpleDict] = None,
+    action_args: Optional[SimpleDict] = None,
+) -> list:
+    """Paginate through AWS API responses, combining them into a list
+
+    :param str product: AWS product name
+    :param str action: AWS API action name
+    :param str key: The parent key in the paginated response
+    :param dict client_args: Optional AWS API credentials
+    :param dict action_args: Optional additional arguments to pass to action
+                             method
+    :return: list of responses from all pages
+    """
+    action_args = {} if action_args is None else action_args
+    client_args = {} if client_args is None else client_args
+    return [
+        response_element
+        for sublist in [
+            api_response[key]
+            for api_response in boto3.client(product, **client_args)
+            .get_paginator(action)
+            .paginate(**action_args)
+        ]
+        for response_element in sublist
+    ]
+
+
+def flip_map(dict_of_lists: DictOfLists) -> DictOfLists:
+    """Flip a map of keys to lists to a map of list elements to lists of keys
+
+    Flips an input like
+
+    {'arn:aws:iam::123...': ['team_foo', 'team_bar'],
+     'arn:aws:iam::456...': ['team_baz', 'team_bar']}
+
+    and returns
+
+    {'team_foo': ['arn:aws:iam::123...'],
+     'team_bar': ['arn:aws:iam::123...', 'arn:aws:iam::456...'],
+     'team_baz': ['arn:aws:iam::456...']}
+
+    :param dict dict_of_lists: dictionary of lists
+    :return: The flipped map
+    """
+    group_arn_map = collections.defaultdict(list)
+    for arn in dict_of_lists:
+        for group in dict_of_lists[arn]:
+            group_arn_map[group].append(arn)
+    return group_arn_map
+
+
+def emit_event_to_mozdef(
+    new_groups: Iterable[str],
+    deleted_groups: Iterable[str],
+    new_roles: Iterable[str],
+    deleted_roles: Iterable[str],
+    changed_roles: Dict[str, Iterable[str]],
+):
+    """Build and emit an event to MozDef about changes to IAM roles
+
+    :param list new_groups: New OIDC claim groups present in role conditions
+    :param list deleted_groups: OIDC claim groups previously present in role
+                conditions
+    :param list new_roles: New IAM roles which use federated login
+    :param list deleted_roles: IAM roles using federated login which previously
+                               existed
+    :param list changed_roles: IAM roles using federated login that have
+                               changed conditions
+    :return:
+    """
+    accounts_affected = set(
+        map(
+            lambda x: x.split(':')[4],
+            set(new_roles) | set(deleted_roles) | set(changed_roles),
+        )
+    )
+    summary = (
+        'Changes detected with AWS IAM roles used for federated access in AWS '
+        'accounts {}'.format(', '.join(accounts_affected))
+    )
+    source = 'federated-aws'
+    category = 'aws-auth'
+    details = dict()
+    if new_groups:
+        details['new-groups'] = new_groups
+    if deleted_groups:
+        details['deleted-groups'] = deleted_groups
+    if new_roles:
+        details['new-roles'] = new_roles
+    if deleted_roles:
+        details['deleted-roles'] = deleted_roles
+    if changed_roles:
+        details['changed-roles'] = changed_roles
+    message = MozDefMessageStub(
+        summary=summary, source=source, category=category, details=details
+    )
+    message.send()
+    # TODO : Add call to libmozdef once it's published in pypi
+    # to emit an event to MozDef with this data
+
+
+def get_groups_from_policy(policy) -> list:
+    # groups will be stored as a set to prevent duplicates and then return
+    # a list when everything is finished
+    policy_groups = set()
+
+    # be flexible on being passed a dictionary (parsed policy) or a string
+    # (unparsed policy)
+    if isinstance(policy, str):
+        try:
+            policy = json.loads(policy)
+        except JSONDecodeError:
+            raise InvalidPolicyError
+
+    if not isinstance(policy, dict):
+        raise InvalidPolicyError
+
+    # If policy lacks a statement, we can bail out
+    if 'Statement' not in policy:
+        return []
+
+    for statement in policy["Statement"]:
+        if (
+            statement.get("Effect") != "Allow"
+            or statement.get("Action") != "sts:AssumeRoleWithWebIdentity"
+            or statement.get('Principal', {}).get('Federated')
+            not in VALID_FEDERATED_PRINCIPAL_KEYS
+        ):
+            continue
+
+        operator_count = 0
+        for operator in statement.get("Condition", {}).keys():
+            # StringNotLike, etc. are not supported
+            if operator in UNSUPPORTED_OPERATORS:
+                raise UnsupportedPolicyError
+            # Is a valid operator and contains a valid :amr entry
+            elif operator in VALID_OPERATORS and any(
+                amr in VALID_AMRS
+                for amr in statement["Condition"][operator].keys()
+            ):
+                operator_count += 1
+
+        # Multiple operators are not supported
+        if operator_count > 1:
+            raise UnsupportedPolicyError
+
+        # For clarity:
+        # operator --> StringEquals, ForAnyValue:StringLike
+        # conditions --> dictionary mapping, e.g. StringEquals: {}
+        # condition: auth-dev.mozilla.auth0.com/:amr
+        operator_count = 0
+        for operator, conditions in statement.get("Condition", {}).items():
+            for condition in conditions:
+                if condition in VALID_AMRS:
+                    groups = conditions[condition]
+                    groups = [groups] if isinstance(groups, str) else groups
+
+                    # Only the StringLike operator allows globbing or ?
+                    # Technically the * and ? values are legal in StringEquals,
+                    # but we don't allow them for clarity
+                    if operator in UNGLOBBABLE_OPERATORS and any(
+                        [
+                            ["*" in group for group in groups],
+                            ["?" in group for group in groups],
+                        ]
+                    ):
+                        raise InvalidPolicyError
+
+                    policy_groups.update(groups)
+
+    return list(policy_groups)
+
+
+def get_group_role_map(
+    new_group_arn_map: Optional[DictOfLists] = None
+) -> DictOfLists:
+    """Fetch the group role map from S3 unless it doesn't differ from the
+    current one
+
+    :param dict new_group_arn_map: A dictionary mapping groups to lists of
+                                   roles
+    :return: Parsed content of the group role map file (a dict of lists)
+    """
+    client = boto3.client('s3')
+    kwargs = {'Bucket': S3_BUCKET_NAME, 'Key': S3_FILE_PATH}
+    if new_group_arn_map is not None:
+        new_map_serialized = serialize_group_role_map(new_group_arn_map)
+        kwargs['IfNoneMatch'] = hashlib.md5(new_map_serialized).hexdigest()
+    try:
+        logger.debug('Fetching S3 file with args {}'.format(kwargs))
+        response = client.get_object(**kwargs)
+    except client.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == '304':
+            return new_group_arn_map
+        if e.response['Error']['Code'] == 'NoSuchKey':
+            return dict()
+        else:
+            raise
+    return json.load(response['Body'])
+
+
+def serialize_group_role_map(group_role_map: DictOfLists) -> str:
+    """Serialize a dictionary of lists in a consistent hashable format
+
+    :param dict group_role_map: A dictionary mapping groups to lists of roles
+    :return: A serialized JSON string
+    """
+    return json.dumps(group_role_map, sort_keys=True, indent=4).encode('utf-8')
+
+
+def store_group_arn_map(new_group_arn_map: DictOfLists) -> bool:
+    """Compare the new group ARN map with the existing map stored in S3
+
+    Store the new map and emit an event to MozDef if they differ. Return True
+    if there was a change and False if not.
+
+    :param dict new_group_arn_map: A dictionary mapping groups to lists of
+                                   roles
+    :return: True if the new map differs from the one stored, otherwise False
+    """
+    existing_group_arn_map = get_group_role_map(new_group_arn_map)
+    if existing_group_arn_map is False:
+        # The new_map is the same as the existing_map
+        return False
+    new_groups = set(new_group_arn_map) - set(existing_group_arn_map)
+    deleted_groups = set(existing_group_arn_map) - set(
+        new_group_arn_map.keys()
+    )
+    new_arn_group_map = flip_map(new_group_arn_map)
+    existing_arn_group_map = flip_map(existing_group_arn_map)
+    new_roles = set(new_arn_group_map) - set(existing_arn_group_map)
+    deleted_roles = set(existing_arn_group_map) - set(new_arn_group_map)
+    changed_roles = {}
+    for role, groups in new_arn_group_map.items():
+        if role in existing_arn_group_map:
+            if len(set(groups) ^ set(existing_arn_group_map[role])) > 0:
+                changed_roles[role] = {
+                    'new_groups': set(groups),
+                    'old_groups': set(existing_arn_group_map[role]),
+                }
+    if (
+        new_groups
+        or deleted_groups
+        or new_roles
+        or deleted_roles
+        or changed_roles
+    ):
+        emit_event_to_mozdef(
+            new_groups, deleted_groups, new_roles, deleted_roles, changed_roles
+        )
+        new_map_serialized = serialize_group_role_map(new_group_arn_map)
+        client = boto3.client('s3')
+        # Link : https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
+        client.put_object(
+            Body=new_map_serialized,
+            Bucket=S3_BUCKET_NAME,
+            ContentType='application/json',
+            Key=S3_FILE_PATH,
+            Metadata={'Link': S3_FILE_LINK_HEADER},
+        )
+        return True
+    else:
+        return False
+
+
+def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
+    """Build map of IAM roles to OIDC groups used in assumption policies.
+
+    Given a list of IAM Role ARNs to assume, iterate over those roles,
+    assuming each of them. Acting as each of these assumed roles, query for all
+    IAM roles in that AWS account, passing each role's AssumeRolePolicyDocument
+    to get_groups_from_policy to fetch a list of OIDC claim groups
+    in that policy document. Return a map that looks like
+
+    {
+        'team_bar': [
+            'arn:aws:iam::123456789012:role/role-for-anyone-but-team-bar',
+            'arn:aws:iam::123456789012:role/project-baz-role'
+        ],
+        'team_foo': [
+            'arn:aws:iam::123456789012:role/role-for-team-foo',
+            'arn:aws:iam::123456789012:role/project-baz-role'
+        ]
+    }
+
+    :param list assumed_role_arns: list of IAM role ARN strings
+    :return: map of IAM ARNs to related OIDC claimed group names
+    """
+    assumed_role_credentials = {}
+    role_group_map = {}
+    for assumed_role_arn in assumed_role_arns:
+        aws_account_id = assumed_role_arn.split(':')[4]
+        client_sts = boto3.client('sts')
+        limiting_policy = {
+            'Version': '2012-10-17',
+            'Statement': [
+                {'Effect': 'Allow', 'Action': 'iam:ListRoles', 'Resource': '*'}
+            ],
+        }
+        response = client_sts.assume_role(
+            RoleArn=assumed_role_arn,
+            RoleSessionName='Federated-Login-Policy-Collector',
+            Policy=json.dumps(limiting_policy),
+        )
+        assumed_role_credentials[aws_account_id] = {
+            'aws_access_key_id': response['Credentials']['AccessKeyId'],
+            'aws_secret_access_key': response['Credentials'][
+                'SecretAccessKey'
+            ],
+            'aws_session_token': response['Credentials']['SessionToken'],
+        }
+        roles = get_paginated_results(
+            'iam',
+            'list_roles',
+            'Roles',
+            assumed_role_credentials[aws_account_id],
+        )
+        for role in roles:
+            groups = get_groups_from_policy(role['AssumeRolePolicyDocument'])
+            role_group_map[role['Arn']] = groups
+    return flip_map(role_group_map)
+
+
+def get_security_audit_role_arns() -> List[str]:
+    """Fetch list ARNs of security auditing IAM Roles
+
+    :return: List of ARNs
+    """
+    action_args = {
+        'TableName': TABLE_NAME,
+        'IndexName': TABLE_INDEX_NAME,
+        'Select': 'SPECIFIC_ATTRIBUTES',
+        'ProjectionExpression': TABLE_ATTRIBUTE_NAME,
+        'KeyConditionExpression': '#c = :v',
+        'ExpressionAttributeNames': {'#c': TABLE_INDEX_NAME},
+        'ExpressionAttributeValues': {':v': {'S': TABLE_CATEGORY}},
+    }
+    items = get_paginated_results(
+        'dynamodb',
+        'query',
+        'Items',
+        {'region_name': TABLE_REGION},
+        action_args,
+    )
+    return [
+        x[TABLE_ATTRIBUTE_NAME]['S']
+        for x in items
+        if TABLE_ATTRIBUTE_NAME in x
+    ]
+
+
+def lambda_handler(event, context):
+    security_audit_role_arns = get_security_audit_role_arns()
+    logger.debug(
+        'IAM Role ARNs fetched from table : {}'.format(
+            security_audit_role_arns
+        )
+    )
+    group_role_map = build_group_role_map(security_audit_role_arns)
+    logger.debug(
+        'Role map built : {}'.format(serialize_group_role_map(group_role_map))
+    )
+    map_changed = store_group_arn_map(group_role_map)
+    if map_changed:
+        logger.info('Group role map in S3 updated')
+
+    return group_role_map
