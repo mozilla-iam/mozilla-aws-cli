@@ -454,6 +454,6 @@ def lambda_handler(event, context):
     )
     map_changed = store_group_arn_map(group_role_map)
     if map_changed:
-        logger.info('Group role map in S3 updated')
+        logger.info('Group role map in S3 updated : {}'.format(group_role_map))
 
     return group_role_map
