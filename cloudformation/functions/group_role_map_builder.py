@@ -9,6 +9,9 @@ import boto3
 
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
+logging.getLogger('boto3').propagate = False
+logging.getLogger('botocore').propagate = False
+logging.getLogger('urllib3').propagate = False
 
 # AWS Account : infosec-prod
 TABLE_CATEGORY = os.getenv('TABLE_CATEGORY', 'AWS Security Auditing Service')
@@ -449,9 +452,6 @@ def lambda_handler(event, context):
         )
     )
     group_role_map = build_group_role_map(security_audit_role_arns)
-    logger.debug(
-        'Role map built : {}'.format(serialize_group_role_map(group_role_map))
-    )
     map_changed = store_group_arn_map(group_role_map)
     if map_changed:
         logger.info('Group role map in S3 updated : {}'.format(group_role_map))
