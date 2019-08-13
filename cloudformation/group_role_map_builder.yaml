@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Lambda function which builds the OIDC claim group to role map file and uploads it to S3. Function is triggered hourly
+Parameters:
+  StackEmissionDynamoDBTableName:
+    Type: String
+    Description: The DynamoDB table name of the CloudFormation Stack Emission table containing the IAM Roles used to gather policies from various AWS accounts
+    Default: cloudformation-stack-emissions
+  StackEmissionDynamoDBTableRegion:
+    Type: String
+    Description: The region containing the DynamoDB CloudFormation Stack Emission table containing the IAM Roles used to gather policies from various AWS accounts
+    Default: us-west-2
+  S3BucketName:
+    Type: String
+    Description: The S3 bucket to store the group role map file in
+    Default: mozilla-infosec-auth0-rule-assets
+  S3FilePath:
+    Type: String
+    Description: The path to the group role map file
+    Default: access-group-iam-role-map.json
+Resources:
+  GroupRoleMapBuilderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowLambdaLogging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: AllowQueryStackEmissionTable
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                Resource: !Join ['', ['arn:aws:dynamodb:', !Ref 'StackEmissionDynamoDBTableRegion', ':', !Ref 'AWS::AccountId', ':table/', !Ref 'StackEmissionDynamoDBTableName', '/*']]
+        - PolicyName: AllowAssumeSecurityAuditRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: '*'
+        - PolicyName: AllowManageS3GroupRoleMap
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName']]
+#        - PolicyName: AllowPubishSQSForMozDef
+#          PolicyDocument:
+#            Version: 2012-10-17
+#            Statement:
+#              - Effect: Allow
+#                Action:
+#                  - sqs:GetQueueUrl
+#                  - sqs:SendMessage
+#                Resource: '*'  # TODO : Limit this to only the MozDef queue?
+  GroupRoleMapBuilderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Build a map file for OIDC claim groups and IAM roles, storing it in S3
+      Code: functions/group_role_map_builder.py
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref StackEmissionDynamoDBTableName
+          TABLE_REGION: !Ref StackEmissionDynamoDBTableRegion
+          S3_BUCKET_NAME: !Ref S3BucketName
+          S3_FILE_PATH: !Ref S3FilePath
+      Handler: group_role_map_builder.lambda_handler
+      Runtime: python3.7
+      Role: !GetAtt GroupRoleMapBuilderRole.Arn
+      Tags:
+        - Key: application
+          Value: group-role-map-builder
+        - Key: stack
+          Value: !Ref AWS::StackName
+      Timeout: 20
+  GroupRoleMapBuilderScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Trigger Group Role Map Builder every hour"
+      ScheduleExpression: "cron(10 * * * ? *)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt GroupRoleMapBuilderFunction.Arn
+          Id: "InvitationManager"
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: GroupRoleMapBuilderFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt GroupRoleMapBuilderScheduledRule.Arn
