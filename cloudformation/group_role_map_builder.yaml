@@ -125,3 +125,35 @@ Resources:
       # preventing this resource from creating
       LogGroupName: !Join [ '/', ['/aws/lambda', !Ref 'GroupRoleMapBuilderFunction' ] ]
       RetentionInDays: 14
+  GroupRoleMapConsumerUser:
+    Type: AWS::IAM::User
+    Properties:
+      Policies:
+        - PolicyName: AllowReadS3GroupRoleMap
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName']]
+  GroupRoleMapConsumerAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      Serial: 20190815
+      Status: Active
+      UserName: !Ref GroupRoleMapConsumerUser
+Outputs:
+  GroupRoleMapConsumerUserName:
+    Description: The Username of the GroupRoleMapConsumerUser
+    Value: !Ref GroupRoleMapConsumerUser
+  GroupRoleMapConsumerUserAccessKeyId:
+    Description: The AWS API Access Key ID of the GroupRoleMapConsumerUser
+    Value: !Ref GroupRoleMapConsumerAccessKey
+  GroupRoleMapConsumerUserSecretAccessKey:
+    Description: The AWS API Access Key Secret Key of the GroupRoleMapConsumerUser
+    Value: !GetAtt GroupRoleMapConsumerAccessKey.SecretAccessKey
