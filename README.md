@@ -3,10 +3,6 @@
 
 CLI application that handled federated authentication for AWS users
 
-## Sequence diagram
-
-[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
-
 ## Prerequisites
 
 * An OIDC provider like Auth0
@@ -41,6 +37,10 @@ CLI application that handled federated authentication for AWS users
 ## Run the tool
 
 `python federated_aws_cli/cli.py --role-arn arn:aws:iam::123456789012:role/example-role`
+
+## Sequence diagram
+
+[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
 
 ## Notes
 
