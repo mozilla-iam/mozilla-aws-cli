@@ -36,7 +36,10 @@ CLI application that handled federated authentication for AWS users
 
 ## Run the tool
 
-`python federated_aws_cli/cli.py --role-arn arn:aws:iam::123456789012:role/example-role`
+`python -m federated_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+
+Note : You must run `python -m federated_aws_cli.cli` instead of
+`python federated_aws_cli/cli.py` because federated_aws_cli uses absolute imports.
 
 ## Sequence diagram
 
