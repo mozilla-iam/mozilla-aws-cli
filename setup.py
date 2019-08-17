@@ -14,6 +14,8 @@ test_requirements = ["pytest", "pytest-cov"]
 extras = {"test": test_requirements}
 
 setup(
+    name="federated_aws_cli",
+    description="CLI application that handled federated authentication for AWS users",
     author="Mozilla Infosec",
     author_email="infosec@mozilla.com",
     classifiers=[
@@ -28,13 +30,11 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    description="CLI application that handled federated authentication for AWS users",
     entry_points={"console_scripts": ["federated_aws_cli=federated_aws_cli.cli:main"]},
+    include_package_data=True,
     install_requires=requirements,
     long_description=readme,
-    include_package_data=True,
     keywords="federated_aws_cli",
-    name="federated_aws_cli",
     packages=find_packages(include=["federated_aws_cli"]),
     setup_requires=setup_requirements,
     test_suite="tests",
