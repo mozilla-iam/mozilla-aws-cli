@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
+import os
 import click
 import requests
 import logging
@@ -31,7 +32,12 @@ def get_aws_env_variables(credentials):
 
 
 @click.command()
-@click.option("-c", "--config-file", default="config.yaml", help="Relative path to config file")
+@click.option(
+    "-c",
+    "--config-file",
+    default=os.path.join(os.path.expanduser("~"), ".federated_aws_cli.yaml"),
+    help="Relative path to config file",
+    type=click.Path(exists=True))
 @click.option("-r", "--role-arn", required=True, help="RoleARN to assume")
 @click.option(
     "-o", "--output", default="envvar", type=click.Choice(["envvar", "sha1"]), help="How to output the AWS API keys"
