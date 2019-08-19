@@ -3,27 +3,9 @@
 
 """Tests for `federated_aws_cli` package."""
 
-import pytest
-
+import os
 from click.testing import CliRunner
-
 from federated_aws_cli import cli
-
-
-@pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
-
-
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
 
 
 def test_command_line_interface():
@@ -32,3 +14,51 @@ def test_command_line_interface():
     help_result = runner.invoke(cli.main, ['--help'])
     assert help_result.exit_code == 0
     assert 'Show this message and exit.' in help_result.output
+
+
+def test_parse_config():
+    good_arn = 'arn:aws:iam::123456789012:role/MyRole'
+    bad_arn = 'bogus'
+    good_config_content = '''well_known_url: http://auth.example.com/.well-known/openid-configuration
+client_id: abcdefghijklmnopqrstuvwxyz012345
+scope: openid'''
+    cases = {
+        'malformed yaml': {
+            'filename': os.path.expanduser(
+                os.path.join("~", ".malformed_yaml")
+            ),
+            'content': '- a z=x:\ny: "${z}"',
+            'args': ['-c', '~/.malformed_yaml', '-r', good_arn]
+        },
+        'missing config setting': {
+            'filename': os.path.expanduser(
+                os.path.join("~", ".missing_config_setting")
+            ),
+            'content': 'well_known_url: http://auth.example.com/.well-known/openid-configuration\n',
+            'args': ['-c', '~/.missing_config_setting', '-r', good_arn]
+        },
+        'bad role arn': {
+            'filename': os.path.expanduser(
+                os.path.join("~", ".good_config")
+            ),
+            'content': good_config_content,
+            'args': ['-c', '~/.good_config', '-r', bad_arn]
+        }
+    }
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        results = {}
+        for case in cases:
+            with open(cases[case]['filename'], 'w') as f:
+                f.write(cases[case]['content'])
+            results[case] = runner.invoke(cli.main, cases[case]['args'])
+
+        assert results['malformed yaml'].exit_code != 0
+        assert 'is not valid YAML' in results['malformed yaml'].output
+
+        assert results['missing config setting'].exit_code != 0
+        assert 'settings are missing from the config file' in results['missing config setting'].output
+
+        assert results['bad role arn'].exit_code != 0
+        assert 'is not a valid ARN' in results['bad role arn'].output
