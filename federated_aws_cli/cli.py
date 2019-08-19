@@ -33,6 +33,7 @@ ENV_VARIABLE_NAME_MAP = {
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+logging.getLogger('urllib3').propagate = False
 
 
 def get_aws_env_variables(credentials):

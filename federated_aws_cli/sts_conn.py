@@ -4,7 +4,6 @@ import os
 import logging
 from xml.etree import ElementTree
 
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 

@@ -15,7 +15,6 @@ except ImportError:
     from urllib import urlencode
 from federated_aws_cli import listener
 
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 
