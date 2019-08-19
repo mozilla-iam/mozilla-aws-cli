@@ -6,10 +6,14 @@ import click
 import requests
 import logging
 import platform
-from jose import jwt  # This is optional so we can probably remove it and the code that uses it
 from federated_aws_cli.config import parse_config
 from federated_aws_cli.login import login
 from federated_aws_cli import sts_conn
+try:
+    # This is optional and only provides more detailed debug messages
+    from jose import jwt
+except ImportError:
+    jwt = None
 
 ENV_VARIABLE_NAME_MAP = {
     "AccessKeyId": "AWS_ACCESS_KEY_ID",
@@ -65,8 +69,12 @@ def main(config_file, role_arn, output, verbose):
 
     logger.debug("ID token : {}".format(tokens["id_token"]))
 
-    id_token_dict = jwt.decode(token=tokens["id_token"], key=config["jwks"], audience=config["client_id"])
-    logger.debug("ID token dict : {}".format(id_token_dict))
+    if jwt:
+        id_token_dict = jwt.decode(
+            token=tokens["id_token"],
+            key=config["jwks"],
+            audience=config["client_id"])
+        logger.debug("ID token dict : {}".format(id_token_dict))
 
     credentials = sts_conn.get_credentials(tokens["id_token"], role_arn=role_arn)
     if not credentials:

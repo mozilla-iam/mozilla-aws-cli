@@ -8,10 +8,16 @@ from setuptools import setup, find_packages
 with open("README.md") as readme_file:
     readme = readme_file.read()
 
-requirements = ["Click>=6.0", "python-jose==3.0.1", "flask==1.0.2", "requests==2.20.1", "PyYAML==5.1"]
+requirements = [
+    "Click>=6.0",
+    "flask==1.0.2",
+    "requests==2.20.1",
+    "PyYAML==5.1"]
 setup_requirements = ["pytest-runner"]
 test_requirements = ["pytest", "pytest-cov"]
-extras = {"test": test_requirements}
+extras = {
+    "test": test_requirements,
+    "verbose": ["python-jose"]}
 
 setup(
     name="federated_aws_cli",
