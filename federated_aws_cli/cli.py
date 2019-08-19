@@ -39,9 +39,9 @@ logging.getLogger('urllib3').propagate = False
 def get_aws_env_variables(credentials):
     result = ""
     verb = "set" if platform.system() == "Windows" else "export"
-
     for key in [x for x in credentials if x in ENV_VARIABLE_NAME_MAP]:
-        result += "{} {}={}\n".format(verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
+        result += "{} {}={}\n".format(
+            verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
     return result
 
 
@@ -123,7 +123,8 @@ def main(config, role_arn, output, verbose):
             audience=config["client_id"])
         logger.debug("ID token dict : {}".format(id_token_dict))
 
-    credentials = sts_conn.get_credentials(tokens["id_token"], role_arn=role_arn)
+    credentials = sts_conn.get_credentials(
+        tokens["id_token"], role_arn=role_arn)
     if not credentials:
         exit(1)
 
