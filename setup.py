@@ -14,7 +14,12 @@ requirements = [
     "requests==2.20.1",
     "PyYAML==5.1"]
 setup_requirements = ["pytest-runner"]
-test_requirements = ["pytest", "pytest-cov"]
+test_requirements = [
+    "pytest",
+    "pytest-cov",
+    "python-jose",
+    "requests-mock",
+    'mock;python_version<"3.3"']
 extras = {
     "test": test_requirements,
     "verbose": ["python-jose"]}
