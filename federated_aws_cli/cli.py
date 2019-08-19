@@ -16,6 +16,14 @@ try:
 except ImportError:
     jwt = None
 
+
+try:
+    # Python 3
+    FileNotFoundError
+except NameError:
+    # Python 2
+    FileNotFoundError = IOError
+
 ENV_VARIABLE_NAME_MAP = {
     "AccessKeyId": "AWS_ACCESS_KEY_ID",
     "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",

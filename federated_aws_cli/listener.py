@@ -1,11 +1,14 @@
-import http.server
 import logging
 import socket
 import errno
 try:
+    # Python 3
     from urllib.parse import urlparse, parse_qs
+    from http.server import BaseHTTPRequestHandler, HTTPServer
 except ImportError:
+    # Python 2
     from urlparse import urlparse, parse_qs
+    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 # These ports must be configured in the IdP's allowed callback URL list
 POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801, 50800, 50801, 60800, 60801]
@@ -19,7 +22,7 @@ state = None
 error_message = None
 
 
-class RequestHandler(http.server.BaseHTTPRequestHandler):
+class RequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logger.debug("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format % args))
 
@@ -74,7 +77,7 @@ def get_code(port=POSSIBLE_PORTS[0]):
     """
     logger.debug("About to launch listener")
 
-    httpd = http.server.HTTPServer(("127.0.0.1", port), RequestHandler)
+    httpd = HTTPServer(("127.0.0.1", port), RequestHandler)
     httpd.handle_request()
     return code, state, error_message
 
