@@ -10,6 +10,7 @@ import yaml
 import yaml.parser
 from federated_aws_cli.login import login
 from federated_aws_cli import sts_conn
+from federated_aws_cli.get_role_arns import get_role_arns
 try:
     # This is optional and only provides more detailed debug messages
     from jose import jwt
@@ -123,6 +124,13 @@ def main(config, role_arn, output, verbose):
             audience=config["client_id"])
         logger.debug("ID token dict : {}".format(id_token_dict))
 
+    if role_arn is None:
+
+        role_arns = get_role_arns(
+            endpoint=config["idtoken_for_roles_url"],
+            token=tokens["id_token"],
+            key=config["jwks"],
+            audience=config["client_id"])
     credentials = sts_conn.get_credentials(
         tokens["id_token"], role_arn=role_arn)
     if not credentials:

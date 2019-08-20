@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import base64
 import hashlib
-import json
 import os
 import requests
 import webbrowser
@@ -98,8 +97,8 @@ def login(
         "code": code,
         "redirect_uri": redirect_uri,
     }
-    r = requests.post(token_endpoint, headers=headers, data=json.dumps(body))
-    data = json.loads(r.text)
+    r = requests.post(token_endpoint, headers=headers, json=body)
+    data = r.json()
 
     return data
 
