@@ -8,12 +8,25 @@ from setuptools import setup, find_packages
 with open("README.md") as readme_file:
     readme = readme_file.read()
 
-requirements = ["Click>=6.0", "python-jose==3.0.1", "flask==1.0.2", "requests==2.20.1", "PyYAML==5.1"]
+requirements = [
+    "Click>=6.0",
+    "flask==1.0.2",
+    "requests==2.20.1",
+    "PyYAML==5.1"]
 setup_requirements = ["pytest-runner"]
-test_requirements = ["pytest", "pytest-cov"]
-extras = {"test": test_requirements}
+test_requirements = [
+    "pytest",
+    "pytest-cov",
+    "python-jose",
+    "requests-mock",
+    'mock;python_version<"3.3"']
+extras = {
+    "test": test_requirements,
+    "verbose": ["python-jose"]}
 
 setup(
+    name="federated_aws_cli",
+    description="CLI application that handled federated authentication for AWS users",
     author="Mozilla Infosec",
     author_email="infosec@mozilla.com",
     classifiers=[
@@ -28,13 +41,11 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    description="CLI application that handled federated authentication for AWS users",
     entry_points={"console_scripts": ["federated_aws_cli=federated_aws_cli.cli:main"]},
+    include_package_data=True,
     install_requires=requirements,
     long_description=readme,
-    include_package_data=True,
     keywords="federated_aws_cli",
-    name="federated_aws_cli",
     packages=find_packages(include=["federated_aws_cli"]),
     setup_requires=setup_requirements,
     test_suite="tests",
