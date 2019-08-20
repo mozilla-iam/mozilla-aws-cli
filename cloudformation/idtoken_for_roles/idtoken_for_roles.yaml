@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Lambda function and API which accepts an OIDC ID Token and returns a list of IAM Roles
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: The S3 bucket containing the group role map file in
+  S3FilePath:
+    Type: String
+    Description: The path to the group role map file
+    Default: access-group-iam-role-map.json
+  ApiPathPrefix:
+    Type: String
+    Description: The URL path prefix for the new API
+    Default: roles
+Resources:
+  IdtokenForRolesFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowLambdaLogging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: AllowReadS3GroupRoleMap
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName']]
+  IdtokenForRolesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Given an ID Token return the IAM Roles stored in the group role map file which are related to the groups in the ID Token
+      Code: idtoken_for_roles/functions/idtoken_for_roles.py
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref S3BucketName
+          S3_FILE_PATH: !Ref S3FilePath
+      Handler: idtoken_for_roles.lambda_handler
+      Runtime: python3.7
+      Role: !GetAtt IdtokenForRolesFunctionRole.Arn
+      Tags:
+        - Key: application
+          Value: idtoken-for-roles
+        - Key: stack
+          Value: !Ref AWS::StackName
+        - Key: source
+          Value: https://github.com/mozilla-iam/federated-aws-cli/tree/master/cloudformation
+      Timeout: 900
+  IdtokenForRolesFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      # Let's hope that the Lambda function doesn't execute before this LogGroup
+      # resource is created, creating the LogGroup with no expiration and
+      # preventing this resource from creating
+      LogGroupName: !Join [ '/', ['/aws/lambda', !Ref 'IdtokenForRolesFunction' ] ]
+      RetentionInDays: 14
+  IdtokenForRolesApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: IdTokenForRoles
+      Description: Exchange an ID Token for a list of IAM Roles
+      FailOnWarnings: true
+  IdtokenForRolesLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:invokeFunction
+      FunctionName: !GetAtt IdtokenForRolesFunction.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Join [ '', [ 'arn:aws:execute-api:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref 'IdtokenForRolesApi', '/*' ] ]
+  IdtokenForRolesApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ApiGatewayLogsPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvents
+                Resource: '*'
+  IdtokenForRolesApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt IdtokenForRolesApiGatewayRole.Arn
+  IdtokenForRolesApiStage:
+    DependsOn:
+      - IdtokenForRolesApiGatewayAccount
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref IdtokenForRolesApiDeployment
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: '*'
+          LoggingLevel: INFO
+          ResourcePath: /*
+      RestApiId: !Ref IdtokenForRolesApi
+      Tags:
+        - Key: application
+          Value: idtoken-for-roles
+        - Key: stack
+          Value: !Ref AWS::StackName
+        - Key: source
+          Value: https://github.com/mozilla-iam/federated-aws-cli/tree/master/cloudformation
+      # Description: x
+      # StageName: LATEST
+  IdtokenForRolesApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - IdtokenForRoleRolesRequest
+    Properties:
+      RestApiId: !Ref IdtokenForRolesApi
+      StageName: DummyStage
+      # Note This property is required by API Gateway. We recommend that you
+      # specify a name using any value (see Examples) and that you don’t use
+      # this stage. We recommend not using this stage because it is tied to
+      # this deployment, which means you can’t delete one without deleting the
+      # other. For example, if you delete this deployment, API Gateway also
+      # deletes this stage, which you might want to keep. Instead, use the
+      # AWS::ApiGateway::Stage resource to create and associate a stage with
+      # this deployment.
+  IdtokenForRolesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref IdtokenForRolesApi
+      ParentId: !GetAtt IdtokenForRolesApi.RootResourceId
+      PathPart: !Ref ApiPathPrefix
+  IdtokenForRoleRolesRequest:
+    DependsOn: IdtokenForRolesLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
+        IntegrationResponses:
+          - StatusCode: 200
+#        RequestTemplates:
+#          application/json: '{"name": "$input.params(\'name\')"}'
+#      RequestParameters:
+#        method.request.querystring.name: false
+      ResourceId: !Ref IdtokenForRolesResource
+      RestApiId: !Ref IdtokenForRolesApi
+      MethodResponses:
+        - StatusCode: 200
+          # TODO Add a 403 mapping for when the idtoken is invalid
+Outputs:
+  ApiEndpointUrl:
+    Description: The URL of the API Endpoint
+    Value: !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'ApiPathPrefix' ] ]
