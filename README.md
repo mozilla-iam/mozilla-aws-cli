@@ -30,9 +30,10 @@ CLI application that handled federated authentication for AWS users
   prerequisites
 * scope: A space delimited list of
   [OpenID Connect Scopes](https://auth0.com/docs/scopes/current/oidc-scopes).
-  For example `openid` and the scope where access control information is made
-  available. Mozilla SSO would use `openid https://sso.mozilla.com/claim/groups`
-
+  For example `openid`. Avoid including a scope which passes too much data which
+  will exceed the maximum AWS allowed size of the ID Token (for example at
+  Mozilla we neglect to include the raw full group list which is included in the
+  ID Token when the `https://sso.mozilla.com/claim/groups` scope is requested.
 
 ## Run the tool
 
