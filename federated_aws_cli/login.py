@@ -70,8 +70,7 @@ def login(
     logger.debug("About to spawn browser window to {}".format(url))
     webbrowser.get().open_new_tab(
         url
-    )  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console :
-    # https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
+    )
     logger.debug("About to begin listener on port {}".format(port))
     code, response_state, error_message = listener.get_code(port)
 
