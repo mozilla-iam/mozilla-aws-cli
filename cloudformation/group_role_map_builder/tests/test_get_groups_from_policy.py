@@ -2,7 +2,7 @@ import builtins
 import os
 import os.path
 
-from ..group_role_map_builder import (  # noqa, called via globals()
+from ..functions.group_role_map_builder import (  # noqa, called via globals()
     get_groups_from_policy,
     InvalidPolicyError,
     UnsupportedPolicyError

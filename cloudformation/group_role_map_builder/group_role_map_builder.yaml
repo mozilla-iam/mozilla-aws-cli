@@ -12,10 +12,14 @@ Parameters:
   S3BucketName:
     Type: String
     Description: The S3 bucket to store the group role map file in
-  S3FilePath:
+  GroupRoleMapS3FilePath:
     Type: String
     Description: The path to the group role map file
     Default: access-group-iam-role-map.json
+  AccountAliasesS3FilePath:
+    Type: String
+    Description: The path to the account aliases map file
+    Default: account-aliases.json
 Resources:
   GroupRoleMapBuilderRole:
     Type: AWS::IAM::Role
@@ -64,7 +68,9 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -82,13 +88,14 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Description: Build a map file for OIDC claim groups and IAM roles, storing it in S3
-      Code: group_role_map_builder/functions/group_role_map_builder.py
+      Code: build/
       Environment:
         Variables:
           TABLE_NAME: !Ref StackEmissionDynamoDBTableName
           TABLE_REGION: !Ref StackEmissionDynamoDBTableRegion
           S3_BUCKET_NAME: !Ref S3BucketName
-          S3_FILE_PATH: !Ref S3FilePath
+          S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
+          S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
       Handler: group_role_map_builder.lambda_handler
       Runtime: python3.7
       Role: !GetAtt GroupRoleMapBuilderRole.Arn
@@ -136,7 +143,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
               - Effect: Allow
                 Action:
                   - s3:ListBucket

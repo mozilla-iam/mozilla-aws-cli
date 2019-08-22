@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Iterable
+from typing import Dict, List, Optional, Tuple
 import collections
 import json
 from json.decoder import JSONDecodeError
@@ -22,7 +22,10 @@ TABLE_ATTRIBUTE_NAME = os.getenv(
 TABLE_NAME = os.getenv('TABLE_NAME', 'cloudformation-stack-emissions')
 TABLE_REGION = os.getenv('TABLE_REGION', 'us-west-2')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-S3_FILE_PATH = os.getenv('S3_FILE_PATH', 'access-group-iam-role-map.json')
+S3_FILE_PATH_GROUP_ROLE_MAP = os.getenv(
+    'S3_FILE_PATH_GROUP_ROLE_MAP', 'access-group-iam-role-map.json')
+S3_FILE_PATH_ALIAS_MAP = os.getenv(
+    'S3_FILE_PATH_ALIAS_MAP', 'account-aliases.json')
 VALID_AMRS = os.getenv(
     'VALID_AMRS', 'auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr'
 ).split(',')
@@ -54,6 +57,7 @@ S3_FILE_LINK_HEADER = os.getenv(
 
 SimpleDict = Dict[str, str]
 DictOfLists = Dict[str, list]
+TupleOfDictOflists = Tuple[DictOfLists, DictOfLists]
 
 
 class InvalidPolicyError(Exception):
@@ -144,53 +148,65 @@ def flip_map(dict_of_lists: DictOfLists) -> DictOfLists:
 
 
 def emit_event_to_mozdef(
-    new_groups: Iterable[str],
-    deleted_groups: Iterable[str],
-    new_roles: Iterable[str],
-    deleted_roles: Iterable[str],
-    changed_roles: Dict[str, Iterable[str]],
+    new_map: DictOfLists,
+    existing_map: DictOfLists
 ):
     """Build and emit an event to MozDef about changes to IAM roles
 
-    :param list new_groups: New OIDC claim groups present in role conditions
-    :param list deleted_groups: OIDC claim groups previously present in role
-                conditions
-    :param list new_roles: New IAM roles which use federated login
-    :param list deleted_roles: IAM roles using federated login which previously
-                               existed
-    :param list changed_roles: IAM roles using federated login that have
-                               changed conditions
+    :param dict new_map: The new map file
+    :param dict existing_map: The existing map file
     :return:
     """
-    accounts_affected = set(
-        map(
-            lambda x: x.split(':')[4],
-            set(new_roles) | set(deleted_roles) | set(changed_roles),
+    new_groups = set(new_map) - set(existing_map)
+    deleted_groups = set(existing_map) - set(new_map)
+    new_arn_group_map = flip_map(new_map)
+    existing_arn_group_map = flip_map(existing_map)
+    new_roles = set(new_arn_group_map) - set(existing_arn_group_map)
+    deleted_roles = set(existing_arn_group_map) - set(new_arn_group_map)
+    changed_roles = {}
+    for role, groups in new_arn_group_map.items():
+        if role in existing_arn_group_map:
+            if len(set(groups) ^ set(existing_arn_group_map[role])) > 0:
+                changed_roles[role] = {
+                    'new_groups': set(groups),
+                    'old_groups': set(existing_arn_group_map[role]),
+                }
+    if (
+        new_groups
+        or deleted_groups
+        or new_roles
+        or deleted_roles
+        or changed_roles
+    ):
+        accounts_affected = set(
+            map(
+                lambda x: x.split(':')[4],
+                set(new_roles) | set(deleted_roles) | set(changed_roles),
+            )
         )
-    )
-    summary = (
-        'Changes detected with AWS IAM roles used for federated access in AWS '
-        'accounts {}'.format(', '.join(accounts_affected))
-    )
-    source = 'federated-aws'
-    category = 'aws-auth'
-    details = dict()
-    if new_groups:
-        details['new-groups'] = new_groups
-    if deleted_groups:
-        details['deleted-groups'] = deleted_groups
-    if new_roles:
-        details['new-roles'] = new_roles
-    if deleted_roles:
-        details['deleted-roles'] = deleted_roles
-    if changed_roles:
-        details['changed-roles'] = changed_roles
-    message = MozDefMessageStub(
-        summary=summary, source=source, category=category, details=details
-    )
-    message.send()
-    # TODO : Add call to libmozdef once it's published in pypi
-    # to emit an event to MozDef with this data
+        summary = (
+            'Changes detected with AWS IAM roles used for federated access in '
+            'AWS accounts {}'.format(', '.join(accounts_affected))
+        )
+        source = 'federated-aws'
+        category = 'aws-auth'
+        details = dict()
+        if new_groups:
+            details['new-groups'] = new_groups
+        if deleted_groups:
+            details['deleted-groups'] = deleted_groups
+        if new_roles:
+            details['new-roles'] = new_roles
+        if deleted_roles:
+            details['deleted-roles'] = deleted_roles
+        if changed_roles:
+            details['changed-roles'] = changed_roles
+        message = MozDefMessageStub(
+            summary=summary, source=source, category=category, details=details
+        )
+        message.send()
+        # TODO : Add call to libmozdef once it's published in pypi
+        # to emit an event to MozDef with this data
 
 
 def get_groups_from_policy(policy) -> list:
@@ -265,27 +281,30 @@ def get_groups_from_policy(policy) -> list:
     return list(policy_groups)
 
 
-def get_group_role_map(
-    new_group_arn_map: Optional[DictOfLists] = None
+def get_s3_file(
+    s3_bucket: str,
+    s3_key: str,
+    new_map: Optional[DictOfLists] = None,
 ) -> DictOfLists:
-    """Fetch the group role map from S3 unless it doesn't differ from the
-    current one
+    """Fetch a map from S3 unless it doesn't differ from the current one
 
-    :param dict new_group_arn_map: A dictionary mapping groups to lists of
-                                   roles
+    :param str s3_bucket: The name of the S3 bucket to store the file in
+    :param str s3_key: The path and filename in the S3 bucket to store the file
+                       in
+    :param dict new_map: A dictionary mapping
     :return: Parsed content of the group role map file (a dict of lists)
     """
     client = boto3.client('s3')
-    kwargs = {'Bucket': S3_BUCKET_NAME, 'Key': S3_FILE_PATH}
-    if new_group_arn_map is not None:
-        new_map_serialized = serialize_group_role_map(new_group_arn_map)
+    kwargs = {'Bucket': s3_bucket, 'Key': s3_key}
+    if new_map is not None:
+        new_map_serialized = serialize_map(new_map)
         kwargs['IfNoneMatch'] = hashlib.md5(new_map_serialized).hexdigest()
     try:
         logger.debug('Fetching S3 file with args {}'.format(kwargs))
         response = client.get_object(**kwargs)
     except client.exceptions.ClientError as e:
         if e.response['Error']['Code'] == '304':
-            return new_group_arn_map
+            return new_map
         if e.response['Error']['Code'] == 'NoSuchKey':
             return dict()
         else:
@@ -293,64 +312,44 @@ def get_group_role_map(
     return json.load(response['Body'])
 
 
-def serialize_group_role_map(group_role_map: DictOfLists) -> str:
+def serialize_map(input_map: DictOfLists) -> str:
     """Serialize a dictionary of lists in a consistent hashable format
 
-    :param dict group_role_map: A dictionary mapping groups to lists of roles
+    :param dict input_map: A dictionary mapping
     :return: A serialized JSON string
     """
-    return json.dumps(group_role_map, sort_keys=True, indent=4).encode('utf-8')
+    return json.dumps(input_map, sort_keys=True, indent=4).encode('utf-8')
 
 
-def store_group_arn_map(new_group_arn_map: DictOfLists) -> bool:
-    """Compare the new group ARN map with the existing map stored in S3
+def store_s3_file(s3_bucket: str,
+                  s3_key: str,
+                  new_map: DictOfLists,
+                  emit_diff: bool = False) -> bool:
+    """Compare the new file with the file stored in S3
 
-    Store the new map and emit an event to MozDef if they differ. Return True
+    Store the new file and emit an event to MozDef if they differ. Return True
     if there was a change and False if not.
 
-    :param dict new_group_arn_map: A dictionary mapping groups to lists of
-                                   roles
+    :param str s3_bucket: The name of the S3 bucket to store the file in
+    :param str s3_key: The path and filename in the S3 bucket to store the file
+                       in
+    :param dict new_map: A dictionary mapping
+    :param bool emit_diff: Whether or not to emit an event to MozDef if the
+                           new_map differs from what's stored in S3 already
     :return: True if the new map differs from the one stored, otherwise False
     """
-    assert S3_BUCKET_NAME is not None
-    existing_group_arn_map = get_group_role_map(new_group_arn_map)
-    if existing_group_arn_map is False:
-        # The new_map is the same as the existing_map
-        return False
-    new_groups = set(new_group_arn_map) - set(existing_group_arn_map)
-    deleted_groups = set(existing_group_arn_map) - set(
-        new_group_arn_map.keys()
-    )
-    new_arn_group_map = flip_map(new_group_arn_map)
-    existing_arn_group_map = flip_map(existing_group_arn_map)
-    new_roles = set(new_arn_group_map) - set(existing_arn_group_map)
-    deleted_roles = set(existing_arn_group_map) - set(new_arn_group_map)
-    changed_roles = {}
-    for role, groups in new_arn_group_map.items():
-        if role in existing_arn_group_map:
-            if len(set(groups) ^ set(existing_arn_group_map[role])) > 0:
-                changed_roles[role] = {
-                    'new_groups': set(groups),
-                    'old_groups': set(existing_arn_group_map[role]),
-                }
-    if (
-        new_groups
-        or deleted_groups
-        or new_roles
-        or deleted_roles
-        or changed_roles
-    ):
-        emit_event_to_mozdef(
-            new_groups, deleted_groups, new_roles, deleted_roles, changed_roles
-        )
-        new_map_serialized = serialize_group_role_map(new_group_arn_map)
+    existing_map = get_s3_file(s3_bucket, s3_key, new_map)
+    new_map_serialized = serialize_map(new_map)
+    if serialize_map(existing_map) != new_map_serialized:
+        if emit_diff:
+            emit_event_to_mozdef(new_map, existing_map)
         client = boto3.client('s3')
         # Link : https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
         client.put_object(
             Body=new_map_serialized,
-            Bucket=S3_BUCKET_NAME,
+            Bucket=s3_bucket,
             ContentType='application/json',
-            Key=S3_FILE_PATH,
+            Key=s3_key,
             Metadata={'Link': S3_FILE_LINK_HEADER},
         )
         return True
@@ -358,7 +357,7 @@ def store_group_arn_map(new_group_arn_map: DictOfLists) -> bool:
         return False
 
 
-def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
+def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
     """Build map of IAM roles to OIDC groups used in assumption policies.
 
     Given a list of IAM Role ARNs to assume, iterate over those roles,
@@ -379,10 +378,12 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
     }
 
     :param list assumed_role_arns: list of IAM role ARN strings
-    :return: map of IAM ARNs to related OIDC claimed group names
+    :return: a tuple of the map of IAM ARNs to related OIDC claimed group names
+             followed by the map of AWS account IDs to account aliases
     """
     assumed_role_credentials = {}
     role_group_map = {}
+    alias_map = {}
     for assumed_role_arn in assumed_role_arns:
         aws_account_id = assumed_role_arn.split(':')[4]
         logger.debug('Fetching policies from {}'.format(aws_account_id))
@@ -390,7 +391,9 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
         limiting_policy = {
             'Version': '2012-10-17',
             'Statement': [
-                {'Effect': 'Allow', 'Action': 'iam:ListRoles', 'Resource': '*'}
+                {'Effect': 'Allow',
+                 'Action': ['iam:ListRoles', 'iam:ListAccountAliases'],
+                 'Resource': '*'}
             ],
         }
         try:
@@ -418,10 +421,17 @@ def build_group_role_map(assumed_role_arns: List[str]) -> DictOfLists:
             'Roles',
             assumed_role_credentials[aws_account_id],
         )
+        aliases = get_paginated_results(
+            'iam',
+            'list_account_aliases',
+            'AccountAliases',
+            assumed_role_credentials[aws_account_id],
+        )
         for role in roles:
             groups = get_groups_from_policy(role['AssumeRolePolicyDocument'])
             role_group_map[role['Arn']] = groups
-    return flip_map(role_group_map)
+        alias_map[aws_account_id] = aliases
+    return flip_map(role_group_map), alias_map
 
 
 def get_security_audit_role_arns() -> List[str]:
@@ -459,9 +469,14 @@ def lambda_handler(event, context):
             security_audit_role_arns
         )
     )
-    group_role_map = build_group_role_map(security_audit_role_arns)
-    map_changed = store_group_arn_map(group_role_map)
-    if map_changed:
-        logger.info('Group role map in S3 updated : {}'.format(group_role_map))
+    group_role_map, alias_map = build_group_role_map(security_audit_role_arns)
+    group_role_map_changed = store_s3_file(
+        S3_BUCKET_NAME, S3_FILE_PATH_GROUP_ROLE_MAP, group_role_map, True)
+    alias_map_changed = store_s3_file(
+        S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP, alias_map, False)
+    if group_role_map_changed:
+        logger.info('Group role map in S3 updated : {}'.format(serialize_map(group_role_map)))
+    if alias_map_changed:
+        logger.info('Account alias map in S3 updated : {}'.format(serialize_map(alias_map)))
 
     return group_role_map

@@ -4,10 +4,22 @@ Parameters:
   S3BucketName:
     Type: String
     Description: The S3 bucket containing the group role map file in
-  S3FilePath:
+  GroupRoleMapS3FilePath:
     Type: String
     Description: The path to the group role map file
     Default: access-group-iam-role-map.json
+  AccountAliasesS3FilePath:
+    Type: String
+    Description: The path to the account aliases map file
+    Default: account-aliases.json
+  AllowedIssuer:
+    Type: String
+    Description: OIDC Issuer Identifier
+    Default: https://auth-dev.mozilla.auth0.com/
+  AllowedAudience:
+    Type: String
+    Description: OIDC Audience. For Mozilla this is the Auth0 Client ID
+    Default: xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT
   ApiPathPrefix:
     Type: String
     Description: The URL path prefix for the new API
@@ -43,7 +55,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'S3FilePath']]
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -52,11 +66,14 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Description: Given an ID Token return the IAM Roles stored in the group role map file which are related to the groups in the ID Token
-      Code: idtoken_for_roles/functions/idtoken_for_roles.py
+      Code: build/
       Environment:
         Variables:
           S3_BUCKET_NAME: !Ref S3BucketName
-          S3_FILE_PATH: !Ref S3FilePath
+          S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
+          S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
+          ALLOWED_ISSUER: !Ref AllowedIssuer
+          ALLOWED_AUDIENCE: !Ref AllowedAudience
       Handler: idtoken_for_roles.lambda_handler
       Runtime: python3.7
       Role: !GetAtt IdtokenForRolesFunctionRole.Arn
@@ -173,7 +190,7 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
         IntegrationResponses:
-          - StatusCode: 200
+          - StatusCode: '200'
 #        RequestTemplates:
 #          application/json: '{"name": "$input.params(\'name\')"}'
 #      RequestParameters:
@@ -181,7 +198,7 @@ Resources:
       ResourceId: !Ref IdtokenForRolesResource
       RestApiId: !Ref IdtokenForRolesApi
       MethodResponses:
-        - StatusCode: 200
+        - StatusCode: '200'
           # TODO Add a 403 mapping for when the idtoken is invalid
 Outputs:
   ApiEndpointUrl:
