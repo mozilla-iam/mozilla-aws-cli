@@ -144,6 +144,8 @@ with the union of all groups used in all AWS accounts IAM policies won't
 support [all IAM policy operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html#Conditions_String).
 Here are the various use cases and whether they are supported or not
 
+
+#### Supported
 An AWS account holder wants to
 
 * enable users that are members of group "foo" to assume role 
@@ -154,14 +156,18 @@ An AWS account holder wants to
   of group "bar" to assume role arn:aws:iam::123456789012:role/baz
   * supported
   * `StringLike`, `StringEquals` for a list of values
-* enable users that are members of both group "foo" and group "bar" to assume
-  role arn:aws:iam::123456789012:role/baz
-  * not supported
-  * multiple `StringLike` or `StringEquals` conditions
 * enable users that are members of any group like "fo*" to assume role
   arn:aws:iam::123456789012:role/baz
   * supported
   * `StringLike` with wildcards
+
+#### Not Supported
+An AWS account holder wants to
+
+* enable users that are members of both group "foo" and group "bar" to assume
+  role arn:aws:iam::123456789012:role/baz
+  * not supported
+  * multiple `StringLike` or `StringEquals` conditions
 * enable users that are members of group "foo" but not allow users that are
   members of group "FOO" to assume role arn:aws:iam::123456789012:role/baz
   * not supported
@@ -177,3 +183,4 @@ An AWS account holder wants to
   to assume role arn:aws:iam::123456789012:role/baz
   * not supported
   * multiple conditions including `StringNotEquals`, `StringNotLike`
+
