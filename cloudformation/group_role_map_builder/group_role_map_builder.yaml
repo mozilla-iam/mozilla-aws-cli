@@ -88,7 +88,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Description: Build a map file for OIDC claim groups and IAM roles, storing it in S3
-      Code: group_role_map_builder/functions/group_role_map_builder.py
+      Code: build/
       Environment:
         Variables:
           TABLE_NAME: !Ref StackEmissionDynamoDBTableName

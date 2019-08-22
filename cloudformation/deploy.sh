@@ -1,32 +1,45 @@
 #!/bin/bash -e
 
+# 656532927350
 ACCOUNT_ID=$1
 # idtoken_for_roles/idtoken_for_roles.yaml
-CODE_FILENAME=$2
+TEMPLATE_FILENAME=$2
 # DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME
 S3_BUCKET=$3
 # GroupRoleMapBuilder
 STACK_NAME=$4
+
+# Optional arguments
+
 # group-role-map-builder
 S3_PREFIX=$5
-if [ -n "$S3_PREFIX" ]; then
+if [ "$S3_PREFIX" != "none" ]; then
   S3_PREFIX_ARG="--s3-prefix $S3_PREFIX"
 fi
-OUTPUT_VAR_NAME=$6
+# ApiEndpointUrl
+if [ "$6" != "none" ]; then
+  OUTPUT_VAR_NAME=$6
+fi
 
 # Confirm that we have access to AWS and we're in the right account
-if ! aws sts get-caller-identity --output text |& grep $1 >/dev/null; then
+if ! aws sts get-caller-identity --output text |& grep $ACCOUNT_ID >/dev/null; then
   echo "Unable to access AWS or wrong account"
   exit 1
 fi
 
 # This tempfile is required because of https://github.com/aws/aws-cli/issues/2504
 TMPFILE=$(mktemp --suffix .yaml)
-trap "{ rm -f $TMPFILE; }" EXIT
+TMPDIR=$(mktemp --directory)
+trap "{ rm -f $TMPFILE;rm -rf $TMPDIR;rm -f build; }" EXIT
+
+TARGET_PATH="`dirname \"${TEMPLATE_FILENAME}\"`"
+ln --no-dereference --force --symbolic $TMPDIR "${TARGET_PATH}/build"
+pip install --target "${TARGET_PATH}/build/" -r "${TARGET_PATH}/requirements.txt"
+cp --verbose "${TARGET_PATH}/functions/"*.py "${TARGET_PATH}/build/"
 
 aws cloudformation package \
-  --template $2 \
-  --s3-bucket $3 \
+  --template $TEMPLATE_FILENAME \
+  --s3-bucket $S3_BUCKET \
   $S3_PREFIX_ARG \
   --output-template-file $TMPFILE
 

@@ -52,7 +52,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Description: Given an ID Token return the IAM Roles stored in the group role map file which are related to the groups in the ID Token
-      Code: idtoken_for_roles/functions/idtoken_for_roles.py
+      Code: build/
       Environment:
         Variables:
           S3_BUCKET_NAME: !Ref S3BucketName
