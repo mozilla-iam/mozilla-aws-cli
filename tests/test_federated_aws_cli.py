@@ -4,8 +4,14 @@
 """Tests for `federated_aws_cli` package."""
 
 import os
+import sys
 from click.testing import CliRunner
 from federated_aws_cli import cli
+from federated_aws_cli.role_picker import show_role_picker
+if sys.version_info >= (3, 3):
+    from unittest.mock import patch
+else:
+    from mock import patch
 
 
 def test_command_line_interface():
@@ -62,3 +68,33 @@ scope: openid'''
 
         assert results['bad role arn'].exit_code != 0
         assert 'is not a valid ARN' in results['bad role arn'].output
+
+
+@patch('federated_aws_cli.role_picker.show_menu')
+def test_show_role_picker(show_menu):
+    roles_and_aliases = {
+        'roles': [
+            'arn:aws:iam::123456789012:role/role-mariana',
+            'arn:aws:iam::123456789012:role/role-tonga',
+            'arn:aws:iam::123456789012:role/a/path/role-philippine',
+            'arn:aws:iam::234567890123:role/path/to/foraker',
+            'arn:aws:iam::234567890123:role/different/path/to/blackburn',
+        ],
+        'aliases': {
+            '123456789012': ['Trenches-Account'],
+            '234567890123': ['Mountains-Account'],
+        }
+    }
+    show_role_picker(roles_and_aliases)
+    show_menu.assert_called_with(
+        ['Mountains-Account (234567890123) : blackburn',
+         'Mountains-Account (234567890123) : foraker',
+         'Trenches-Account (123456789012) : role-mariana',
+         'Trenches-Account (123456789012) : role-philippine',
+         'Trenches-Account (123456789012) : role-tonga'],
+        ['arn:aws:iam::234567890123:role/different/path/to/blackburn',
+         'arn:aws:iam::234567890123:role/path/to/foraker',
+         'arn:aws:iam::123456789012:role/role-mariana',
+         'arn:aws:iam::123456789012:role/a/path/role-philippine',
+         'arn:aws:iam::123456789012:role/role-tonga']
+    )

@@ -10,7 +10,8 @@ import yaml
 import yaml.parser
 from federated_aws_cli.login import login
 from federated_aws_cli import sts_conn
-from federated_aws_cli.get_role_arns import get_role_arns
+from federated_aws_cli.role_picker import get_roles_and_aliases
+from federated_aws_cli.role_picker import show_role_picker
 try:
     # This is optional and only provides more detailed debug messages
     from jose import jwt
@@ -48,6 +49,8 @@ def get_aws_env_variables(credentials):
 
 def validate_arn(ctx, param, value):
     # arn:aws:iam::account-id:role/role-name
+    if value is None:
+        return None
     elements = value.split(':')
     if (len(elements) != 6 or elements[0] != 'arn' or elements[2] != 'iam'
             or not elements[5].startswith('role/')):
@@ -87,7 +90,6 @@ def validate_config_file(ctx, param, value):
 @click.option(
     "-r",
     "--role-arn",
-    required=True,
     help="AWS IAM Role ARN to assume",
     callback=validate_arn)
 @click.option(
@@ -125,12 +127,18 @@ def main(config, role_arn, output, verbose):
         logger.debug("ID token dict : {}".format(id_token_dict))
 
     if role_arn is None:
-
-        role_arns = get_role_arns(
+        roles_and_aliases = get_roles_and_aliases(
             endpoint=config["idtoken_for_roles_url"],
             token=tokens["id_token"],
-            key=config["jwks"],
-            audience=config["client_id"])
+            key=config["jwks"])
+        logger.debug('Roles and aliases are {}'.format(roles_and_aliases))
+        role_arn = show_role_picker(roles_and_aliases)
+        logger.debug('Role ARN {} selected'.format(role_arn))
+
+    if role_arn is None:
+        logger.info('Exiting, no IAM Role ARN selected')
+        exit(0)
+
     credentials = sts_conn.get_credentials(
         tokens["id_token"], role_arn=role_arn)
     if not credentials:
