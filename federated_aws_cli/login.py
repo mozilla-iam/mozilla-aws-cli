@@ -68,7 +68,7 @@ def login(
     # Open the browser window to the login url
     # Start the listener
     logger.debug("About to spawn browser window to {}".format(url))
-    webbrowser.get("firefox").open(
+    webbrowser.get().open_new_tab(
         url
     )  # This specifies firefox to work around webbrowser.BackgroundBrowser sending stdout/stderr to the console :
     # https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
