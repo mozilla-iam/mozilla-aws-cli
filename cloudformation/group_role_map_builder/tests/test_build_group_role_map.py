@@ -1,6 +1,6 @@
 import boto3
 from moto import mock_iam, mock_sts
-from ..group_role_map_builder import build_group_role_map
+from ..functions.group_role_map_builder import build_group_role_map
 
 
 @mock_iam
