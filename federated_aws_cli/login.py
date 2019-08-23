@@ -68,9 +68,12 @@ def login(
     # Open the browser window to the login url
     # Start the listener
     logger.debug("About to spawn browser window to {}".format(url))
-    webbrowser.get().open_new_tab(
-        url
-    )
+    webbrowser.get().open_new_tab(url)
+    # Previously we needed to call webbrowser.get() passing 'firefox' as an argument to the get method
+    # This was to work around webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to the console.
+    # That output to the console would then corrupt the intended script output meant to be eval'd. This issue doesn't
+    # appear to be manifesting anymore and so we've set it back to the default of whatever browser the OS uses.
+    # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
     logger.debug("About to begin listener on port {}".format(port))
     code, response_state, error_message = listener.get_code(port)
 
