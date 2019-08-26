@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
-
 from __future__ import absolute_import
-from federated_aws_cli.login import login
 import os
+import logging
+
 import click
 import requests
-import logging
 import yaml
 import yaml.parser
+
+from federated_aws_cli.login import Login
 
 
 try:
@@ -89,6 +89,7 @@ def main(config, role_arn, output, verbose):
     logger.debug("Config : {}".format(config))
 
     # Instantiate a login object, and begin login process
+    login = Login()
     login.configure(
         authorization_endpoint=config["openid-configuration"]["authorization_endpoint"],
         client_id=config["client_id"],

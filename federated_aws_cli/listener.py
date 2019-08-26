@@ -1,23 +1,19 @@
-from federated_aws_cli.login import login
-from flask import Flask, jsonify, request, send_from_directory
+import errno
 import logging
 import os.path
-import signal
 import socket
-import errno
+
+from flask import Flask, jsonify, request, send_from_directory
 
 
 # These ports must be configured in the IdP's allowed callback URL list
-POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801, 50800, 50801, 60800, 60801]
+# TODO: Move this to the CLI / config section
+POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801,
+                  40800, 40801, 50800, 50801, 60800, 60801]
 
+STATIC_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
 app = Flask(__name__)
-static_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
 logger = logging.getLogger(__name__)
-
-# Until we figure out how to emit data from RequestHandler, we'll use globals =(
-code = None
-state = None
-error_message = None
 
 
 def get_available_port():
@@ -38,12 +34,14 @@ def get_available_port():
             else:
                 raise
     raise socket.gaierror("No ports available for listener")
+
+
 port = get_available_port()
 
 
 @app.route("/<path:filename>")
 def catch_all(filename):
-    return send_from_directory(static_dir, filename)
+    return send_from_directory(STATIC_DIR, filename)
 
 
 @app.route("/redirect_uri")
@@ -64,18 +62,13 @@ def handle_oidc_redirect_callback():
     logger.debug(request.json.get("code"))
 
     # callback into the login function
-    success = login.callback(
+    success = globals()["callback"](
         code=request.json["code"],
         state=request.json["state"]
     )
 
-    # let's shut this whole operation down
-    if request.environ.get("werkzeug.server.shutdown"):
-        logger.debug("Shutting down Flask")
-        os.kill(os.getpid(), signal.SIGINT)
-
-    logger.debug("Callback successfully handled")
-
+    # the callback should send SIGINT, but this is done to prevent
+    # race conditions
     if success:
         return jsonify({
             "result": "OK",
@@ -88,7 +81,10 @@ def handle_oidc_redirect_callback():
         })
 
 
-def run():
+def listen(callback=None):
+    # set the global callback
+    globals()["callback"] = callback
+
     debug = logger.level == 10  # DEBUG
 
     # Disable flask logging unless we're at DEBUG
@@ -101,14 +97,5 @@ def run():
     return port
 
 
-def main():
-    run()
-
-    # c, s, e = get_code(port)
-    # logger.debug("code is {}".format(c))
-    # logger.debug("state is {}".format(s))
-    # logger.debug("error is {}".format(e))
-
-
 if __name__ == "__main__":
-    main()
+    listen()
