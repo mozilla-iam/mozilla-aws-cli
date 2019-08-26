@@ -1,5 +1,6 @@
 from collections import defaultdict
 import logging
+import platform
 import requests
 import consolemenu
 import consolemenu.menu_component
@@ -11,10 +12,26 @@ except ImportError:
     from backports.shutil_get_terminal_size import get_terminal_size
 
 logger = logging.getLogger(__name__)
+
+ENV_VARIABLE_NAME_MAP = {
+    "AccessKeyId": "AWS_ACCESS_KEY_ID",
+    "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
+    "SessionToken": "AWS_SESSION_TOKEN",
+}
 SCREEN_WIDTH, SCREEN_HEIGHT = get_terminal_size((80, 40))
 
 
+def get_aws_env_variables(credentials):
+    result = ""
+    verb = "set" if platform.system() == "Windows" else "export"
+    for key in [x for x in credentials if x in ENV_VARIABLE_NAME_MAP]:
+        result += "{} {}={}\n".format(
+            verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
+    return result
+
+
 def get_roles_and_aliases(endpoint, token, key):
+    logging.debug("Getting roles and aliases from: {}".format(endpoint))
     headers = {"Content-Type": "application/json"}
     body = {
         "token": token,

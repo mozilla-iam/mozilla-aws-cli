@@ -1,51 +1,23 @@
+from federated_aws_cli.login import login
+from flask import Flask, jsonify, request, send_from_directory
 import logging
+import os.path
+import signal
 import socket
 import errno
-try:
-    # Python 3
-    from urllib.parse import urlparse, parse_qs
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-except ImportError:
-    # Python 2
-    from urlparse import urlparse, parse_qs
-    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+
 
 # These ports must be configured in the IdP's allowed callback URL list
 POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801, 40800, 40801, 50800, 50801, 60800, 60801]
 
+app = Flask(__name__)
+static_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
 logger = logging.getLogger(__name__)
 
 # Until we figure out how to emit data from RequestHandler, we'll use globals =(
 code = None
 state = None
 error_message = None
-
-
-class RequestHandler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        logger.debug("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format % args))
-
-    def do_GET(self):
-        global code, state, error_message
-        try:
-            query = parse_qs(urlparse(self.path).query)
-
-            def get_arg(query, v):
-                return next(iter(query.get(v, [])), None)
-
-            code = get_arg(query, "code")
-            state = get_arg(query, "state")
-            error = get_arg(query, "error")
-            error_description = get_arg(query, "error_description")
-            error_message = "{}: {}".format(error, error_description) if error is not None else None
-        except Exception as e:
-            logger.error("Could not handle request: {}".format(e))
-            self.send_response(500)
-        else:
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            self.wfile.write("Please return to your application now.".encode("utf-8"))
 
 
 def get_available_port():
@@ -65,28 +37,77 @@ def get_available_port():
                 pass
             else:
                 raise
-    return False
+    raise socket.gaierror("No ports available for listener")
+port = get_available_port()
 
 
-def get_code(port=POSSIBLE_PORTS[0]):
-    """Listen on port and receive a single request, returning code and state
+@app.route("/<path:filename>")
+def catch_all(filename):
+    return send_from_directory(static_dir, filename)
 
-    :param port: Port number to listen on
-    :return: 3-tuple of code, state and error message
+
+@app.route("/redirect_uri")
+def handle_oidc_redirect():
     """
-    logger.debug("About to launch listener")
+    Handles the return from auth0, returning a page that indicates you can
+    close everything
 
-    httpd = HTTPServer(("127.0.0.1", port), RequestHandler)
-    httpd.handle_request()
-    return code, state, error_message
+    :return: html page
+    """
+    logger.debug("redirect parameters: \n%{args}".format(args=request.args))
+
+    return(catch_all("index.html"))
+
+
+@app.route("/redirect_callback", methods=["POST"])
+def handle_oidc_redirect_callback():
+    logger.debug(request.json.get("code"))
+
+    # callback into the login function
+    success = login.callback(
+        code=request.json["code"],
+        state=request.json["state"]
+    )
+
+    # let's shut this whole operation down
+    if request.environ.get("werkzeug.server.shutdown"):
+        logger.debug("Shutting down Flask")
+        os.kill(os.getpid(), signal.SIGINT)
+
+    logger.debug("Callback successfully handled")
+
+    if success:
+        return jsonify({
+            "result": "OK",
+            "status_code": 500,
+        })
+    else:
+        return jsonify({
+            "result": "OK",
+            "status_code": 500,
+        })
+
+
+def run():
+    debug = logger.level == 10  # DEBUG
+
+    # Disable flask logging unless we're at DEBUG
+    if not debug:
+        os.environ["WERKZEUG_RUN_MAIN"] = "true"
+        logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+    app.run(port=port, debug=debug)
+
+    return port
 
 
 def main():
-    port = get_available_port()
-    c, s, e = get_code(port)
-    logger.debug("code is {}".format(c))
-    logger.debug("state is {}".format(s))
-    logger.debug("error is {}".format(e))
+    run()
+
+    # c, s, e = get_code(port)
+    # logger.debug("code is {}".format(c))
+    # logger.debug("state is {}".format(s))
+    # logger.debug("error is {}".format(e))
 
 
 if __name__ == "__main__":

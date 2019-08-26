@@ -1,22 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
+from federated_aws_cli.login import login
 import os
 import click
 import requests
 import logging
-import platform
 import yaml
 import yaml.parser
-from federated_aws_cli.login import login
-from federated_aws_cli import sts_conn
-from federated_aws_cli.role_picker import get_roles_and_aliases
-from federated_aws_cli.role_picker import show_role_picker
-try:
-    # This is optional and only provides more detailed debug messages
-    from jose import jwt
-except ImportError:
-    jwt = None
 
 
 try:
@@ -26,25 +17,11 @@ except NameError:
     # Python 2
     FileNotFoundError = IOError
 
-ENV_VARIABLE_NAME_MAP = {
-    "AccessKeyId": "AWS_ACCESS_KEY_ID",
-    "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
-    "SessionToken": "AWS_SESSION_TOKEN",
-}
 
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logging.getLogger('urllib3').propagate = False
-
-
-def get_aws_env_variables(credentials):
-    result = ""
-    verb = "set" if platform.system() == "Windows" else "export"
-    for key in [x for x in credentials if x in ENV_VARIABLE_NAME_MAP]:
-        result += "{} {}={}\n".format(
-            verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
-    return result
 
 
 def validate_arn(ctx, param, value):
@@ -107,47 +84,24 @@ def main(config, role_arn, output, verbose):
 
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
+
     logger.debug("JWKS : {}".format(config["jwks"]))
     logger.debug("Config : {}".format(config))
 
-    tokens = login(
-        config["openid-configuration"]["authorization_endpoint"],
-        config["openid-configuration"]["token_endpoint"],
-        config["client_id"],
-        config["scope"],
+    # Instantiate a login object, and begin login process
+    login.configure(
+        authorization_endpoint=config["openid-configuration"]["authorization_endpoint"],
+        client_id=config["client_id"],
+        idtoken_for_roles_url=config["idtoken_for_roles_url"],
+        jwks=config["jwks"],
+        openid_configuration=config["openid-configuration"],
+        output=output,
+        role_arn=role_arn,
+        scope=config["scope"],
+        token_endpoint=config["openid-configuration"]["token_endpoint"],
     )
 
-    logger.debug("ID token : {}".format(tokens["id_token"]))
-
-    if jwt:
-        id_token_dict = jwt.decode(
-            token=tokens["id_token"],
-            key=config["jwks"],
-            audience=config["client_id"])
-        logger.debug("ID token dict : {}".format(id_token_dict))
-
-    if role_arn is None:
-        roles_and_aliases = get_roles_and_aliases(
-            endpoint=config["idtoken_for_roles_url"],
-            token=tokens["id_token"],
-            key=config["jwks"])
-        logger.debug('Roles and aliases are {}'.format(roles_and_aliases))
-        role_arn = show_role_picker(roles_and_aliases)
-        logger.debug('Role ARN {} selected'.format(role_arn))
-
-    if role_arn is None:
-        logger.info('Exiting, no IAM Role ARN selected')
-        exit(0)
-
-    credentials = sts_conn.get_credentials(
-        tokens["id_token"], role_arn=role_arn)
-    if not credentials:
-        exit(1)
-
-    logger.debug(credentials)
-
-    if output == "envvar":
-        print(get_aws_env_variables(credentials))
+    login.login()
 
 
 if __name__ == "__main__":
