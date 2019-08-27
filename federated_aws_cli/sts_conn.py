@@ -1,8 +1,10 @@
-import requests
 import pwd
 import os
 import logging
 from xml.etree import ElementTree
+
+import requests
+
 
 logger = logging.getLogger(__name__)
 

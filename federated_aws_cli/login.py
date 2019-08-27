@@ -1,14 +1,17 @@
 from __future__ import absolute_import
-from federated_aws_cli import listener
-from federated_aws_cli import sts_conn
-from federated_aws_cli.role_picker import get_aws_env_variables, get_roles_and_aliases, show_role_picker
 import base64
 import hashlib
 import logging
 import os
-import requests
+import signal
 import webbrowser
-import sys
+
+import requests
+
+from federated_aws_cli import sts_conn
+from federated_aws_cli.listener import listen, port
+from federated_aws_cli.role_picker import get_aws_env_variables, get_roles_and_aliases, show_role_picker
+
 
 try:
     # P3
@@ -38,11 +41,9 @@ def generate_challenge(code_verifier):
 
 
 class Login():
-    def __init__(self):
-        pass
-
     # Maybe this would be better to unroll from config?
-    def configure(self,
+    def configure(
+                  self,
                   authorization_endpoint="https://auth.mozilla.auth0.com/authorize",
                   client_id="",
                   idtoken_for_roles_url=None,
@@ -52,9 +53,14 @@ class Login():
                   role_arn=None,
                   scope="openid",
                   token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
-    ):
+                  ):
+
+        # URL of the OIDC authorization endpoint obtained from the discovery document
         self.authorization_endpoint = authorization_endpoint
+
+        # OIDC client_id of the native OIDC application
         self.client_id = client_id
+
         self.code_verifier = base64_without_padding(os.urandom(32))
         self.code_challenge = generate_challenge(self.code_verifier)
         self.idtoken_for_roles_url = idtoken_for_roles_url
@@ -62,23 +68,23 @@ class Login():
         self.openid_configuration = openid_configuration
         self.output = output
         self.role_arn = role_arn
-        self.redirect_uri = "http://localhost:{}/redirect_uri".format(listener.port)
+        self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
+
+        # OIDC scopes of claims to request
         self.scope = scope
         self.state = base64_without_padding(os.urandom(32))
+
+        # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to login,
-        passing a redirect_uri that points to a localhost listener. Once ther user
+        passing a redirect_uri that points to a localhost listener. Once the user
         logs into the IdP in the browser, the IdP will redirect the user to the
         localhost listener, making the OIDC code available to the CLI. CLI then
         exchanges the code for an tokens with the IdP and returns the tokens
 
-        :param authorization_endpoint: URL of the OIDC authorization endpoint obtained from the discovery document
-        :param token_endpoint: URL of the OIDC token endpoint obtained from the discovery document
-        :param client_id: OIDC client_id of the native OIDC application
-        :param scope: OIDC scopes of claims to request
-        :return:
+        :return: Nothing, as the callback will send SIGINT to terminate
         """
         url_parameters = {
             "scope": self.scope,
@@ -96,6 +102,7 @@ class Login():
                              urlencode(url_parameters))
 
         # Open the browser window to the login url
+
         # Previously we needed to call webbrowser.get() passing 'firefox' as an argument to the get method
         # This was to work around webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to the console.
         # That output to the console would then corrupt the intended script output meant to be eval'd. This issue doesn't
@@ -105,11 +112,15 @@ class Login():
         webbrowser.get().open_new_tab(url)
 
         # start up the listener, figuring out which port it ran on
-        logger.debug("About to start listener running on port {}".format(listener.port))
-        listener.run()
+        logger.debug("About to start listener running on port {}".format(port))
+        listen(self.callback)
 
-
-    def callback(self, code, state, error_message=None):
+    def callback(self, code, state):
+        """
+        :param code: code GET paramater as sent by IdP
+        :param state: state GET parameter as sent by IdP
+        :return:
+        """
         if code is None:
             print("Something wrong happened, could not retrieve session data")
             exit(1)
@@ -118,13 +129,10 @@ class Login():
             print("Error: State returned from IdP doesn't match state sent")
             exit(1)
 
-        if error_message is not None:
-            print("An error occurred:")
-            print(error_message)
-            exit(1)
-
         # Exchange the code for a token
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json"
+        }
         body = {
             "grant_type": "authorization_code",
             "client_id": self.client_id,
@@ -168,10 +176,15 @@ class Login():
         if self.output == "envvar":
             print(get_aws_env_variables(credentials))
 
+        # Send the signal to kill the application
+        logger.debug("Shutting down Flask")
+        os.kill(os.getpid(), signal.SIGINT)
+
         return credentials is not None
 
 
 login = Login()
+
 
 def main():
     print(login.login())
