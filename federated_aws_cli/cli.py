@@ -37,23 +37,34 @@ def validate_arn(ctx, param, value):
         return value
 
 
-def validate_config_file(ctx, param, value):
-    try:
-        with open(os.path.expanduser(value), "r") as stream:
-            result = yaml.load(stream, Loader=yaml.SafeLoader)
-    except FileNotFoundError:
-        raise click.BadParameter('Config file {} not found'.format(value))
-    except yaml.parser.ParserError:
-        raise click.BadParameter(
-            'Config file {} is not valid YAML'.format(value))
+def validate_config_file(ctx, param, filenames):
+    if type(filenames) is str:
+        filenames = [filenames]
+
+    if not any([os.path.exists(path) for path in filenames]):
+        raise click.BadParameter('Config files {} not found'.format(" ".join(filenames)))
+
+    result = {}
+    for filename in filenames:
+        try:
+            with open(filename, "r") as stream:
+                result.update(yaml.load(stream, Loader=yaml.SafeLoader))
+        except FileNotFoundError:
+            pass
+        except yaml.parser.ParserError:
+            raise click.BadParameter(
+                'Config file {} is not valid YAML'.format(filename))
+
     missing_settings = (
         {'well_known_url', 'client_id', 'scope'} - set(result.keys()))
+
     if missing_settings:
         raise click.BadParameter(
-            '{} setting{} are missing from the config file {}'.format(
+            '{} setting{} are missing from the config files {}'.format(
                 ', '.join(missing_settings),
                 's' if len(missing_settings) > 1 else '',
-                value))
+                " ".join(filenames)))
+
     return result
 
 
@@ -61,7 +72,12 @@ def validate_config_file(ctx, param, value):
 @click.option(
     "-c",
     "--config",
-    default=os.path.join("~", ".federated_aws_cli.yaml"),
+    # TODO: Support Windows
+    # TODO: Rename to something much better
+    default=[
+        os.path.join("/etc", "federated_aws_cli.yaml"),
+        os.path.join(os.path.expanduser("~"), ".federated_aws_cli.yaml"),
+    ],
     help="Relative path to config file",
     callback=validate_config_file)
 @click.option(
