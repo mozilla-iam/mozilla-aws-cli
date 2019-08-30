@@ -4,17 +4,16 @@ import logging
 
 import click
 import requests
+import sys
 import yaml
 import yaml.parser
 
 from federated_aws_cli.login import Login
 
 
-try:
-    # Python 3
-    FileNotFoundError
-except NameError:
-    # Python 2
+if sys.version_info[0] >= 3:
+    basestring = str
+else:
     FileNotFoundError = IOError
 
 
@@ -38,7 +37,7 @@ def validate_arn(ctx, param, value):
 
 
 def validate_config_file(ctx, param, filenames):
-    if type(filenames) is str:
+    if isinstance(filenames, basestring):
         filenames = [filenames]
 
     if not any([os.path.exists(path) for path in filenames]):
@@ -48,10 +47,14 @@ def validate_config_file(ctx, param, filenames):
     for filename in filenames:
         try:
             with open(filename, "r") as stream:
-                result.update(yaml.load(stream, Loader=yaml.SafeLoader))
+                # guard against empty files
+                results = yaml.load(stream, Loader=yaml.SafeLoader)
+
+                if results is not None:
+                    result.update(results)
         except FileNotFoundError:
             pass
-        except yaml.parser.ParserError:
+        except (yaml.parser.ParserError, yaml.parser.ScannerError):
             raise click.BadParameter(
                 'Config file {} is not valid YAML'.format(filename))
 
