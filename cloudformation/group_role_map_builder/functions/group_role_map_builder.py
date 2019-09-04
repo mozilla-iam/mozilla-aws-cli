@@ -232,8 +232,8 @@ def get_groups_from_policy(policy) -> list:
 
     for statement in policy["Statement"]:
         if (
-            statement.get("Effect") != "Allow"
-            or statement.get("Action") != "sts:AssumeRoleWithWebIdentity"
+            statement.get("Effect", '').lower() != "Allow".lower()
+            or statement.get("Action", '').lower() != "sts:AssumeRoleWithWebIdentity".lower()
             or statement.get('Principal', {}).get('Federated')
             not in VALID_FEDERATED_PRINCIPAL_KEYS
         ):
