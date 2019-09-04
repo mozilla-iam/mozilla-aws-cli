@@ -11,9 +11,6 @@
       "Condition": {
         "StringEquals": {
           "auth-dev.mozilla.auth0.com/:aud": "xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"
-        },
-        "ForAnyValue:StringLike": {
-          "auth-dev.mozilla.authzero.com/:amr": "one_group"
         }
       }
     }
