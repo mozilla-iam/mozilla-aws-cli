@@ -1,6 +1,6 @@
 {
   "Version": "2012-10-17",
-  "Returns": ["EVERYGROUP"],
+  "Exception": "UnsupportedPolicyError",
   "Statement": [
     {
       "Effect": "Allow",

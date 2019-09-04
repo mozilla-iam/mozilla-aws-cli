@@ -65,3 +65,6 @@ def test_get_role_group_map():
     # assert 'test_groups' in groups
     # assert len(groups) == 1
     # assert len(groups['test_groups']) == 1
+
+    # TODO : Add a test to confirm that when 2 roles are encountered where one
+    # is invalid/unsupported, the other role still gets processed

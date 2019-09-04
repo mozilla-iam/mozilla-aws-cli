@@ -255,11 +255,15 @@ def get_groups_from_policy(policy) -> list:
         if operator_count > 1:
             raise UnsupportedPolicyError
 
+        # An absence of operators means all users are permitted which isn't
+        # supported
+        if operator_count == 0:
+            raise UnsupportedPolicyError
+
         # For clarity:
         # operator --> StringEquals, ForAnyValue:StringLike
         # conditions --> dictionary mapping, e.g. StringEquals: {}
         # condition: auth-dev.mozilla.auth0.com/:amr
-        operator_count = 0
         for operator, conditions in statement.get("Condition", {}).items():
             for condition in conditions:
                 if condition in VALID_AMRS:
@@ -429,7 +433,30 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
             assumed_role_credentials[aws_account_id],
         )
         for role in roles:
-            groups = get_groups_from_policy(role['AssumeRolePolicyDocument'])
+            try:
+                groups = get_groups_from_policy(role['AssumeRolePolicyDocument'])
+            except UnsupportedPolicyError:
+                # a policy intended to work with the right IdP but with
+                #   conditions beyond what we can handle
+                # a policy intended to work with the right IdP but with no
+                #   conditions resulting in allowing all users to assume the
+                #   role
+
+                # TODO : Emit a MozDef event reporting this unsupported policy
+                continue
+            except InvalidPolicyError:
+                # a policy which isn't valid JSON which should never happen
+                # a policy which isn't a dictionary which should never happen
+                # a policy with a StringEquals condition where the value
+                #   contains wildcard characters
+                #     this is either a mistake and the author intended
+                #     StringLike not String equals or
+                #     this is not a mistake and the author is trying to match
+                #     a group name with a literal "?" or "*" character in the
+                #     group name
+
+                # TODO : Emit a MozDef event reporting this invalid policy
+                continue
             role_group_map[role['Arn']] = groups
         alias_map[aws_account_id] = aliases
     return flip_map(role_group_map), alias_map
