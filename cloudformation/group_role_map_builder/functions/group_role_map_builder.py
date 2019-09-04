@@ -32,7 +32,8 @@ VALID_AMRS = os.getenv(
 VALID_FEDERATED_PRINCIPAL_KEYS = os.getenv(
     'VALID_FEDERATED_PRINCIPAL_KEYS',
     'arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/'
-    ',arn:aws:iam::371522382791:oidc-provider/auth.mozilla.auth0.com/',
+    ',arn:aws:iam::371522382791:oidc-provider/auth.mozilla.auth0.com/'
+    ',arn:aws:iam::415589142697:oidc-provider/auth.mozilla.auth0.com/',
 ).split(',')
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
 UNSUPPORTED_OPERATORS = (
