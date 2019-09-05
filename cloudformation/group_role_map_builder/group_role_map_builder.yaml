@@ -2,6 +2,30 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function which builds the OIDC claim group to role map file and uploads it to S3. Function is triggered hourly
 Metadata:
   Source: https://github.com/mozilla-iam/federated-aws-cli/blob/master/cloudformation/group_role_map_builder/group_role_map_builder.yaml
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: Stack Emission Table
+      Parameters:
+      - StackEmissionDynamoDBTableName
+      - StackEmissionDynamoDBTableRegion
+    - Label:
+        default: S3
+      Parameters:
+      - S3BucketName
+      - GroupRoleMapS3FilePath
+      - AccountAliasesS3FilePath
+    ParameterLabels:
+      StackEmissionDynamoDBTableName:
+        default: Stack Emission DynamoDB Table Name
+      StackEmissionDynamoDBTableRegion:
+        default: Stack Emission DynamoDB Region
+      S3BucketName:
+        default: S3 Bucket Name
+      GroupRoleMapS3FilePath:
+        default: Group Role Map S3 File Path
+      AccountAliasesS3FilePath:
+        default: AWS Account Alias Map S3 File Path
 Parameters:
   StackEmissionDynamoDBTableName:
     Type: String

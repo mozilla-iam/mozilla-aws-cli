@@ -2,6 +2,48 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function and API which accepts an OIDC ID Token and returns a list of IAM Roles
 Metadata:
   Source: https://github.com/mozilla-iam/federated-aws-cli/blob/master/cloudformation/idtoken_for_roles/idtoken_for_roles.yaml
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: S3
+      Parameters:
+      - S3BucketName
+      - GroupRoleMapS3FilePath
+      - AccountAliasesS3FilePath
+    - Label:
+        default: Authentication
+      Parameters:
+      - AllowedIssuer
+      - AllowedAudience
+    - Label:
+        default: API
+      Parameters:
+      - RolesPathPrefix
+      - AliasesPathPrefix
+      - CustomDomainName
+      - DomainNameZone
+      - CertificateArn
+    ParameterLabels:
+      S3BucketName:
+        default: S3 Bucket Name
+      GroupRoleMapS3FilePath:
+        default: Group Role Map S3 File Path
+      AccountAliasesS3FilePath:
+        default: AWS Account Alias Map S3 File Path
+      AllowedIssuer:
+        default: Allowed OIDC Issuer
+      AllowedAudience:
+        default: Allowed OIDC Audience
+      RolesPathPrefix:
+        default: API Path Prefix for the Group Role Map endpoint
+      AliasesPathPrefix:
+        default: API Path Prefix for the AWS Account Alias Map endpoint
+      CustomDomainName:
+        default: Custom DNS Domain Name
+      DomainNameZone:
+        default: DNS Zone containing the Custom DNS Domain Name
+      CertificateArn:
+        default: AWS ACM Certificate ARN for the Custom DNS Domain Name
 Parameters:
   S3BucketName:
     Type: String
