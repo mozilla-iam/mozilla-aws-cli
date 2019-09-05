@@ -164,7 +164,7 @@ class Login():
 
         if self.role_arn is None:
             logger.info('Exiting, no IAM Role ARN selected')
-            exit(0)
+            os.kill(os.getpid(), signal.SIGINT)
 
         credentials = sts_conn.get_credentials(
             token["id_token"], role_arn=self.role_arn)
