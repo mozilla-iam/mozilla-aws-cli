@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function and API which accepts an OIDC ID Token and returns a list of IAM Roles
+Metadata:
+  Source: https://github.com/mozilla-iam/federated-aws-cli/blob/master/cloudformation/idtoken_for_roles/idtoken_for_roles.yaml
 Parameters:
   S3BucketName:
     Type: String
