@@ -221,28 +221,43 @@ def get_groups_from_policy(policy) -> list:
         try:
             policy = json.loads(policy)
         except JSONDecodeError:
+            logger.error("InvalidPolicyError : Can't parse JSON")
             raise InvalidPolicyError
 
     if not isinstance(policy, dict):
+        logger.error("InvalidPolicyError : Policy is not dict")
         raise InvalidPolicyError
 
     # If policy lacks a statement, we can bail out
     if 'Statement' not in policy:
+        logger.debug('Skipping policy as it has no statements')
         return []
 
     for statement in policy["Statement"]:
-        if (
-            statement.get("Effect", '').lower() != "Allow".lower()
-            or statement.get("Action", '').lower() != "sts:AssumeRoleWithWebIdentity".lower()
-            or statement.get('Principal', {}).get('Federated')
-            not in VALID_FEDERATED_PRINCIPAL_KEYS
-        ):
+        if statement.get("Effect", '').lower() != "Allow".lower():
+            logger.debug(
+                'Skipping policy statement with Effect {}'.format(
+                    statement.get("Effect")))
             continue
-
+        if (statement.get("Action", '').lower()
+                != "sts:AssumeRoleWithWebIdentity".lower()):
+            logger.debug(
+                'Skipping policy statement with Action {}'.format(
+                    statement.get("Action")))
+            continue
+        if (statement.get('Principal', {}).get('Federated')
+                not in VALID_FEDERATED_PRINCIPAL_KEYS):
+            logger.debug(
+                'Skipping policy statement with Federated Principal {}'.format(
+                    statement.get('Principal', {}).get('Federated')))
+            continue
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():
             # StringNotLike, etc. are not supported
             if operator in UNSUPPORTED_OPERATORS:
+                logger.error(
+                    'UnsupportedPolicyError'
+                    ': Condition uses operator {}'.format(operator))
                 raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
             elif operator in VALID_OPERATORS and any(
@@ -253,11 +268,18 @@ def get_groups_from_policy(policy) -> list:
 
         # Multiple operators are not supported
         if operator_count > 1:
+            logger.error(
+                'UnsupportedPolicyError : Too many ({}) operators used'.format(
+                    operator_count))
             raise UnsupportedPolicyError
 
         # An absence of operators means all users are permitted which isn't
         # supported
         if operator_count == 0:
+            logger.error(
+                'UnsupportedPolicyError : Statement has no amr conditions, '
+                'all users permitted access. At least one amr condition is '
+                'required')
             raise UnsupportedPolicyError
 
         # For clarity:
@@ -273,12 +295,12 @@ def get_groups_from_policy(policy) -> list:
                     # Only the StringLike operator allows globbing or ?
                     # Technically the * and ? values are legal in StringEquals,
                     # but we don't allow them for clarity
-                    if operator in UNGLOBBABLE_OPERATORS and any(
-                        [
-                            ["*" in group for group in groups],
-                            ["?" in group for group in groups],
-                        ]
-                    ):
+                    if (operator in UNGLOBBABLE_OPERATORS
+                            and set('*?') & set(''.join(groups))):
+                        logger.error(
+                            "InvalidPolicyError : Mismatched operator and "
+                            "wildcards. Operator {} and groups {}".format(
+                                operator, groups))
                         raise InvalidPolicyError
 
                     policy_groups.update(groups)
@@ -434,7 +456,11 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
         )
         for role in roles:
             try:
-                groups = get_groups_from_policy(role['AssumeRolePolicyDocument'])
+                logger.debug(
+                    'Checking assume role policy document for role {} in AWS '
+                    'account {}'.format(role['RoleName'], aws_account_id))
+                groups = get_groups_from_policy(
+                    role['AssumeRolePolicyDocument'])
             except UnsupportedPolicyError:
                 # a policy intended to work with the right IdP but with
                 #   conditions beyond what we can handle
@@ -503,8 +529,10 @@ def lambda_handler(event, context):
     alias_map_changed = store_s3_file(
         S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP, alias_map, False)
     if group_role_map_changed:
-        logger.info('Group role map in S3 updated : {}'.format(serialize_map(group_role_map)))
+        logger.info('Group role map in S3 updated : {}'.format(
+            serialize_map(group_role_map)))
     if alias_map_changed:
-        logger.info('Account alias map in S3 updated : {}'.format(serialize_map(alias_map)))
+        logger.info('Account alias map in S3 updated : {}'.format(
+            serialize_map(alias_map)))
 
     return group_role_map
