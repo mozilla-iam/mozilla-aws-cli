@@ -8,17 +8,20 @@ TEMPLATE_FILENAME=$2
 S3_BUCKET=$3
 # GroupRoleMapBuilder
 STACK_NAME=$4
+# group-role-map-builder
+S3_PREFIX=$5
+S3_PREFIX_ARG="--s3-prefix $S3_PREFIX"
 
 # Optional arguments
 
-# group-role-map-builder
-S3_PREFIX=$5
-if [ "$S3_PREFIX" != "none" ]; then
-  S3_PREFIX_ARG="--s3-prefix $S3_PREFIX"
-fi
-# ApiEndpointUrl
+# "CustomDomainName=foo.example.com DomainNameZone=example.com. CertificateArn=arn:aws:acm:region:123456789012:certificate/12345678-1234-1234-1234-123456789012"
 if [ "$6" != "none" ]; then
-  OUTPUT_VAR_NAME=$6
+  PARAMETER_OVERRIDES=$6
+fi
+
+# ApiEndpointUrl
+if [ "$7" != "none" ]; then
+  OUTPUT_VAR_NAME=$7
 fi
 
 # Confirm that we have access to AWS and we're in the right account
@@ -30,10 +33,10 @@ fi
 # This tempfile is required because of https://github.com/aws/aws-cli/issues/2504
 TMPFILE=$(mktemp --suffix .yaml)
 TMPDIR=$(mktemp --directory)
-trap "{ rm -f $TMPFILE;rm -rf $TMPDIR;rm -f build; }" EXIT
-
 TARGET_PATH="`dirname \"${TEMPLATE_FILENAME}\"`"
 ln --no-dereference --force --symbolic $TMPDIR "${TARGET_PATH}/build"
+trap "{ rm --verbose --force $TMPFILE;rm --force --recursive $TMPDIR;rm --verbose --force \"${TARGET_PATH}/build\"; }" EXIT
+
 pip install --target "${TARGET_PATH}/build/" -r "${TARGET_PATH}/requirements.txt"
 cp --verbose "${TARGET_PATH}/functions/"*.py "${TARGET_PATH}/build/"
 
@@ -54,7 +57,8 @@ fi
 aws cloudformation deploy --template-file $TMPFILE --stack-name $STACK_NAME \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
-    S3BucketName=$S3_BUCKET
+    S3BucketName=$S3_BUCKET \
+    $PARAMETER_OVERRIDES
 
 echo "Waiting for stack to reach a COMPLETE state"
 aws cloudformation wait $wait_verb --stack-name  $STACK_NAME

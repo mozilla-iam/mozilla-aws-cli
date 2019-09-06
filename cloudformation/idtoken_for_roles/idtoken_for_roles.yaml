@@ -1,5 +1,49 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function and API which accepts an OIDC ID Token and returns a list of IAM Roles
+Metadata:
+  Source: https://github.com/mozilla-iam/federated-aws-cli/blob/master/cloudformation/idtoken_for_roles/idtoken_for_roles.yaml
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: S3
+      Parameters:
+      - S3BucketName
+      - GroupRoleMapS3FilePath
+      - AccountAliasesS3FilePath
+    - Label:
+        default: Authentication
+      Parameters:
+      - AllowedIssuer
+      - AllowedAudience
+    - Label:
+        default: API
+      Parameters:
+      - RolesPathPrefix
+      - AliasesPathPrefix
+      - CustomDomainName
+      - DomainNameZone
+      - CertificateArn
+    ParameterLabels:
+      S3BucketName:
+        default: S3 Bucket Name
+      GroupRoleMapS3FilePath:
+        default: Group Role Map S3 File Path
+      AccountAliasesS3FilePath:
+        default: AWS Account Alias Map S3 File Path
+      AllowedIssuer:
+        default: Allowed OIDC Issuer
+      AllowedAudience:
+        default: Allowed OIDC Audience
+      RolesPathPrefix:
+        default: API Path Prefix for the Group Role Map endpoint
+      AliasesPathPrefix:
+        default: API Path Prefix for the AWS Account Alias Map endpoint
+      CustomDomainName:
+        default: Custom DNS Domain Name
+      DomainNameZone:
+        default: DNS Zone containing the Custom DNS Domain Name
+      CertificateArn:
+        default: AWS ACM Certificate ARN for the Custom DNS Domain Name
 Parameters:
   S3BucketName:
     Type: String
@@ -20,10 +64,34 @@ Parameters:
     Type: String
     Description: OIDC Audience. For Mozilla this is the Auth0 Client ID
     Default: xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT
-  ApiPathPrefix:
+  RolesPathPrefix:
     Type: String
-    Description: The URL path prefix for the new API
+    Description: The URL path prefix to POST ID tokens to and get back roles
     Default: roles
+  AliasesPathPrefix:
+    Type: String
+    Description: The URL path prefix to GET account aliases from
+    Default: account-aliases
+  CustomDomainName:
+    Type: String
+    Description: The custom domain name to use for the API
+    Default: ''
+  DomainNameZone:
+    Type: String
+    Description: The Route53 DNS zone containing the custom domain name
+    Default: ''
+  CertificateArn:
+    Type: String
+    Description: The ARN of the AWS ACM Certificate for your custom domain name
+    Default: ''
+Conditions:
+  UseCustomDomainName: !Not [ !Equals [ !Ref 'CustomDomainName', '' ] ]
+Rules:
+  DomainNameAndCertificateArnProvided:
+    RuleCondition: !Or [ !Not [ !Equals [ !Ref 'CustomDomainName', '' ] ], !Not [ !Equals [ !Ref 'DomainNameZone', '' ] ], !Not [ !Equals [ !Ref 'CertificateArn', '' ] ] ]
+    Assertions:
+      - Assert: !And [ !Not [ !Equals [ !Ref 'CustomDomainName', '' ] ], !Not [ !Equals [ !Ref 'DomainNameZone', '' ] ], !Not [ !Equals [ !Ref 'CertificateArn', '' ] ] ]
+        AssertDescription: If you set a CustomDomainName, DomainNameZone or CertificateArn you must provide all values
 Resources:
   IdtokenForRolesFunctionRole:
     Type: AWS::IAM::Role
@@ -93,60 +161,57 @@ Resources:
       # preventing this resource from creating
       LogGroupName: !Join [ '/', ['/aws/lambda', !Ref 'IdtokenForRolesFunction' ] ]
       RetentionInDays: 14
+  IdtokenForRolesDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Condition: UseCustomDomainName
+    Properties:
+      RegionalCertificateArn: !Ref CertificateArn
+      DomainName: !Ref CustomDomainName
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+  IdtokenForRolesRoute53RecordSet:
+    Type: AWS::Route53::RecordSet
+    Condition: UseCustomDomainName
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt IdtokenForRolesDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt IdtokenForRolesDomainName.RegionalHostedZoneId
+      Comment: Bind the custom domain name to the IdtokenForRoles API Gateway
+      HostedZoneName: !Ref DomainNameZone
+      Name: !Ref CustomDomainName
+      Type: A
   IdtokenForRolesApi:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: IdTokenForRoles
       Description: Exchange an ID Token for a list of IAM Roles
       FailOnWarnings: true
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+  IdtokenForRolesBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: UseCustomDomainName
+    Properties:
+      DomainName: !Ref IdtokenForRolesDomainName
+      RestApiId: !Ref IdtokenForRolesApi
+      Stage: !Ref IdtokenForRolesApiStage
   IdtokenForRolesLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:invokeFunction
       FunctionName: !GetAtt IdtokenForRolesFunction.Arn
       Principal: apigateway.amazonaws.com
-      SourceArn: !Join [ '', [ 'arn:aws:execute-api:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref 'IdtokenForRolesApi', '/*' ] ]
-  IdtokenForRolesApiGatewayRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - apigateway.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Policies:
-        - PolicyName: ApiGatewayLogsPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:DescribeLogGroups
-                  - logs:DescribeLogStreams
-                  - logs:PutLogEvents
-                  - logs:GetLogEvents
-                  - logs:FilterLogEvents
-                Resource: '*'
-  IdtokenForRolesApiGatewayAccount:
-    Type: AWS::ApiGateway::Account
-    Properties:
-      CloudWatchRoleArn: !GetAtt IdtokenForRolesApiGatewayRole.Arn
+      SourceArn: !Join [ '', [ 'arn:aws:execute-api:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref 'IdtokenForRolesApi', '/*/*' ] ]
   IdtokenForRolesApiStage:
-    DependsOn:
-      - IdtokenForRolesApiGatewayAccount
     Type: AWS::ApiGateway::Stage
     Properties:
       DeploymentId: !Ref IdtokenForRolesApiDeployment
       MethodSettings:
         - DataTraceEnabled: true
           HttpMethod: '*'
-          LoggingLevel: INFO
+          # LoggingLevel: INFO
           ResourcePath: /*
       RestApiId: !Ref IdtokenForRolesApi
       Tags:
@@ -178,7 +243,13 @@ Resources:
     Properties:
       RestApiId: !Ref IdtokenForRolesApi
       ParentId: !GetAtt IdtokenForRolesApi.RootResourceId
-      PathPart: !Ref ApiPathPrefix
+      PathPart: !Ref RolesPathPrefix
+  AliasesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref IdtokenForRolesApi
+      ParentId: !GetAtt IdtokenForRolesApi.RootResourceId
+      PathPart: !Ref AliasesPathPrefix
   IdtokenForRoleRolesRequest:
     DependsOn: IdtokenForRolesLambdaPermission
     Type: AWS::ApiGateway::Method
@@ -200,7 +271,34 @@ Resources:
       MethodResponses:
         - StatusCode: '200'
           # TODO Add a 403 mapping for when the idtoken is invalid
+  AliasesRequest:
+    DependsOn: IdtokenForRolesLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
+        IntegrationResponses:
+          - StatusCode: '200'
+      ResourceId: !Ref AliasesResource
+      RestApiId: !Ref IdtokenForRolesApi
+      MethodResponses:
+        - StatusCode: '200'
 Outputs:
-  ApiEndpointUrl:
-    Description: The URL of the API Endpoint
-    Value: !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'ApiPathPrefix' ] ]
+  RolesEndpointUrl:
+    Description: The URL of the token for roles API Endpoint
+    Value:
+      Fn::If:
+        - UseCustomDomainName
+        - !Join [ '', [ 'https://', !Ref 'CustomDomainName', '/', !Ref 'RolesPathPrefix'] ]
+        - !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'RolesPathPrefix' ] ]
+  AliasesEndpointUrl:
+    Description: The URL of the token for aliases API Endpoint
+    Value:
+      Fn::If:
+        - UseCustomDomainName
+        - !Join [ '', [ 'https://', !Ref 'CustomDomainName', '/', !Ref 'AliasesPathPrefix'] ]
+        - !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'AliasesPathPrefix' ] ]

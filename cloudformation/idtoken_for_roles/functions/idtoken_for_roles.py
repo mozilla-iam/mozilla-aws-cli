@@ -47,21 +47,19 @@ def get_s3_file(
     return json.load(response['Body'])
 
 
-def lambda_handler(event, context):
+def get_roles_and_aliases(token, key):
     global group_role_map
     global account_alias_map
-    token = event.get('token')
-    key = event.get('key')
-    logger.debug("event type is {} and event is {}".format(type(event), event))
+
     required_env_variables = {'ALLOWED_ISSUER', 'ALLOWED_AUDIENCE'}
     if not required_env_variables.issubset(set(os.environ)):
-        return {
-            'error': 'Environment variables {} not set in idtoken_for_roles. '
-            'Contact the IAM administrators.'.format(
-                required_env_variables
-                - required_env_variables.intersection(set(os.environ))
-            )
-        }
+        missing_env_variables = (
+                required_env_variables -
+                required_env_variables.intersection(set(os.environ)))
+        error_message = (
+            'Environment variables {} not set in idtoken_for_roles. Contact '
+            'the IAM administrators.')
+        return {'error': error_message.format(missing_env_variables)}
     try:
         id_token = jwt.decode(
             token=token,
@@ -98,3 +96,23 @@ def lambda_handler(event, context):
                         aws_account_id]
             roles.update(mapped_roles)
     return {'roles': list(roles), 'aliases': aliases}
+
+
+def get_aliases():
+    global account_alias_map
+    if 'account_alias_map' not in globals():
+        logger.debug(
+            'Account Alias Map was not found in globals, refetching from S3')
+        account_alias_map = get_s3_file(S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP)
+    return account_alias_map
+
+
+def lambda_handler(event, context):
+    logger.debug("event type is {} and event is {}".format(type(event), event))
+
+    token = event.get('token')
+    key = event.get('key')
+    if token and key:
+        return get_roles_and_aliases(token, key)
+    else:
+        return get_aliases()
