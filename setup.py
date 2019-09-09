@@ -50,6 +50,7 @@ setup(
     long_description=readme,
     keywords="federated_aws_cli",
     packages=find_packages(include=["federated_aws_cli"]),
+    package_data={'federated_aws_cli': ['static/*', 'static/fonts/*']},
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
