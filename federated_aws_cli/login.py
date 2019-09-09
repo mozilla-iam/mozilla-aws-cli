@@ -152,29 +152,37 @@ class Login():
                 audience=self.client_id)
             logger.debug("ID token dict : {}".format(id_token_dict))
 
-        if self.role_arn is None:
-            roles_and_aliases = get_roles_and_aliases(
-                endpoint=self.idtoken_for_roles_url,
-                token=token["id_token"],
-                key=self.jwks
-            )
-            logger.debug('Roles and aliases are {}'.format(roles_and_aliases))
-            self.role_arn = show_role_picker(roles_and_aliases)
-            logger.debug('Role ARN {} selected'.format(self.role_arn))
-
-        if self.role_arn is None:
-            logger.info('Exiting, no IAM Role ARN selected')
-            os.kill(os.getpid(), signal.SIGINT)
-
-        credentials = sts_conn.get_credentials(
-            token["id_token"], role_arn=self.role_arn)
+        credentials = None
+        message = None
+        while credentials is None:
+            if self.role_arn is None:
+                roles_and_aliases = get_roles_and_aliases(
+                    endpoint=self.idtoken_for_roles_url,
+                    token=token["id_token"],
+                    key=self.jwks
+                )
+                logger.debug('Roles and aliases are {}'.format(roles_and_aliases))
+                self.role_arn = show_role_picker(roles_and_aliases, message)
+                logger.debug('Role ARN {} selected'.format(self.role_arn))
+            if self.role_arn is None:
+                logger.info('Exiting, no IAM Role ARN selected')
+                os.kill(os.getpid(), signal.SIGINT)
+            credentials = sts_conn.get_credentials(
+                token["id_token"], role_arn=self.role_arn)
+            if credentials is None:
+                message = (
+                    'Unable to assume role {}. Please select a different '
+                    'role.'.format(self.role_arn))
+                self.role_arn = None
 
         logger.debug(credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
 
         # TODO: Create a global config object?
-        if self.output == "envvar":
-            print(get_aws_env_variables(credentials))
+        if credentials is not None:
+            if self.output == "envvar":
+                print('echo "{}"'.format(self.role_arn))
+                print(get_aws_env_variables(credentials))
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")

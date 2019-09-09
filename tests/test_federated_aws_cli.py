@@ -90,5 +90,5 @@ def test_show_role_picker(show_menu):
          'arn:aws:iam::234567890123:role/path/to/foraker',
          'arn:aws:iam::123456789012:role/role-mariana',
          'arn:aws:iam::123456789012:role/a/path/role-philippine',
-         'arn:aws:iam::123456789012:role/role-tonga']
+         'arn:aws:iam::123456789012:role/role-tonga'], None
     )

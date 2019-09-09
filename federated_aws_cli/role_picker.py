@@ -41,12 +41,13 @@ def get_roles_and_aliases(endpoint, token, key):
     return r.json()
 
 
-def show_menu(menu_selections, role_arns):
+def show_menu(menu_selections, role_arns, message=None):
     """Display a set of menu selections and return the associated role_arn
     once the user selects a role
 
     :param list menu_selections: A list of menu selections to display
     :param list role_arns: A list of IAM Role ARNs
+    :param str message: An optional message to show in the menu
     :return: The IAM Role ARN selected
     """
     screen = consolemenu.Screen()
@@ -58,6 +59,7 @@ def show_menu(menu_selections, role_arns):
     menu = consolemenu.ConsoleMenu(
         title="Select which AWS account and IAM role you'd like to assume",
         subtitle="Account Alias (Account ID) : Role Name",
+        prologue_text=message,
         screen=screen,
         formatter=formatter
     )
@@ -68,7 +70,7 @@ def show_menu(menu_selections, role_arns):
             if menu.selected_option != len(menu_selections) else None)
 
 
-def show_role_picker(roles_and_aliases):
+def show_role_picker(roles_and_aliases, message=None):
     """Display an IAM Role picker menu and return the role picked by the user
 
     :param dict roles_and_aliases: A dict with two keys, 'roles' and 'aliases'
@@ -82,6 +84,7 @@ def show_role_picker(roles_and_aliases):
                 '234567890123': ['Mountains-Account'],
             }
         }
+    :param str message: An optional message to show in the menu
     :return: The IAM Role ARN that was selected by the user
     """
     role_arns = roles_and_aliases.get('roles', [])
@@ -108,5 +111,5 @@ def show_role_picker(roles_and_aliases):
             menu_selections.append('{} ({}) : {}'.format(
                 account_alias, alias_to_id[account_alias], role_name))
             role_arns.append(options[account_alias][role_name])
-    result = show_menu(menu_selections, role_arns)
+    result = show_menu(menu_selections, role_arns, message)
     return result
