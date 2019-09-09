@@ -13,28 +13,19 @@ logging.getLogger('boto3').propagate = False
 logging.getLogger('botocore').propagate = False
 logging.getLogger('urllib3').propagate = False
 
-# AWS Account : infosec-prod
-TABLE_CATEGORY = os.getenv('TABLE_CATEGORY', 'AWS Security Auditing Service')
-TABLE_INDEX_NAME = os.getenv('TABLE_INDEX_NAME', 'category')
-TABLE_ATTRIBUTE_NAME = os.getenv(
-    'TABLE_ATTRIBUTE_NAME', 'SecurityAuditIAMRoleArn'
-)
-TABLE_NAME = os.getenv('TABLE_NAME', 'cloudformation-stack-emissions')
-TABLE_REGION = os.getenv('TABLE_REGION', 'us-west-2')
-S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-S3_FILE_PATH_GROUP_ROLE_MAP = os.getenv(
-    'S3_FILE_PATH_GROUP_ROLE_MAP', 'access-group-iam-role-map.json')
-S3_FILE_PATH_ALIAS_MAP = os.getenv(
-    'S3_FILE_PATH_ALIAS_MAP', 'account-aliases.json')
-VALID_AMRS = os.getenv(
-    'VALID_AMRS', 'auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr'
-).split(',')
-VALID_FEDERATED_PRINCIPAL_KEYS = os.getenv(
-    'VALID_FEDERATED_PRINCIPAL_KEYS',
-    'arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/'
-    ',arn:aws:iam::371522382791:oidc-provider/auth.mozilla.auth0.com/'
-    ',arn:aws:iam::415589142697:oidc-provider/auth.mozilla.auth0.com/',
-).split(',')
+DEFAULTS = {
+    'TABLE_CATEGORY': 'AWS Security Auditing Service',
+    'TABLE_INDEX_NAME': 'category',
+    'TABLE_ATTRIBUTE_NAME': 'SecurityAuditIAMRoleArn',
+    'TABLE_NAME': 'cloudformation-stack-emissions',
+    'TABLE_REGION': 'us-west-2',
+    'S3_BUCKET_NAME': None,
+    'S3_FILE_PATH_GROUP_ROLE_MAP': 'access-group-iam-role-map.json',
+    'S3_FILE_PATH_ALIAS_MAP': 'account-aliases.json',
+    'VALID_AMRS': '',
+    'VALID_FEDERATED_PRINCIPAL_KEYS': '',
+}
+COMMA_DELIMITED_VARIABLES = ['VALID_AMRS', 'VALID_FEDERATED_PRINCIPAL_KEYS']
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
 UNSUPPORTED_OPERATORS = (
     "StringNotEquals",
@@ -91,6 +82,14 @@ class MozDefMessageStub:
 
     def send(self, pathway=None, validator=None):
         return True
+
+
+def get_setting(name):
+    value = os.getenv(name, DEFAULTS.get(name))
+    if name in COMMA_DELIMITED_VARIABLES:
+        return list(filter(None, value.split(',')))
+    else:
+        return value
 
 
 def get_paginated_results(
@@ -246,10 +245,12 @@ def get_groups_from_policy(policy) -> list:
                     statement.get("Action")))
             continue
         if (statement.get('Principal', {}).get('Federated')
-                not in VALID_FEDERATED_PRINCIPAL_KEYS):
+                not in get_setting('VALID_FEDERATED_PRINCIPAL_KEYS')):
             logger.debug(
-                'Skipping policy statement with Federated Principal {}'.format(
-                    statement.get('Principal', {}).get('Federated')))
+                'Skipping policy statement with Federated Principal {} which '
+                'is not in {}'.format(
+                    statement.get('Principal', {}).get('Federated'),
+                    get_setting('VALID_FEDERATED_PRINCIPAL_KEYS')))
             continue
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():
@@ -261,7 +262,7 @@ def get_groups_from_policy(policy) -> list:
                 raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
             elif operator in VALID_OPERATORS and any(
-                amr in VALID_AMRS
+                amr in get_setting('VALID_AMRS')
                 for amr in statement["Condition"][operator].keys()
             ):
                 operator_count += 1
@@ -288,7 +289,7 @@ def get_groups_from_policy(policy) -> list:
         # condition: auth-dev.mozilla.auth0.com/:amr
         for operator, conditions in statement.get("Condition", {}).items():
             for condition in conditions:
-                if condition in VALID_AMRS:
+                if condition in get_setting('VALID_AMRS'):
                     groups = conditions[condition]
                     groups = [groups] if isinstance(groups, str) else groups
 
@@ -494,25 +495,26 @@ def get_security_audit_role_arns() -> List[str]:
     :return: List of ARNs
     """
     action_args = {
-        'TableName': TABLE_NAME,
-        'IndexName': TABLE_INDEX_NAME,
+        'TableName': get_setting('TABLE_NAME'),
+        'IndexName': get_setting('TABLE_INDEX_NAME'),
         'Select': 'SPECIFIC_ATTRIBUTES',
-        'ProjectionExpression': TABLE_ATTRIBUTE_NAME,
+        'ProjectionExpression': get_setting('TABLE_ATTRIBUTE_NAME'),
         'KeyConditionExpression': '#c = :v',
-        'ExpressionAttributeNames': {'#c': TABLE_INDEX_NAME},
-        'ExpressionAttributeValues': {':v': {'S': TABLE_CATEGORY}},
+        'ExpressionAttributeNames': {'#c': get_setting('TABLE_INDEX_NAME')},
+        'ExpressionAttributeValues': {
+            ':v': {'S': get_setting('TABLE_CATEGORY')}},
     }
     items = get_paginated_results(
         'dynamodb',
         'query',
         'Items',
-        {'region_name': TABLE_REGION},
+        {'region_name': get_setting('TABLE_REGION')},
         action_args,
     )
     return [
-        x[TABLE_ATTRIBUTE_NAME]['S']
+        x[get_setting('TABLE_ATTRIBUTE_NAME')]['S']
         for x in items
-        if TABLE_ATTRIBUTE_NAME in x
+        if get_setting('TABLE_ATTRIBUTE_NAME') in x
     ]
 
 
@@ -525,9 +527,15 @@ def lambda_handler(event, context):
     )
     group_role_map, alias_map = build_group_role_map(security_audit_role_arns)
     group_role_map_changed = store_s3_file(
-        S3_BUCKET_NAME, S3_FILE_PATH_GROUP_ROLE_MAP, group_role_map, True)
+        get_setting('S3_BUCKET_NAME'),
+        get_setting('S3_FILE_PATH_GROUP_ROLE_MAP'),
+        group_role_map,
+        True)
     alias_map_changed = store_s3_file(
-        S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP, alias_map, False)
+        get_setting('S3_BUCKET_NAME'),
+        get_setting('S3_FILE_PATH_ALIAS_MAP'),
+        alias_map,
+        False)
     if group_role_map_changed:
         logger.info('Group role map in S3 updated : {}'.format(
             serialize_map(group_role_map)))

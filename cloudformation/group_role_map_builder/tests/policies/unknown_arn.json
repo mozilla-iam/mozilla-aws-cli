@@ -5,7 +5,7 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::1337:oidc-provider/auth-dev.mozilla.auth0.com/"
+        "Federated": "arn:aws:iam::111111111111:oidc-provider/auth.thisisadifferentidp.auth0.com/"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -13,7 +13,7 @@
           "auth-dev.mozilla.auth0.com/:aud": "xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"
         },
         "ForAnyValue:StringLike": {
-          "auth-dev.mozilla.auth0.com/:amr": "one_group"
+          "auth.example.auth0.com/:amr": "one_group"
         }
       }
     }
