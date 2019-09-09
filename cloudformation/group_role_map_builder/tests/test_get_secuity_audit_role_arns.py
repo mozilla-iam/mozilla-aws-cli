@@ -1,18 +1,12 @@
 import boto3
 from moto import mock_dynamodb2
 from ..functions.group_role_map_builder import get_security_audit_role_arns
-from ..functions.group_role_map_builder import (
-    TABLE_CATEGORY,
-    TABLE_INDEX_NAME,
-    TABLE_ATTRIBUTE_NAME,
-    TABLE_NAME,
-    TABLE_REGION,
-)
+from ..functions.group_role_map_builder import get_setting
 
 # https://github.com/mozilla/cloudformation-cross-account-outputs/blob/master/cloudformation/cloudformation-stack-emissions-dynamodb.yml
 TABLE_PRIMARY_HASH_ATTRIBUTE = 'aws-account-id'
 TABLE_PRIMARY_RANGE_ATTRIBUTE = 'id'
-TABLE_SECONDARY_HASH_ATTRIBUTE = TABLE_INDEX_NAME
+TABLE_SECONDARY_HASH_ATTRIBUTE = get_setting('TABLE_INDEX_NAME')
 TABLE_SECONDARY_RANGE_ATTRIBUTE = TABLE_PRIMARY_RANGE_ATTRIBUTE
 
 # Test values
@@ -30,7 +24,7 @@ def create_dynamodb_table():
 
     https://github.com/mozilla/cloudformation-cross-account-outputs/blob/master/cloudformation/cloudformation-stack-emissions-dynamodb.yml
     """
-    client = boto3.client('dynamodb', region_name=TABLE_REGION)
+    client = boto3.client('dynamodb', region_name=get_setting('TABLE_REGION'))
     client.create_table(
         AttributeDefinitions=[
             {
@@ -46,7 +40,7 @@ def create_dynamodb_table():
                 'AttributeType': 'S',
             },
         ],
-        TableName=TABLE_NAME,
+        TableName=get_setting('TABLE_NAME'),
         KeySchema=[
             {'AttributeName': TABLE_PRIMARY_HASH_ATTRIBUTE, 'KeyType': 'HASH'},
             {
@@ -78,20 +72,21 @@ def add_records_to_table():
     """Add testing data to mocked DynamoDB table"""
     item = {
         TABLE_PRIMARY_HASH_ATTRIBUTE: AWS_ACCOUNT_ID,
-        TABLE_INDEX_NAME: TABLE_CATEGORY,
+        get_setting('TABLE_INDEX_NAME'): get_setting('TABLE_CATEGORY'),
         TABLE_PRIMARY_RANGE_ATTRIBUTE: '{}+{}'.format(
             STACK_ID, LOGICAL_RESOURCE_ID
         ),
         'last-updated': '2019-02-07T18:40:44.525270Z',
         'logical-resource-id': LOGICAL_RESOURCE_ID,
         'region': 'us-west-2',
-        TABLE_ATTRIBUTE_NAME: IAM_ROLE_ARN,
+        get_setting('TABLE_ATTRIBUTE_NAME'): IAM_ROLE_ARN,
         'SecurityAuditIAMRoleName': IAM_ROLE_NAME,
         'stack-id': STACK_ID,
         'stack-name': 'InfosecClientRoleSecurityAudit',
     }
-    dynamodb = boto3.resource('dynamodb', region_name=TABLE_REGION)
-    table = dynamodb.Table(TABLE_NAME)
+    dynamodb = boto3.resource(
+        'dynamodb', region_name=get_setting('TABLE_REGION'))
+    table = dynamodb.Table(get_setting('TABLE_NAME'))
     table.put_item(Item=item)
 
 

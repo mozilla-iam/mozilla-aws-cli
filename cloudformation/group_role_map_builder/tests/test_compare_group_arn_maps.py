@@ -1,13 +1,13 @@
 from unittest.mock import patch
 from ..functions.group_role_map_builder import (
     store_s3_file,
-    get_s3_file,
-    S3_BUCKET_NAME,
+    get_s3_file
 )
 from ..functions import group_role_map_builder
 import boto3
 from moto import mock_s3
 
+S3_BUCKET_NAME = 'test'
 S3_FILE_NAME = 'test.json'
 
 # https://stackoverflow.com/a/23844656/168874

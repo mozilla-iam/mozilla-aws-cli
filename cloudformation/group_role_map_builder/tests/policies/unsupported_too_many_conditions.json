@@ -5,15 +5,15 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/"
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/auth.example.auth0.com/"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "auth-dev.mozilla.auth0.com/:amr": "one_group"
+          "auth.example.auth0.com/:amr": "one_group"
         },
         "ForAnyValue:StringLike": {
-          "auth-dev.mozilla.auth0.com/:amr": "two_groups*"
+          "auth.example.auth0.com/:amr": "two_groups*"
         }
       }
     }

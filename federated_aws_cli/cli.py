@@ -108,9 +108,9 @@ def main(config, role_arn, output, verbose):
     logger.debug("Config : {}".format(config))
 
     # Instantiate a login object, and begin login process
-    login = Login()
-    login.configure(
-        authorization_endpoint=config["openid-configuration"]["authorization_endpoint"],
+    login = Login(
+        authorization_endpoint=config["openid-configuration"][
+            "authorization_endpoint"],
         client_id=config["client_id"],
         idtoken_for_roles_url=config["idtoken_for_roles_url"],
         jwks=config["jwks"],

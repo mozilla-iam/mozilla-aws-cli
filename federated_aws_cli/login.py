@@ -10,7 +10,8 @@ import requests
 
 from federated_aws_cli import sts_conn
 from federated_aws_cli.listener import listen, port
-from federated_aws_cli.role_picker import get_aws_env_variables, get_roles_and_aliases, show_role_picker
+from federated_aws_cli.role_picker import (
+    get_aws_env_variables, get_roles_and_aliases, show_role_picker)
 
 
 try:
@@ -37,25 +38,27 @@ def base64_without_padding(data):
 
 def generate_challenge(code_verifier):
     # https://tools.ietf.org/html/rfc7636#section-4.2
-    return base64_without_padding(hashlib.sha256(code_verifier.encode()).digest())
+    return base64_without_padding(
+        hashlib.sha256(code_verifier.encode()).digest())
 
 
-class Login():
+class Login:
     # Maybe this would be better to unroll from config?
-    def configure(
-                  self,
-                  authorization_endpoint="https://auth.mozilla.auth0.com/authorize",
-                  client_id="",
-                  idtoken_for_roles_url=None,
-                  jwks=None,
-                  openid_configuration=None,
-                  output=None,
-                  role_arn=None,
-                  scope="openid",
-                  token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
-                  ):
+    def __init__(
+        self,
+        authorization_endpoint="https://auth.mozilla.auth0.com/authorize",
+        client_id="",
+        idtoken_for_roles_url=None,
+        jwks=None,
+        openid_configuration=None,
+        output=None,
+        role_arn=None,
+        scope="openid",
+        token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
+    ):
 
-        # URL of the OIDC authorization endpoint obtained from the discovery document
+        # URL of the OIDC authorization endpoint obtained from the discovery
+        # document
         self.authorization_endpoint = authorization_endpoint
 
         # OIDC client_id of the native OIDC application
@@ -78,11 +81,12 @@ class Login():
         self.token_endpoint = token_endpoint
 
     def login(self):
-        """Follow the PKCE auth flow by spawning a browser for the user to login,
-        passing a redirect_uri that points to a localhost listener. Once the user
-        logs into the IdP in the browser, the IdP will redirect the user to the
-        localhost listener, making the OIDC code available to the CLI. CLI then
-        exchanges the code for an tokens with the IdP and returns the tokens
+        """Follow the PKCE auth flow by spawning a browser for the user to
+        login, passing a redirect_uri that points to a localhost listener. Once
+        the user logs into the IdP in the browser, the IdP will redirect the
+        user to the localhost listener, making the OIDC code available to the
+        CLI. CLI then exchanges the code for an tokens with the IdP and returns
+        the tokens
 
         :return: Nothing, as the callback will send SIGINT to terminate
         """
@@ -96,18 +100,21 @@ class Login():
             "state": self.state,
         }
 
-        # We don't set audience here because Auth0 will set the audience on it's
-        # own
+        # We don't set audience here because Auth0 will set the audience on
+        # it's own
         url = "{}?{}".format(self.authorization_endpoint,
                              urlencode(url_parameters))
 
         # Open the browser window to the login url
 
-        # Previously we needed to call webbrowser.get() passing 'firefox' as an argument to the get method
-        # This was to work around webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to the console.
-        # That output to the console would then corrupt the intended script output meant to be eval'd. This issue doesn't
-        # appear to be manifesting anymore and so we've set it back to the default of whatever browser the OS uses.
-        # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181
+        # Previously we needed to call webbrowser.get() passing 'firefox' as an
+        # argument to the get method. This was to work around
+        # webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to
+        # the console. That output to the console would then corrupt the
+        # intended script output meant to be eval'd. This issue doesn't appear
+        # to be manifesting anymore and so we've set it back to the default of
+        # whatever browser the OS uses.
+        # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181  # noqa
         logger.debug("About to spawn browser window to {}".format(url))
         webbrowser.get().open_new_tab(url)
 
@@ -141,7 +148,8 @@ class Login():
             "redirect_uri": self.redirect_uri,
         }
 
-        token = requests.post(self.token_endpoint, headers=headers, json=body).json()
+        token = requests.post(
+            self.token_endpoint, headers=headers, json=body).json()
 
         logger.debug("Validating response from endpoint: {}".format(token))
 
@@ -152,29 +160,38 @@ class Login():
                 audience=self.client_id)
             logger.debug("ID token dict : {}".format(id_token_dict))
 
-        if self.role_arn is None:
-            roles_and_aliases = get_roles_and_aliases(
-                endpoint=self.idtoken_for_roles_url,
-                token=token["id_token"],
-                key=self.jwks
-            )
-            logger.debug('Roles and aliases are {}'.format(roles_and_aliases))
-            self.role_arn = show_role_picker(roles_and_aliases)
-            logger.debug('Role ARN {} selected'.format(self.role_arn))
-
-        if self.role_arn is None:
-            logger.info('Exiting, no IAM Role ARN selected')
-            os.kill(os.getpid(), signal.SIGINT)
-
-        credentials = sts_conn.get_credentials(
-            token["id_token"], role_arn=self.role_arn)
+        credentials = None
+        message = None
+        while credentials is None:
+            if self.role_arn is None:
+                roles_and_aliases = get_roles_and_aliases(
+                    endpoint=self.idtoken_for_roles_url,
+                    token=token["id_token"],
+                    key=self.jwks
+                )
+                logger.debug(
+                    'Roles and aliases are {}'.format(roles_and_aliases))
+                self.role_arn = show_role_picker(roles_and_aliases, message)
+                logger.debug('Role ARN {} selected'.format(self.role_arn))
+            if self.role_arn is None:
+                logger.info('Exiting, no IAM Role ARN selected')
+                os.kill(os.getpid(), signal.SIGINT)
+            credentials = sts_conn.get_credentials(
+                token["id_token"], role_arn=self.role_arn)
+            if credentials is None:
+                message = (
+                    'Unable to assume role {}. Please select a different '
+                    'role.'.format(self.role_arn))
+                self.role_arn = None
 
         logger.debug(credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
 
         # TODO: Create a global config object?
-        if self.output == "envvar":
-            print(get_aws_env_variables(credentials))
+        if credentials is not None:
+            if self.output == "envvar":
+                print('echo "{}"'.format(self.role_arn))
+                print(get_aws_env_variables(credentials))
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")

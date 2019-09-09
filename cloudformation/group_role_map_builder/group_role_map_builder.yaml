@@ -15,6 +15,11 @@ Metadata:
       - S3BucketName
       - GroupRoleMapS3FilePath
       - AccountAliasesS3FilePath
+    - Label:
+        default: OIDC Configuration
+      Parameters:
+      - ProviderArns
+      - AmrClaims
     ParameterLabels:
       StackEmissionDynamoDBTableName:
         default: Stack Emission DynamoDB Table Name
@@ -46,6 +51,12 @@ Parameters:
     Type: String
     Description: The path to the account aliases map file
     Default: account-aliases.json
+  ProviderArns:
+    Type: String
+    Description: A comma delimited list of AWS IAM OIDC Provider ARNs
+  AmrClaims:
+    Type: String
+    Description: A comma delimited list of OIDC AMR claim names
 Resources:
   GroupRoleMapBuilderRole:
     Type: AWS::IAM::Role
@@ -122,6 +133,8 @@ Resources:
           S3_BUCKET_NAME: !Ref S3BucketName
           S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
           S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
+          VALID_FEDERATED_PRINCIPAL_KEYS: !Ref ProviderArns
+          VALID_AMRS: !Ref AmrClaims
       Handler: group_role_map_builder.lambda_handler
       Runtime: python3.7
       Role: !GetAtt GroupRoleMapBuilderRole.Arn

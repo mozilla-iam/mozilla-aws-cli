@@ -31,7 +31,7 @@ def get_credentials(bearer_token, role_arn):
     resp = requests.get(url=sts_url, params=parameters)
     if resp.status_code != requests.codes.ok:
         logger.error('AWS STS Call failed {} : {}'.format(resp.status_code, resp.text))
-        return False
+        return None
 
     logger.debug('STS Call Response headers : {}'.format(resp.headers))
     logger.debug('STS Call Response : {}'.format(resp.text))
