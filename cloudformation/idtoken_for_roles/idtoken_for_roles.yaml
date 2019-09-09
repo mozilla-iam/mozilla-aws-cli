@@ -59,11 +59,9 @@ Parameters:
   AllowedIssuer:
     Type: String
     Description: OIDC Issuer Identifier
-    Default: https://auth-dev.mozilla.auth0.com/
   AllowedAudience:
     Type: String
     Description: OIDC Audience. For Mozilla this is the Auth0 Client ID
-    Default: xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT
   RolesPathPrefix:
     Type: String
     Description: The URL path prefix to POST ID tokens to and get back roles
