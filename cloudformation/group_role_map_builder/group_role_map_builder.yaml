@@ -18,7 +18,7 @@ Metadata:
     - Label:
         default: OIDC Configuration
       Parameters:
-      - ProviderArns
+      - ProviderUrls
       - AmrClaims
     ParameterLabels:
       StackEmissionDynamoDBTableName:
@@ -51,9 +51,9 @@ Parameters:
     Type: String
     Description: The path to the account aliases map file
     Default: account-aliases.json
-  ProviderArns:
+  ProviderUrls:
     Type: String
-    Description: A comma delimited list of AWS IAM OIDC Provider ARNs
+    Description: A comma delimited list of AWS IAM OIDC Provider URLs
   AmrClaims:
     Type: String
     Description: A comma delimited list of OIDC AMR claim names
@@ -133,7 +133,7 @@ Resources:
           S3_BUCKET_NAME: !Ref S3BucketName
           S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
           S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
-          VALID_FEDERATED_PRINCIPAL_KEYS: !Ref ProviderArns
+          VALID_FEDERATED_PRINCIPAL_URLS: !Ref ProviderUrls
           VALID_AMRS: !Ref AmrClaims
       Handler: group_role_map_builder.lambda_handler
       Runtime: python3.7
