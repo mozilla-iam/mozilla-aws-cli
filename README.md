@@ -184,3 +184,51 @@ An AWS account holder wants to
   * not supported
   * multiple conditions including `StringNotEquals`, `StringNotLike`
 
+## Troubleshooting
+
+If you don't see a role listed in the role picker which you would expect to have
+access to, possible reasons are :
+
+* The IAM role was recently modified and
+  1. the hourly scanner hasn't yet run to update the list of available roles.
+  2. the list of available roles is current but the API that sits in front of
+     it is using an out of date cached copy
+  3. the list of available roles is current but the Auth0 rule is using an out
+     of date cached copy of the available roles and as a result, isn't passing
+     an "amr" claim with your current complete list of groups
+  * If the cause is 1 or 2 you can still assume that role, just not using this
+    menu. Instead pass the role ARN on the command line.
+* The conditions in the role don't allow you to access it because
+  * The role has a different "Principal" "Federated" value than it should
+    * Dev
+      * Federated : `arn:aws:iam::*:oidc-provider/auth.mozilla.auth0.com/`
+      * Aud : `N7lULzWtfVUDGymwDs0yDEq6ZcwmFazj`
+    * Prod
+      * Federated : `arn:aws:iam::*:oidc-provider/auth-dev.mozilla.auth0.com/`
+      * Aud : `xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT`
+  * The role has the wrong "Action" value which should be
+    * `sts:AssumeRoleWithWebIdentity`
+  * The role has an "aud" condition that doesn't match the Auth0 client ID
+    being passed in the "aud" claim from Auth0
+    * Dev : `xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT`
+    * Prod : `N7lULzWtfVUDGymwDs0yDEq6ZcwmFazj`
+  * The key name of the "aud" condition is incorrect
+    * Dev : `auth-dev.mozilla.auth0.com/:aud`
+    * Prod : `auth.mozilla.auth0.com/:aud`
+  * The key name of the "amr" condition is incorrect
+    * Dev : `auth-dev.mozilla.auth0.com/:amr`
+    * Prod : `auth.mozilla.auth0.com/:amr`
+  * You aren't a member of any of the groups listed in "amr" conditions
+* Your AWS account does not delegate security auditing rights to the Enterprise
+  Information Security team so the group role map builder can't scan the IAM
+  roles in your AWS account
+* There is a bug
+  * in the Auth0 rule that filters the list of groups that you are a member of
+    such that the "amr" claim returned to you is missing a group that you need
+    to meet an IAM Role condition
+  * in the group role map builder that produces the map of groups to roles to
+    enable the Auth0 rule and the role picker menu to know which roles are
+    available to you
+  * in the ID token for role API that allows you to exchange your ID token for
+    a list of roles so that the role picker can show you a menu of available
+    roles
