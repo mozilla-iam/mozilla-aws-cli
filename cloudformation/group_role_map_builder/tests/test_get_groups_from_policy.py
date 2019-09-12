@@ -39,8 +39,8 @@ for filename in os.listdir(__policies_dir):
 def test_all_policies(monkeypatch):
     monkeypatch.setenv('VALID_AMRS', 'auth.example.auth0.com/:amr')
     monkeypatch.setenv(
-        'VALID_FEDERATED_PRINCIPAL_KEYS',
-        'arn:aws:iam::123456789012:oidc-provider/auth.example.auth0.com/')
+        'VALID_FEDERATED_PRINCIPAL_URLS',
+        'https://auth.example.auth0.com/')
     for policy in policies:
         # convenience variables
         raw = policy["raw"]
