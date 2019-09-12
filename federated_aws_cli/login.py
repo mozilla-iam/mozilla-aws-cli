@@ -40,6 +40,10 @@ def base64_without_padding(data):
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
 
 
+def exit_sigint():
+    os.kill(os.getpid(), signal.SIGINT)
+
+
 def generate_challenge(code_verifier):
     # https://tools.ietf.org/html/rfc7636#section-4.2
     return base64_without_padding(
@@ -184,7 +188,7 @@ class Login:
                 logger.debug('Role ARN {} selected'.format(self.role_arn))
             if self.role_arn is None:
                 logger.info('Exiting, no IAM Role ARN selected')
-                os.kill(os.getpid(), signal.SIGINT)
+                exit_sigint()
             credentials = sts_conn.get_credentials(
                 token["id_token"], role_arn=self.role_arn)
             if credentials is None:
@@ -214,7 +218,7 @@ class Login:
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")
-        os.kill(os.getpid(), signal.SIGINT)
+        exit_sigint()
 
         return credentials is not None
 
