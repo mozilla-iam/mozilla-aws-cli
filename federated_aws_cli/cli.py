@@ -79,7 +79,7 @@ def validate_config_file(ctx, param, filenames):
     # TODO: Rename to something much better
     default=[
         os.path.join("/etc", "federated_aws_cli.yaml"),
-        os.path.join(os.path.expanduser("~"), ".federated_aws_cli.yaml"),
+        os.path.join(os.path.expanduser("~"), ".federated_aws_cli", "config.yaml"),
     ],
     help="Relative path to config file",
     callback=validate_config_file)
