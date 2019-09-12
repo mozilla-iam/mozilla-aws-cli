@@ -181,6 +181,14 @@ class Login:
             credentials = sts_conn.get_credentials(
                 token["id_token"], role_arn=self.role_arn)
             if credentials is None:
+                token_vals = ([
+                    id_token_dict[x] for x in id_token_dict
+                    if x in ['amr', 'iss', 'aud']]
+                    if jwt else ['unknown'] * 3)
+                logger.error(
+                    'AWS STS Call failed when attempting to assume role {} '
+                    'with amr {} iss {} and aud {}'.format(
+                        self.role_arn, *token_vals))
                 message = (
                     'Unable to assume role {}. Please select a different '
                     'role.'.format(self.role_arn))
