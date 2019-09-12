@@ -23,9 +23,9 @@ DEFAULTS = {
     'S3_FILE_PATH_GROUP_ROLE_MAP': 'access-group-iam-role-map.json',
     'S3_FILE_PATH_ALIAS_MAP': 'account-aliases.json',
     'VALID_AMRS': '',
-    'VALID_FEDERATED_PRINCIPAL_KEYS': '',
+    'VALID_FEDERATED_PRINCIPAL_URLS': '',
 }
-COMMA_DELIMITED_VARIABLES = ['VALID_AMRS', 'VALID_FEDERATED_PRINCIPAL_KEYS']
+COMMA_DELIMITED_VARIABLES = ['VALID_AMRS', 'VALID_FEDERATED_PRINCIPAL_URLS']
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
 UNSUPPORTED_OPERATORS = (
     "StringNotEquals",
@@ -90,6 +90,14 @@ def get_setting(name):
         return list(filter(None, value.split(',')))
     else:
         return value
+
+
+def is_valid_identity_provider(arn):
+    return (
+        arn[:13] == 'arn:aws:iam::'
+        and arn[25:40] == ':oidc-provider/'
+        and arn[40:] in
+        [x[8:] for x in get_setting('VALID_FEDERATED_PRINCIPAL_URLS')])
 
 
 def get_paginated_results(
@@ -240,17 +248,17 @@ def get_groups_from_policy(policy) -> list:
             continue
         if (statement.get("Action", '').lower()
                 != "sts:AssumeRoleWithWebIdentity".lower()):
-            logger.debug(
-                'Skipping policy statement with Action {}'.format(
-                    statement.get("Action")))
+            # logger.debug(
+            #     'Skipping policy statement with Action {}'.format(
+            #         statement.get("Action")))
             continue
-        if (statement.get('Principal', {}).get('Federated')
-                not in get_setting('VALID_FEDERATED_PRINCIPAL_KEYS')):
+
+        if not is_valid_identity_provider(
+                statement.get('Principal', {}).get('Federated')):
             logger.debug(
                 'Skipping policy statement with Federated Principal {} which '
-                'is not in {}'.format(
-                    statement.get('Principal', {}).get('Federated'),
-                    get_setting('VALID_FEDERATED_PRINCIPAL_KEYS')))
+                'is not valid'.format(
+                    statement.get('Principal', {}).get('Federated')))
             continue
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():

@@ -19,10 +19,10 @@ PROD_CLIENT_ID		:= N7lULzWtfVUDGymwDs0yDEq6ZcwmFazj
 DEV_CLIENT_ID		:= xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT
 PROD_ISSUER			:= https://auth.mozilla.auth0.com/
 DEV_ISSUER			:= https://auth-dev.mozilla.auth0.com/
-PROD_PROVIDER_ARNS	:= arn:aws:iam::415589142697:oidc-provider/auth.mozilla.auth0.com/
-DEV_PROVIDER_ARNS	:= arn:aws:iam::415589142697:oidc-provider/auth-dev.mozilla.auth0.com/
+PROD_PROVIDER_URLS	:= https://auth.mozilla.auth0.com/
+DEV_PROVIDER_URLS	:= https://auth-dev.mozilla.auth0.com/,https://auth.mozilla.auth0.com/
 PROD_AMR_CLAIMS		:= auth.mozilla.auth0.com/:amr
-DEV_AMR_CLAIMS		:= auth-dev.mozilla.auth0.com/:amr
+DEV_AMR_CLAIMS		:= auth-dev.mozilla.auth0.com/:amr,auth.mozilla.auth0.com/:amr
 
 .PHONE: deploy-group-role-map-builder
 deploy-group-role-map-builder:
@@ -32,7 +32,7 @@ deploy-group-role-map-builder:
 		 $(PROD_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "ProviderArns=$(PROD_PROVIDER_ARNS) AmrClaims=$(PROD_AMR_CLAIMS)"
+		 "ProviderUrls=$(PROD_PROVIDER_URLS) AmrClaims=$(PROD_AMR_CLAIMS)"
 
 .PHONE: deploy-group-role-map-builder-dev
 deploy-group-role-map-builder-dev:
@@ -42,7 +42,7 @@ deploy-group-role-map-builder-dev:
 		 $(DEV_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "ProviderArns=$(DEV_PROVIDER_ARNS) AmrClaims=$(DEV_AMR_CLAIMS)"
+		 "ProviderUrls=$(DEV_PROVIDER_URLS) AmrClaims=$(DEV_AMR_CLAIMS)"
 
 .PHONE: deploy-idtoken-for-roles-dev
 deploy-idtoken-for-roles-dev:

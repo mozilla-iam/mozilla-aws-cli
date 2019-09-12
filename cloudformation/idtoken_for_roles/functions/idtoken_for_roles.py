@@ -95,6 +95,9 @@ def get_roles_and_aliases(token, key):
                     aliases[aws_account_id] = account_alias_map[
                         aws_account_id]
             roles.update(mapped_roles)
+        else:
+            logger.debug('Group {} not in amr {}'.format(
+                group, id_token.get('amr')))
     return {'roles': list(roles), 'aliases': aliases}
 
 

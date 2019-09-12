@@ -31,6 +31,10 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class NoPermittedRoles(Exception):
+    pass
+
+
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
@@ -55,6 +59,7 @@ class Login:
         role_arn=None,
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
+        batch=False
     ):
 
         # URL of the OIDC authorization endpoint obtained from the discovery
@@ -79,6 +84,7 @@ class Login:
 
         # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
+        self.batch = batch
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -159,11 +165,10 @@ class Login:
                 key=self.jwks,
                 audience=self.client_id)
             logger.debug("ID token dict : {}".format(id_token_dict))
-
         credentials = None
         message = None
         while credentials is None:
-            if self.role_arn is None:
+            if self.role_arn is None and not self.batch:
                 roles_and_aliases = get_roles_and_aliases(
                     endpoint=self.idtoken_for_roles_url,
                     token=token["id_token"],
@@ -171,7 +176,11 @@ class Login:
                 )
                 logger.debug(
                     'Roles and aliases are {}'.format(roles_and_aliases))
-                self.role_arn = show_role_picker(roles_and_aliases, message)
+                try:
+                    self.role_arn = show_role_picker(roles_and_aliases, message)
+                except NoPermittedRoles as e:
+                    logger.error(e)
+                    break
                 logger.debug('Role ARN {} selected'.format(self.role_arn))
             if self.role_arn is None:
                 logger.info('Exiting, no IAM Role ARN selected')
@@ -179,10 +188,20 @@ class Login:
             credentials = sts_conn.get_credentials(
                 token["id_token"], role_arn=self.role_arn)
             if credentials is None:
+                token_vals = ([
+                    id_token_dict[x] for x in id_token_dict
+                    if x in ['amr', 'iss', 'aud']]
+                    if jwt else ['unknown'] * 3)
+                logger.error(
+                    'AWS STS Call failed when attempting to assume role {} '
+                    'with amr {} iss {} and aud {}'.format(
+                        self.role_arn, *token_vals))
                 message = (
                     'Unable to assume role {}. Please select a different '
                     'role.'.format(self.role_arn))
                 self.role_arn = None
+            if self.batch:
+                break
 
         logger.debug(credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
