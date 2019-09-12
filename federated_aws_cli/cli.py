@@ -95,8 +95,9 @@ def validate_config_file(ctx, param, filenames):
     type=click.Choice(["envvar", "sha1"]),
     help="How to output the AWS API keys"
 )
+@click.option("-b", "--batch", is_flag=True, help="Run non-interactively")
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
-def main(config, role_arn, output, verbose):
+def main(config, role_arn, output, verbose, batch):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -119,6 +120,7 @@ def main(config, role_arn, output, verbose):
         role_arn=role_arn,
         scope=config["scope"],
         token_endpoint=config["openid-configuration"]["token_endpoint"],
+        batch=batch
     )
 
     login.login()

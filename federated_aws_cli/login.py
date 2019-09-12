@@ -55,6 +55,7 @@ class Login:
         role_arn=None,
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
+        batch=False
     ):
 
         # URL of the OIDC authorization endpoint obtained from the discovery
@@ -79,6 +80,7 @@ class Login:
 
         # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
+        self.batch = batch
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -163,7 +165,7 @@ class Login:
         credentials = None
         message = None
         while credentials is None:
-            if self.role_arn is None:
+            if self.role_arn is None and not self.batch:
                 roles_and_aliases = get_roles_and_aliases(
                     endpoint=self.idtoken_for_roles_url,
                     token=token["id_token"],
@@ -183,6 +185,8 @@ class Login:
                     'Unable to assume role {}. Please select a different '
                     'role.'.format(self.role_arn))
                 self.role_arn = None
+            if self.batch:
+                break
 
         logger.debug(credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
