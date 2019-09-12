@@ -19,7 +19,7 @@ else:
 
 logging.basicConfig()
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 logging.getLogger('urllib3').propagate = False
 
 
