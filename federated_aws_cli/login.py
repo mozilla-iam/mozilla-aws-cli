@@ -31,6 +31,10 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class NoPermittedRoles(Exception):
+    pass
+
+
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
@@ -161,7 +165,6 @@ class Login:
                 key=self.jwks,
                 audience=self.client_id)
             logger.debug("ID token dict : {}".format(id_token_dict))
-
         credentials = None
         message = None
         while credentials is None:
@@ -173,7 +176,11 @@ class Login:
                 )
                 logger.debug(
                     'Roles and aliases are {}'.format(roles_and_aliases))
-                self.role_arn = show_role_picker(roles_and_aliases, message)
+                try:
+                    self.role_arn = show_role_picker(roles_and_aliases, message)
+                except NoPermittedRoles as e:
+                    logger.error(e)
+                    break
                 logger.debug('Role ARN {} selected'.format(self.role_arn))
             if self.role_arn is None:
                 logger.info('Exiting, no IAM Role ARN selected')

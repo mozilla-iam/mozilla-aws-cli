@@ -21,6 +21,10 @@ ENV_VARIABLE_NAME_MAP = {
 SCREEN_WIDTH, SCREEN_HEIGHT = get_terminal_size((80, 40))
 
 
+class NoPermittedRoles(Exception):
+    pass
+
+
 def get_aws_env_variables(credentials):
     result = ""
     verb = "set" if platform.system() == "Windows" else "export"
@@ -100,6 +104,10 @@ def show_role_picker(roles_and_aliases, message=None):
         # they have no alias set
         role_name = role_arn.split(':')[5].split('/')[-1]
         options[account_alias][role_name] = role_arn
+
+    if len(options) == 0:
+        raise NoPermittedRoles(
+            'No AWS IAM Roles were found that you have permissions to assume')
 
     # This assumes that account aliases are globally unique and live within a
     # single common global namespace
