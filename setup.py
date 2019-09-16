@@ -14,6 +14,7 @@ requirements = [
     "requests==2.20.1",
     "PyYAML==5.1",
     "console-menu",
+    "python-jose",
     'backports.shutil_get_terminal_size;python_version<"3.3"'
 ]
 setup_requirements = ["pytest-runner"]
@@ -25,7 +26,7 @@ test_requirements = [
     'mock;python_version<"3.3"']
 extras = {
     "test": test_requirements,
-    "verbose": ["python-jose"]}
+}
 
 setup(
     name="federated_aws_cli",

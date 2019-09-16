@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from jose import jwt
 import base64
 import hashlib
 import logging
@@ -9,6 +10,7 @@ import webbrowser
 import requests
 
 from federated_aws_cli import sts_conn
+from federated_aws_cli.cache import read_id_token, write_id_token
 from federated_aws_cli.listener import listen, port
 from federated_aws_cli.role_picker import (
     get_aws_env_variables, get_roles_and_aliases, show_role_picker)
@@ -20,12 +22,6 @@ try:
 except ImportError:
     # P2 Compat
     from urllib import urlencode
-
-try:
-    # This is optional and only provides more detailed debug messages
-    from jose import jwt
-except ImportError:
-    jwt = None
 
 
 logger = logging.getLogger(__name__)
@@ -100,75 +96,89 @@ class Login:
 
         :return: Nothing, as the callback will send SIGINT to terminate
         """
-        url_parameters = {
-            "scope": self.scope,
-            "response_type": "code",
-            "redirect_uri": self.redirect_uri,
-            "client_id": self.client_id,
-            "code_challenge": self.code_challenge,
-            "code_challenge_method": "S256",
-            "state": self.state,
-        }
+        token = read_id_token(self.openid_configuration.get("issuer"),
+                              self.client_id,
+                              self.jwks)
 
-        # We don't set audience here because Auth0 will set the audience on
-        # it's own
-        url = "{}?{}".format(self.authorization_endpoint,
-                             urlencode(url_parameters))
+        if token is None:
+            url_parameters = {
+                "scope": self.scope,
+                "response_type": "code",
+                "redirect_uri": self.redirect_uri,
+                "client_id": self.client_id,
+                "code_challenge": self.code_challenge,
+                "code_challenge_method": "S256",
+                "state": self.state,
+            }
 
-        # Open the browser window to the login url
+            # We don't set audience here because Auth0 will set the audience on
+            # it's own
+            url = "{}?{}".format(self.authorization_endpoint,
+                                 urlencode(url_parameters))
 
-        # Previously we needed to call webbrowser.get() passing 'firefox' as an
-        # argument to the get method. This was to work around
-        # webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to
-        # the console. That output to the console would then corrupt the
-        # intended script output meant to be eval'd. This issue doesn't appear
-        # to be manifesting anymore and so we've set it back to the default of
-        # whatever browser the OS uses.
-        # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181  # noqa
-        logger.debug("About to spawn browser window to {}".format(url))
-        webbrowser.get().open_new_tab(url)
+            # Open the browser window to the login url
 
-        # start up the listener, figuring out which port it ran on
-        logger.debug("About to start listener running on port {}".format(port))
-        listen(self.callback)
+            # Previously we needed to call webbrowser.get() passing 'firefox' as an
+            # argument to the get method. This was to work around
+            # webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to
+            # the console. That output to the console would then corrupt the
+            # intended script output meant to be eval'd. This issue doesn't appear
+            # to be manifesting anymore and so we've set it back to the default of
+            # whatever browser the OS uses.
+            # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181  # noqa
+            logger.debug("About to spawn browser window to {}".format(url))
+            webbrowser.get().open_new_tab(url)
 
-    def callback(self, code, state):
+            # start up the listener, figuring out which port it ran on
+            logger.debug("About to start listener running on port {}".format(port))
+            listen(self.callback)
+        else:
+            self.callback(None, None, token=token)
+
+    def callback(self, code, state, token=None):
         """
         :param code: code GET paramater as sent by IdP
         :param state: state GET parameter as sent by IdP
+        :param token: cached token (if available)
         :return:
         """
-        if code is None:
-            print("Something wrong happened, could not retrieve session data")
-            exit(1)
+        if token is None:  # Callback from web listener
+            if code is None:
+                print("Something wrong happened, could not retrieve session data")
+                exit_sigint()
 
-        if self.state != state:
-            print("Error: State returned from IdP doesn't match state sent")
-            exit(1)
+            if self.state != state:
+                print("Error: State returned from IdP doesn't match state sent")
+                exit_sigint()
 
-        # Exchange the code for a token
-        headers = {
-            "Content-Type": "application/json"
-        }
-        body = {
-            "grant_type": "authorization_code",
-            "client_id": self.client_id,
-            "code_verifier": self.code_verifier,
-            "code": code,
-            "redirect_uri": self.redirect_uri,
-        }
+            # Exchange the code for a token
+            headers = {
+                "Content-Type": "application/json"
+            }
+            body = {
+                "grant_type": "authorization_code",
+                "client_id": self.client_id,
+                "code_verifier": self.code_verifier,
+                "code": code,
+                "redirect_uri": self.redirect_uri,
+            }
 
-        token = requests.post(
-            self.token_endpoint, headers=headers, json=body).json()
+            token = requests.post(
+                self.token_endpoint, headers=headers, json=body).json()
 
+            # attempt to cache the id token
+            write_id_token(self.openid_configuration.get("issuer"),
+                           self.client_id,
+                           token)
+
+        # decode the token for logging purposes
         logger.debug("Validating response from endpoint: {}".format(token))
+        id_token_dict = jwt.decode(
+            token=token["id_token"],
+            key=self.jwks,
+            audience=self.client_id)
+        logger.debug("ID token dict : {}".format(id_token_dict))
 
-        if jwt:
-            id_token_dict = jwt.decode(
-                token=token["id_token"],
-                key=self.jwks,
-                audience=self.client_id)
-            logger.debug("ID token dict : {}".format(id_token_dict))
         credentials = None
         message = None
         while credentials is None:
