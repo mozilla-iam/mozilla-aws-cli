@@ -10,9 +10,7 @@ import webbrowser
 import requests
 
 from federated_aws_cli import sts_conn
-from federated_aws_cli.cache import (read_id_token,
-                                     write_id_token,
-                                     verify_cache_dir_permissions)
+from federated_aws_cli.cache import read_id_token, write_id_token
 from federated_aws_cli.listener import listen, port
 from federated_aws_cli.role_picker import (
     get_aws_env_variables, get_roles_and_aliases, show_role_picker)
@@ -98,7 +96,9 @@ class Login:
 
         :return: Nothing, as the callback will send SIGINT to terminate
         """
-        token = read_id_token(self.client_id, self.jwks)
+        token = read_id_token(self.openid_configuration.get("issuer"),
+                              self.client_id,
+                              self.jwks)
 
         if token is None:
             url_parameters = {
@@ -167,7 +167,9 @@ class Login:
                 self.token_endpoint, headers=headers, json=body).json()
 
             # attempt to cache the id token
-            write_id_token(self.client_id, token)
+            write_id_token(self.openid_configuration.get("issuer"),
+                           self.client_id,
+                           token)
 
         # decode the token for logging purposes
         logger.debug("Validating response from endpoint: {}".format(token))
