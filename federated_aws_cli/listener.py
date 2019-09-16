@@ -60,6 +60,7 @@ def handle_oidc_redirect():
 @app.route("/redirect_callback", methods=["POST"])
 def handle_oidc_redirect_callback():
     logger.debug(request.json.get("code"))
+    logger.debug(request.json.get("state"))
 
     # callback into the login function
     success = globals()["callback"](
