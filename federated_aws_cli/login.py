@@ -98,7 +98,6 @@ class Login:
 
         :return: Nothing, as the callback will send SIGINT to terminate
         """
-        logger.debug("cache directory permissions correct: {}".format(verify_cache_dir_permissions()))
         token = read_id_token(self.client_id, self.jwks)
 
         if token is None:
