@@ -136,11 +136,11 @@ class Login:
         """
         if code is None:
             print("Something wrong happened, could not retrieve session data")
-            exit(1)
+            os.kill(os.getpid(), signal.SIGINT)
 
         if self.state != state:
             print("Error: State returned from IdP doesn't match state sent")
-            exit(1)
+            os.kill(os.getpid(), signal.SIGINT)
 
         # Exchange the code for a token
         headers = {
