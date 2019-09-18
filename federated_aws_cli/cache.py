@@ -5,20 +5,46 @@ import logging
 import os
 import time
 
+from contextlib import contextmanager
 from hashlib import sha256
 from jose import jwt
 from stat import S_IRWXG, S_IRWXO, S_IRWXU
 
 
 # TODO: move to config
-CLOCK_SKEW_ALLOWANCE = 500  # 5 minutes
+CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
+GROUP_ROLE_MAP_CACHE_TIME = 3600   # 1 hour
+
+
 logger = logging.getLogger(__name__)
 
 # the cache directory is the same place we store the config
 cache_dir = os.path.join(os.path.expanduser("~"), ".federated_aws_cli")
 
 
-def __requires_safe_cache_dir(func):
+def _fix_permissions(path, permissions):
+    try:
+        os.chmod(path, permissions)
+        logger.debug("Successfully repaired permissions on: {}".format(path))
+        return True
+    except (IOError, PermissionError):
+        logger.debug("Failed to repair permissions on: {}".format(path))
+        return False
+
+
+def _readable_by_others(path, fix=True):
+    mode = os.stat(path).st_mode
+    readable_by_others = mode & S_IRWXG or mode & S_IRWXO
+
+    if readable_by_others and fix:
+        logger.debug("Cached file at {} has invalid permissions. Attempting to fix.".format(path))
+
+        readable_by_others = not _fix_permissions(path, 0o600)
+
+    return readable_by_others
+
+
+def _requires_safe_cache_dir(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not safe:
@@ -29,7 +55,52 @@ def __requires_safe_cache_dir(func):
     return wrapper
 
 
-@__requires_safe_cache_dir
+@contextmanager
+def _safe_write(path):
+    # Try to open the file as 600
+    f = os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=0o600), "w")
+    yield f
+    f.close()
+
+
+@_requires_safe_cache_dir
+def read_group_role_map(url):
+    # Create a sha256 of the endpoint url, so fix length and remove weird chars
+    path = os.path.join(cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
+
+    if not os.path.exists(path) or _readable_by_others(path):
+        return None
+
+    if time.time() - os.path.getmtime(path) > GROUP_ROLE_MAP_CACHE_TIME:  # expired
+        return None
+    else:
+        logger.debug("Using cached role map at: {}".format(path))
+
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except (IOError, PermissionError):
+            logger.debug("Unable to read role map from: {}".format(path))
+            return None
+
+
+@_requires_safe_cache_dir
+def write_group_role_map(url, role_map):
+    # Create a sha256 of the endpoint url, so fix length and remove weird chars
+    url = sha256(url.encode("utf-8")).hexdigest()
+
+    path = os.path.join(cache_dir, "rolemap_" + url)
+
+    try:
+        with _safe_write(path) as f:
+            json.dump(role_map, f, indent=2)
+
+            logger.debug("Successfully wrote role map to: {}".format(path))
+    except (IOError, PermissionError):
+        logger.debug("Unable to write role map to: {}".format(path))
+
+
+@_requires_safe_cache_dir
 def read_id_token(issuer, client_id, key=None):
     if issuer is None or client_id is None:
         return None
@@ -39,12 +110,10 @@ def read_id_token(issuer, client_id, key=None):
 
     path = os.path.join(cache_dir, "id_" + issuer + "_" + client_id)
 
-    if not os.path.exists(path):
+    if not os.path.exists(path) or _readable_by_others(path):
         return None
 
-    mode = os.stat(path).st_mode
-
-    if not mode & S_IRWXG and not mode & S_IRWXO:  # not group/world readable
+    if not _readable_by_others(path):
         try:
             with open(path, "r") as f:
                 token = json.load(f)
@@ -71,10 +140,8 @@ def read_id_token(issuer, client_id, key=None):
     else:
         logger.error("Error: id token at {} has improper permissions!".format(path))
 
-    return None
 
-
-@__requires_safe_cache_dir
+@_requires_safe_cache_dir
 def write_id_token(issuer, client_id, token):
     if issuer is None or client_id is None:
         return None
@@ -85,13 +152,13 @@ def write_id_token(issuer, client_id, token):
     path = os.path.join(cache_dir, "id_" + issuer + "_" + client_id)
 
     try:
-        with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=0o600), "w") as f:
+        with _safe_write(path) as f:
             if isinstance(token, dict):
                 json.dump(token, f, indent=2)
             else:
                 f.write(token)
 
-        logger.debug("Successfully wrote token to: {}".format(path))
+            logger.debug("Successfully wrote token to: {}".format(path))
     except (IOError, PermissionError):
         logger.debug("Unable to write id token to: {}".format(path))
 

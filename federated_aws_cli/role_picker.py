@@ -1,9 +1,14 @@
 from collections import defaultdict
+
 import logging
 import platform
 import requests
 import consolemenu
 import consolemenu.menu_component
+
+from federated_aws_cli.cache import read_group_role_map, write_group_role_map
+
+
 try:
     # Python 3.3+
     from shutil import get_terminal_size
@@ -35,14 +40,21 @@ def get_aws_env_variables(credentials):
 
 
 def get_roles_and_aliases(endpoint, token, key):
-    logging.debug("Getting roles and aliases from: {}".format(endpoint))
-    headers = {"Content-Type": "application/json"}
-    body = {
-        "token": token,
-        "key": key,
-    }
-    r = requests.post(endpoint, headers=headers, json=body)
-    return r.json()
+    role_map = read_group_role_map(endpoint)
+
+    if role_map is None:
+        logging.debug("Getting roles and aliases from: {}".format(endpoint))
+        headers = {"Content-Type": "application/json"}
+        body = {
+            "token": token,
+            "key": key,
+        }
+
+        role_map = requests.post(endpoint, headers=headers, json=body).json()
+
+        write_group_role_map(endpoint, role_map)
+
+    return role_map
 
 
 def show_menu(menu_selections, role_arns, message=None):
