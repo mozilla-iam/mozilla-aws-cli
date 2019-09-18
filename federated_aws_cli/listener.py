@@ -46,26 +46,27 @@ def catch_all(filename):
 
 @app.route("/redirect_uri")
 def handle_oidc_redirect():
-    """
-    Handles the return from auth0, returning a page that indicates you can
-    close everything
+    """Handles the redirect from Auth0, returning the user a web page which
+    causes the user's web browser to make a backend call to /redirect_callback.
+    The page itself tells the user that they can close the page.
 
     :return: html page
     """
-    logger.debug("redirect parameters: \n%{args}".format(args=request.args))
+    logger.debug(
+        "Listener received a call to /redirect_uri with query parameters:\n"
+        "%{args}".format(args=request.args))
 
-    return(catch_all("index.html"))
+    return catch_all("index.html")
 
 
 @app.route("/redirect_callback", methods=["POST"])
 def handle_oidc_redirect_callback():
-    logger.debug(request.json.get("code"))
+    logger.debug(
+        'Listener received a POST to /redirect_callback with a payload of '
+        '{}'.format(request.json))
 
-    # callback into the login function
-    success = globals()["callback"](
-        code=request.json["code"],
-        state=request.json["state"]
-    )
+    # callback into the login.callback() function in login.py
+    success = globals()["callback"](**request.json)
 
     # the callback should send SIGINT, but this is done to prevent
     # race conditions

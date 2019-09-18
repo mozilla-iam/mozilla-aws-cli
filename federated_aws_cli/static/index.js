@@ -8,6 +8,8 @@ window.addEventListener("load", () => {
        body: JSON.stringify({
            code: url.searchParams.get("code"),
            state: url.searchParams.get("state"),
+           error: url.searchParams.get("error"),
+           error_description: url.searchParams.get("error_description"),
        }),
        headers: {
            "Content-Type": "application/json",

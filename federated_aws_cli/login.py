@@ -128,12 +128,19 @@ class Login:
         logger.debug("About to start listener running on port {}".format(port))
         listen(self.callback)
 
-    def callback(self, code, state):
+    def callback(self, code, state, **kwargs):
         """
         :param code: code GET paramater as sent by IdP
         :param state: state GET parameter as sent by IdP
         :return:
         """
+        if kwargs.get('error'):
+            print(
+                "Received an error response from the identity provider in "
+                "response to the /authorize request : {}".format(
+                    kwargs.get('error_description')))
+            os.kill(os.getpid(), signal.SIGINT)
+
         if code is None:
             print("Something wrong happened, could not retrieve session data")
             os.kill(os.getpid(), signal.SIGINT)
@@ -154,6 +161,9 @@ class Login:
             "redirect_uri": self.redirect_uri,
         }
 
+        logger.debug(
+            "POSTing to token endpoint to exchange code for id_token: "
+            "{}".format(body))
         token = requests.post(
             self.token_endpoint, headers=headers, json=body).json()
 
