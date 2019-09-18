@@ -25,15 +25,11 @@ cache_dir = os.path.join(os.path.expanduser("~"), ".federated_aws_cli")
 def _fix_permissions(path, permissions):
     try:
         os.chmod(path, permissions)
-
-        if _readable_by_others(path, fix=False):
-            logger.debug("Failed to repair permissions on: {}".format(path))
-        else:
-            logger.debug("Successfully repaired permissions on: {}".format(path))
+        logger.debug("Successfully repaired permissions on: {}".format(path))
+        return True
     except (IOError, PermissionError):
         logger.debug("Failed to repair permissions on: {}".format(path))
-
-    return _readable_by_others(path, fix=False)
+        return False
 
 
 def _readable_by_others(path, fix=True):
@@ -43,7 +39,7 @@ def _readable_by_others(path, fix=True):
     if readable_by_others and fix:
         logger.debug("Cached file at {} has invalid permissions. Attempting to fix.".format(path))
 
-        return _fix_permissions(path, 0o600)
+        readable_by_others = not _fix_permissions(path, 0o600)
 
     return readable_by_others
 
@@ -70,9 +66,7 @@ def _safe_write(path):
 @_requires_safe_cache_dir
 def read_group_role_map(url):
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
-    url = sha256(url.encode("utf-8")).hexdigest()
-
-    path = os.path.join(cache_dir, "rolemap_" + url)
+    path = os.path.join(cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         return None
