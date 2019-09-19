@@ -6,8 +6,7 @@ import requests
 import consolemenu
 import consolemenu.menu_component
 
-from federated_aws_cli.cache import read_group_role_map, write_group_role_map
-
+from .cache import read_group_role_map, write_group_role_map
 
 try:
     # Python 3.3+

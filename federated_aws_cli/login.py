@@ -163,6 +163,9 @@ class Login:
                 "redirect_uri": self.redirect_uri,
             }
 
+            logger.debug(
+                "POSTing to token endpoint to exchange code for id_token: "
+                "{}".format(body))
             token = requests.post(
                 self.token_endpoint, headers=headers, json=body).json()
 
@@ -191,7 +194,8 @@ class Login:
                 logger.debug(
                     'Roles and aliases are {}'.format(roles_and_aliases))
                 try:
-                    self.role_arn = show_role_picker(roles_and_aliases, message)
+                    self.role_arn = show_role_picker(
+                        roles_and_aliases, message)
                 except NoPermittedRoles as e:
                     logger.error(e)
                     break
