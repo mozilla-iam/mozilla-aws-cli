@@ -163,9 +163,9 @@ class Login:
                 "redirect_uri": self.redirect_uri,
             }
 
-        logger.debug(
-            "POSTing to token endpoint to exchange code for id_token: "
-            "{}".format(body))
+            logger.debug(
+                "POSTing to token endpoint to exchange code for id_token: "
+                "{}".format(body))
             token = requests.post(
                 self.token_endpoint, headers=headers, json=body).json()
 
