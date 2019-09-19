@@ -135,13 +135,22 @@ class Login:
         else:
             self.callback(None, None, token=token)
 
-    def callback(self, code, state, token=None):
+    def callback(self, code, state, token=None, **kwargs):
         """
         :param code: code GET paramater as sent by IdP
         :param state: state GET parameter as sent by IdP
         :param token: cached token (if available)
+        :param kwargs: remaining optional arguments passed back to the redirect
+                       URI. For example 'error' and 'error_description'
         :return:
         """
+        if kwargs.get('error'):
+            print(
+                "Received an error response from the identity provider in "
+                "response to the /authorize request : {}".format(
+                    kwargs.get('error_description')))
+            exit_sigint()
+
         if token is None:  # Callback from web listener
             if code is None:
                 print("Something wrong happened, could not retrieve session data")
