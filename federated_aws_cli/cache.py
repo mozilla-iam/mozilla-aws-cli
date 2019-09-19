@@ -3,6 +3,7 @@ import jose.exceptions
 import json
 import logging
 import os
+import sys
 import time
 
 from contextlib import contextmanager
@@ -15,6 +16,9 @@ from stat import S_IRWXG, S_IRWXO, S_IRWXU
 CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
 GROUP_ROLE_MAP_CACHE_TIME = 3600   # 1 hour
 
+if sys.version_info < (3, 3):
+    class PermissionError(OSError):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ def _fix_permissions(path, permissions):
         os.chmod(path, permissions)
         logger.debug("Successfully repaired permissions on: {}".format(path))
         return True
-    except (IOError, PermissionError):
+    except (IOError, PermissionError, OSError):
         logger.debug("Failed to repair permissions on: {}".format(path))
         return False
 
