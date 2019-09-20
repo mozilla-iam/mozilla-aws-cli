@@ -1,3 +1,4 @@
+import datetime
 import functools
 import jose.exceptions
 import json
@@ -83,7 +84,7 @@ def read_group_role_map(url):
         try:
             with open(path, "r") as f:
                 return json.load(f)
-        except (IOError, PermissionError):
+        except (IOError, PermissionError, OSError):
             logger.debug("Unable to read role map from: {}".format(path))
             return None
 
@@ -100,7 +101,7 @@ def write_group_role_map(url, role_map):
             json.dump(role_map, f, indent=2)
 
             logger.debug("Successfully wrote role map to: {}".format(path))
-    except (IOError, PermissionError):
+    except (IOError, PermissionError, OSError):
         logger.debug("Unable to write role map to: {}".format(path))
 
 
@@ -121,7 +122,7 @@ def read_id_token(issuer, client_id, key=None):
         try:
             with open(path, "r") as f:
                 token = json.load(f)
-        except (IOError, PermissionError):
+        except (IOError, PermissionError, OSError):
             logger.debug("Unable to read id token from: {}".format(path))
             return None
 
@@ -151,9 +152,8 @@ def write_id_token(issuer, client_id, token):
         return None
 
     # Create a sha256 of the issuer url, so fix length and remove weird chars
-    issuer = sha256(issuer.encode("utf-8")).hexdigest()
-
-    path = os.path.join(cache_dir, "id_" + issuer + "_" + client_id)
+    path = os.path.join(cache_dir,
+                        "id_" + sha256(issuer.encode("utf-8")).hexdigest() + "_" + client_id)
 
     try:
         with _safe_write(path) as f:
@@ -163,8 +163,47 @@ def write_id_token(issuer, client_id, token):
                 f.write(token)
 
             logger.debug("Successfully wrote token to: {}".format(path))
-    except (IOError, PermissionError):
+    except (IOError, PermissionError, OSError):
         logger.debug("Unable to write id token to: {}".format(path))
+
+
+@_requires_safe_cache_dir
+def read_sts_credentials(role_arn):
+    # Create a sha256 of the role arn, so fix length and remove weird chars
+    path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+
+    if not os.path.exists(path) or _readable_by_others(path):
+        return None
+
+    try:
+        with open(path, "r") as f:
+            sts = json.load(f)
+
+            exp = datetime.datetime.strptime(sts["Expiration"], '%Y-%m-%dT%H:%M:%SZ').timestamp()
+            if exp - time.time() > CLOCK_SKEW_ALLOWANCE:
+                logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, exp - time.time()))
+                return sts
+            else:
+                logger.debug(
+                    "Cached STS credentials have expired.".format(path))
+                return None
+    except (IOError, PermissionError, OSError):
+        logger.debug("Unable to read STS credentials from: {}".format(path))
+        return None
+
+
+@_requires_safe_cache_dir
+def write_sts_credentials(role_arn, sts_creds):
+    # Create a sha256 of the role arn, so fix length and remove weird chars
+    path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+
+    try:
+        with _safe_write(path) as f:
+            json.dump(sts_creds, f, indent=2)
+
+            logger.debug("Successfully wrote STS credentials to: {}".format(path))
+    except (IOError, PermissionError, OSError):
+        logger.debug("Unable to write STS credentials to: {}".format(path))
 
 
 def verify_cache_dir_permissions(path=cache_dir):
