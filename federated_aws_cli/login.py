@@ -41,8 +41,7 @@ def exit_sigint():
     # Close stdout/stderr before sending SIGINT, mostly to avoid `click` errors
     # See: https://github.com/mozilla-iam/federated-aws-cli/issues/88
     f = open(os.devnull, "w")
-    sys.stdout = f
-    sys.stderr = f
+    sys.stdout = sys.stderr = f
 
     os.kill(os.getpid(), signal.SIGINT)
 
