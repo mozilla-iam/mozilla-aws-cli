@@ -14,7 +14,11 @@ from federated_aws_cli import sts_conn
 from federated_aws_cli.cache import read_id_token, write_id_token
 from federated_aws_cli.listener import listen, port
 from federated_aws_cli.role_picker import (
-    get_aws_env_variables, get_roles_and_aliases, show_role_picker)
+    get_aws_env_variables,
+    get_aws_shared_credentials,
+    get_roles_and_aliases,
+    show_role_picker
+)
 
 
 try:
@@ -244,6 +248,12 @@ class Login:
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(credentials))
+            elif self.output == "shared":
+                success = get_aws_shared_credentials(credentials, self.role_arn)
+
+                if success:
+                    print('echo "{}"'.format(self.role_arn))
+                    print(success)
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")

@@ -8,7 +8,8 @@ import sys
 import yaml
 import yaml.parser
 
-from federated_aws_cli.login import Login
+from .config import DOT_DIR
+from .login import Login
 
 
 if sys.version_info[0] >= 3:
@@ -79,7 +80,7 @@ def validate_config_file(ctx, param, filenames):
     # TODO: Rename to something much better
     default=[
         os.path.join("/etc", "federated_aws_cli", "config.yaml"),
-        os.path.join(os.path.expanduser("~"), ".federated_aws_cli", "config.yaml"),
+        os.path.join(DOT_DIR, "config.yaml"),
     ],
     help="Relative path to config file",
     callback=validate_config_file)
@@ -92,7 +93,7 @@ def validate_config_file(ctx, param, filenames):
     "-o",
     "--output",
     default="envvar",
-    type=click.Choice(["envvar", "sha1"]),
+    type=click.Choice(["envvar", "shared"]),
     help="How to output the AWS API keys"
 )
 @click.option("-b", "--batch", is_flag=True, help="Run non-interactively")

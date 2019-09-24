@@ -2,11 +2,12 @@ from collections import defaultdict
 
 import logging
 import platform
+import re
 import requests
 import consolemenu
 import consolemenu.menu_component
 
-from .cache import read_group_role_map, write_group_role_map
+from .cache import read_group_role_map, write_group_role_map, write_aws_shared_credentials
 
 try:
     # Python 3.3+
@@ -36,6 +37,27 @@ def get_aws_env_variables(credentials):
         result += "{} {}={}\n".format(
             verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
     return result
+
+
+def get_aws_shared_credentials(credentials, role_arn):
+    # come up with a profile name that won't break AWS
+    result = "[{}]\naws_access_key_id={}\naws_secret_access_key={}\nrole_arn={}\n".format(
+        re.sub("[^a-zA-Z0-9]", "", role_arn),
+        credentials.get("AccessKeyId", ""),
+        credentials.get("SecretAccessKey", ""),
+        role_arn
+    )
+    verb = "set" if platform.system() == "Windows" else "export"
+    path = write_aws_shared_credentials(role_arn, result)
+
+    if path:
+        return "{} AWS_SHARED_CREDENTIALS_FILE={}\n" \
+               "{} AWS_SESSION_TOKEN={}".format(
+                    verb,
+                    path,
+                    verb,
+                    credentials.get("SessionToken", "")
+               )
 
 
 def get_roles_and_aliases(endpoint, token, key):
