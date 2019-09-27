@@ -4,14 +4,29 @@ import jose.exceptions
 import json
 import logging
 import os
+import sys
 import time
 
+from collections import OrderedDict
 from contextlib import contextmanager
+from future.utils import viewitems
 from hashlib import sha256
 from jose import jwt
 from stat import S_IRWXG, S_IRWXO, S_IRWXU
 
 from .config import DOT_DIR
+
+if sys.version_info[0] >= 3:
+    import configparser
+
+    def timestamp(dt):
+        return dt.timestamp()
+else:
+    import ConfigParser as configparser
+
+    # this really only works if it's in UTC
+    def timestamp(dt):
+        return int(dt.strftime('%s'))
 
 
 # TODO: move to config
@@ -60,19 +75,63 @@ def _requires_safe_cache_dir(func):
 @contextmanager
 def _safe_write(path):
     # Try to open the file as 600
-    f = os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=0o600), "w")
+    f = os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w")
     yield f
     f.close()
 
 
 @_requires_safe_cache_dir
-def write_aws_shared_credentials(role_arn, credentials):
+def read_aws_shared_credentials():
+    """
+    :return: A ConfigParser object
+    """
+    # Create a sha256 of the endpoint url, so fix length and remove weird chars
+    path = os.path.join(DOT_DIR, "credentials")
+    config = configparser.ConfigParser()
+
+    if not os.path.exists(path) or _readable_by_others(path):
+        return config
+
+    logger.debug("Trying to read credentials file at: {}".format(path))
+
+    try:
+        with open(path, "r") as f:
+            if sys.version_info >= (3, 2):
+                config.read_file(f)
+            else:
+                config.readfp(f)
+    except (IOError, OSError):
+        logger.debug("Unable to read credentials file from: {}".format(path))
+
+    return config
+
+
+@_requires_safe_cache_dir
+def write_aws_shared_credentials(credentials):
     # Create a sha256 of the role arn, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "aws_shared_creds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+    path = os.path.join(DOT_DIR, "credentials")
+
+    # Try to read in the existing credentials
+    config = read_aws_shared_credentials()
+
+    # Add all the new credentials to the config object
+    for section in credentials.keys():
+        if not config.has_section(section):
+            config.add_section(section)
+
+        logger.debug("The section is: {}".format(credentials[section]))
+
+        for key, value in viewitems(credentials[section]):
+            config.set(section, key, value)
+
+    # Order all the sections alphabetically
+    config._sections = OrderedDict(
+        sorted(viewitems(config._sections), key=lambda t: t[0])
+    )
 
     try:
         with _safe_write(path) as f:
-            f.write(credentials)
+            config.write(f)
 
             logger.debug("Successfully wrote AWS shared credentials credentials to: {}".format(path))
 
@@ -94,7 +153,7 @@ def read_group_role_map(url):
     if time.time() - os.path.getmtime(path) > GROUP_ROLE_MAP_CACHE_TIME:  # expired
         return None
     else:
-        logger.debug("Using cached role map at: {}".format(path))
+        logger.debug("Using cached role map for {} at: {}".format(url, path))
 
         try:
             with open(path, "r") as f:
@@ -114,6 +173,7 @@ def write_group_role_map(url, role_map):
     try:
         with _safe_write(path) as f:
             json.dump(role_map, f, indent=2)
+            f.write("\n")
 
             logger.debug("Successfully wrote role map to: {}".format(path))
     except (IOError, OSError):
@@ -174,6 +234,7 @@ def write_id_token(issuer, client_id, token):
         with _safe_write(path) as f:
             if isinstance(token, dict):
                 json.dump(token, f, indent=2)
+                f.write("\n")
             else:
                 f.write(token)
 
@@ -194,9 +255,10 @@ def read_sts_credentials(role_arn):
         with open(path, "r") as f:
             sts = json.load(f)
 
-            exp = datetime.datetime.strptime(sts["Expiration"], '%Y-%m-%dT%H:%M:%SZ').timestamp()
-            if exp - time.time() > CLOCK_SKEW_ALLOWANCE:
-                logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, exp - time.time()))
+            exp = datetime.datetime.strptime(sts["Expiration"], '%Y-%m-%dT%H:%M:%SZ')
+
+            if timestamp(exp) - time.time() > CLOCK_SKEW_ALLOWANCE:
+                logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, timestamp(exp) - time.time()))
                 return sts
             else:
                 logger.debug(
@@ -215,6 +277,7 @@ def write_sts_credentials(role_arn, sts_creds):
     try:
         with _safe_write(path) as f:
             json.dump(sts_creds, f, indent=2)
+            f.write("\n")
 
             logger.debug("Successfully wrote STS credentials to: {}".format(path))
     except (IOError, OSError):

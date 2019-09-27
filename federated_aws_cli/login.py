@@ -11,7 +11,7 @@ import webbrowser
 import requests
 
 from federated_aws_cli import sts_conn
-from federated_aws_cli.cache import read_id_token, write_id_token
+from federated_aws_cli.cache import read_group_role_map, read_id_token, write_id_token
 from federated_aws_cli.listener import listen, port
 from federated_aws_cli.role_picker import (
     get_aws_env_variables,
@@ -201,17 +201,19 @@ class Login:
             audience=self.client_id)
         logger.debug("ID token dict : {}".format(id_token_dict))
 
-        credentials = None
-        message = None
+        credentials = message = None
         while credentials is None:
+            roles_and_aliases = get_roles_and_aliases(
+                endpoint=self.idtoken_for_roles_url,
+                token=token["id_token"],
+                key=self.jwks
+            )
+            logger.debug(
+                'Roles and aliases are {}'.format(roles_and_aliases))
+
+            # If we don't have a role ARN on the command line, we need to show
+            # the role picker
             if self.role_arn is None and not self.batch:
-                roles_and_aliases = get_roles_and_aliases(
-                    endpoint=self.idtoken_for_roles_url,
-                    token=token["id_token"],
-                    key=self.jwks
-                )
-                logger.debug(
-                    'Roles and aliases are {}'.format(roles_and_aliases))
                 try:
                     self.role_arn = show_role_picker(
                         roles_and_aliases, message)
@@ -219,11 +221,19 @@ class Login:
                     logger.error(e)
                     break
                 logger.debug('Role ARN {} selected'.format(self.role_arn))
+
+            # If they somehow exit out of the role picker or there aren't
+            # any choices
             if self.role_arn is None:
                 logger.info('Exiting, no IAM Role ARN selected')
                 exit_sigint()
+
+            # Use the cached credentials or retrieve them from STS
             credentials = sts_conn.get_credentials(
-                token["id_token"], role_arn=self.role_arn)
+                token["id_token"],
+                role_arn=self.role_arn
+            )
+
             if credentials is None:
                 token_vals = ([
                     id_token_dict[x] for x in id_token_dict
@@ -249,7 +259,9 @@ class Login:
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(credentials))
             elif self.output == "shared":
-                success = get_aws_shared_credentials(credentials, self.role_arn)
+                success = get_aws_shared_credentials(credentials,
+                                                     self.role_arn,
+                                                     read_group_role_map(self.idtoken_for_roles_url))
 
                 if success:
                     print('echo "{}"'.format(self.role_arn))
