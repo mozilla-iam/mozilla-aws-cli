@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import time
+import subprocess
 
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -32,6 +33,11 @@ else:
 # TODO: move to config
 CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
 GROUP_ROLE_MAP_CACHE_TIME = 3600   # 1 hour
+CREDENTIALS_TO_AWS_MAP = {
+    "AccessKeyId": "aws_access_key_id",
+    "SecretAccessKey": "aws_secret_access_key",
+    "SessionToken": "aws_session_token",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +78,54 @@ def _requires_safe_cache_dir(func):
     return wrapper
 
 
+def _role_to_profile_name(role_arn, role_map):
+    if not role_map:
+        role_map = {}
+
+    # get the plaintext role name
+    role = role_arn.split(":")[-1].split("/")[-1]
+
+    logging.debug("Role map is: {}".format(role_map))
+
+    # Get the user id from the role ARN, and then see if it's in the map
+    user_id = role_arn.split(":")[4]
+    user_id = role_map.get("aliases", {}).get(user_id, [user_id])[0]
+
+    # such as infosec-somerole
+    return "-".join([user_id, role])
+
+
 @contextmanager
 def _safe_write(path):
     # Try to open the file as 600
     f = os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w")
     yield f
     f.close()
+
+
+def write_aws_cli_credentials(credentials, role_arn, role_map):
+    # such as infosec-somerole
+    profile = _role_to_profile_name(role_arn, role_map)
+
+    # We call aws a bunch of times, getting all the return values
+    retval = 0
+
+    # Update the values
+    for cred_key, aws_key in viewitems(CREDENTIALS_TO_AWS_MAP):
+        if cred_key in credentials:
+            process = ["aws", "configure", "set",
+                       aws_key, credentials[cred_key],
+                       "--profile", profile]
+
+            _retval = subprocess.call(process)
+            retval = retval | _retval
+
+            logger.debug("`{}` executed with return code: {}".format(
+                " ".join(process),
+                _retval
+            ))
+
+    return None if retval else True
 
 
 @_requires_safe_cache_dir
@@ -107,22 +155,24 @@ def read_aws_shared_credentials():
 
 
 @_requires_safe_cache_dir
-def write_aws_shared_credentials(credentials):
-    # Create a sha256 of the role arn, so fix length and remove weird chars
+def write_aws_shared_credentials(credentials, role_arn, role_map=None):
     path = os.path.join(DOT_DIR, "credentials")
 
     # Try to read in the existing credentials
     config = read_aws_shared_credentials()
 
+    # such as infosec-somerole
+    profile = _role_to_profile_name(role_arn, role_map)
+
     # Add all the new credentials to the config object
-    for section in credentials.keys():
-        if not config.has_section(section):
-            config.add_section(section)
+    if not config.has_section(profile):
+        config.add_section(profile)
+        logger.debug("Added new profile: {}".format(profile))
 
-        logger.debug("The section is: {}".format(credentials[section]))
-
-        for key, value in viewitems(credentials[section]):
-            config.set(section, key, value)
+    # Update the values
+    for cred_key, aws_key in viewitems(CREDENTIALS_TO_AWS_MAP):
+        if cred_key in credentials:
+            config.set(profile, aws_key, credentials[cred_key])
 
     # Order all the sections alphabetically
     config._sections = OrderedDict(

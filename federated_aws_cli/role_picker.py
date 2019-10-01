@@ -6,7 +6,7 @@ import logging
 import platform
 import requests
 
-from .cache import read_group_role_map, write_group_role_map, write_aws_shared_credentials
+from .cache import read_group_role_map, write_group_role_map
 
 try:
     # Python 3.3+
@@ -38,40 +38,13 @@ def get_aws_env_variables(credentials):
     return result
 
 
-def get_aws_shared_credentials(credentials, role_arn, role_map=None):
-    if not role_map:
-        role_map = {}
-
-    # get the plaintext role name
-    role = role_arn.split(":")[-1].split("/")[-1]
-
-    logging.debug("Role map is: {}".format(role_map))
-
-    # Get the user id from the role ARN, and then see if it's in the map
-    user_id = role_arn.split(":")[4]
-    user_id = role_map.get("aliases", {}).get(user_id, [user_id])[0]
-
-    # such as infosec-somerole
-    profile = "-".join([user_id, role])
-
-    result = {
-        profile: {
-            "aws_access_key_id": credentials.get("AccessKeyId", ""),
-            "aws_secret_access_key": credentials.get("SecretAccessKey", ""),
-            "aws_session_token": credentials.get("SessionToken", ""),
-        }
-    }
-
+def get_aws_shared_credentials(path):
     verb = "set" if platform.system() == "Windows" else "export"
-    path = write_aws_shared_credentials(result)
 
-    if path:
-        return "{} AWS_SHARED_CREDENTIALS_FILE={}".format(
-                    verb,
-                    path,
-               )
-    else:
-        logger.error("Unable to write credentials file.")
+    return "{} AWS_SHARED_CREDENTIALS_FILE={}".format(
+                verb,
+                path,
+           )
 
 
 def get_roles_and_aliases(endpoint, token, key):

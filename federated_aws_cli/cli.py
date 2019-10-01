@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from distutils.spawn import find_executable
 import os
 import logging
 
@@ -35,6 +36,13 @@ def validate_arn(ctx, param, value):
             value))
     else:
         return value
+
+
+def validate_awscli_exists(ctx, param, value):
+    if value.lower() == 'awscli' and not find_executable('aws'):
+        raise click.BadParameter('AWS CLI is not detected on local system.')
+
+    return value
 
 
 def validate_config_file(ctx, param, filenames):
@@ -93,8 +101,9 @@ def validate_config_file(ctx, param, filenames):
     "-o",
     "--output",
     default="envvar",
-    type=click.Choice(["envvar", "shared"]),
-    help="How to output the AWS API keys"
+    type=click.Choice(["envvar", "shared", "awscli"]),
+    help="How to output the AWS API keys",
+    callback=validate_awscli_exists
 )
 @click.option("-b", "--batch", is_flag=True, help="Run non-interactively")
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
