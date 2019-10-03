@@ -11,7 +11,13 @@ import webbrowser
 import requests
 
 from federated_aws_cli import sts_conn
-from federated_aws_cli.cache import read_group_role_map, read_id_token, write_id_token
+from federated_aws_cli.cache import (
+    read_group_role_map,
+    read_id_token,
+    write_aws_cli_credentials,
+    write_aws_shared_credentials,
+    write_id_token
+)
 from federated_aws_cli.listener import listen, port
 from federated_aws_cli.role_picker import (
     get_aws_env_variables,
@@ -255,17 +261,28 @@ class Login:
 
         # TODO: Create a global config object?
         if credentials is not None:
+            role_map = read_group_role_map(self.idtoken_for_roles_url)
+
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(credentials))
             elif self.output == "shared":
-                success = get_aws_shared_credentials(credentials,
-                                                     self.role_arn,
-                                                     read_group_role_map(self.idtoken_for_roles_url))
+                # Write the credentials
+                path = write_aws_shared_credentials(credentials,
+                                                    self.role_arn,
+                                                    role_map)
 
-                if success:
+                if path:
                     print('echo "{}"'.format(self.role_arn))
-                    print(success)
+                    print(get_aws_shared_credentials(path))
+            elif self.output == "awscli":
+                # Call into aws a bunch of times
+                if write_aws_cli_credentials(credentials,
+                                             self.role_arn,
+                                             role_map):
+                    print('Successfully set credentials with aws-cli.')
+                else:
+                    logger.error('Unable to write credentials with aws-cli.')
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")
