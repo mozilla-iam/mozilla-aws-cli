@@ -29,7 +29,6 @@ else:
     def timestamp(dt):
         return int(dt.strftime('%s'))
 
-
 # TODO: move to config
 CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
 GROUP_ROLE_MAP_CACHE_TIME = 3600   # 1 hour
@@ -88,11 +87,11 @@ def _role_to_profile_name(role_arn, role_map):
     logging.debug("Role map is: {}".format(role_map))
 
     # Get the user id from the role ARN, and then see if it's in the map
-    user_id = role_arn.split(":")[4]
-    user_id = role_map.get("aliases", {}).get(user_id, [user_id])[0]
+    account_id = role_arn.split(":")[4]
+    account_id = role_map.get("aliases", {}).get(account_id, [account_id])[0]
 
     # such as infosec-somerole
-    return "-".join([user_id, role])
+    return "-".join([account_id, role])
 
 
 @contextmanager
@@ -135,7 +134,13 @@ def read_aws_shared_credentials():
     """
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
     path = os.path.join(DOT_DIR, "credentials")
-    config = configparser.ConfigParser()
+
+    # we can preserve comments with Python 3
+    if sys.version_info[0] < 3:
+        config = configparser.ConfigParser()
+    else:
+        config = configparser.ConfigParser(allow_no_value=True,
+                                           comment_prefixes=())
 
     if not os.path.exists(path) or _readable_by_others(path):
         return config
