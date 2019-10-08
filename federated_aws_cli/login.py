@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from jose import jwt
 import base64
 import hashlib
+import json
 import logging
 import os
 import signal
@@ -23,23 +24,19 @@ from federated_aws_cli.role_picker import (
     get_aws_env_variables,
     get_aws_shared_credentials,
     get_roles_and_aliases,
+    NoPermittedRoles,
     show_role_picker
 )
 
-
 try:
     # P3
-    from urllib.parse import urlencode
+    from urllib.parse import quote_plus, urlencode
 except ImportError:
     # P2 Compat
-    from urllib import urlencode
+    from urllib import quote_plus, urlencode
 
 
 logger = logging.getLogger(__name__)
-
-
-class NoPermittedRoles(Exception):
-    pass
 
 
 def base64_without_padding(data):
@@ -62,11 +59,42 @@ def generate_challenge(code_verifier):
         hashlib.sha256(code_verifier.encode()).digest())
 
 
+def open_web_console(credentials):
+    logger.debug("Attempting to open AWS console.")
+
+    creds = {
+        "sessionId": credentials["AccessKeyId"],
+        "sessionKey": credentials["SecretAccessKey"],
+        "sessionToken": credentials["SessionToken"],
+    }
+
+    params = urlencode({
+        "Action": "getSigninToken",
+        "Session": json.dumps(creds),
+    })
+
+    logger.debug("Web Console params: {}".format(params))
+
+    url = "https://signin.aws.amazon.com/federation?Action=getSigninToken"
+    url += "&Session={}".format(quote_plus(json.dumps(creds)))
+
+    token = requests.get(url).json()
+
+    url = "https://signin.aws.amazon.com/federation?Action=login"
+    url += "&Destination=" + quote_plus("https://console.aws.amazon.com/")
+    url += "&SigninToken=" + token["SigninToken"]
+
+    logger.debug("Web browser console URL: {}".format(url))
+
+    webbrowser.open(url)
+
+
 class Login:
     # Maybe this would be better to unroll from config?
     def __init__(
         self,
         authorization_endpoint="https://auth.mozilla.auth0.com/authorize",
+        batch=False,
         client_id="",
         idtoken_for_roles_url=None,
         jwks=None,
@@ -75,7 +103,7 @@ class Login:
         role_arn=None,
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
-        batch=False
+        web_console=False,
     ):
 
         # URL of the OIDC authorization endpoint obtained from the discovery
@@ -101,6 +129,7 @@ class Login:
         # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
         self.batch = batch
+        self.web_console = web_console
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -225,7 +254,7 @@ class Login:
                         roles_and_aliases, message)
                 except NoPermittedRoles as e:
                     logger.error(e)
-                    break
+                    exit_sigint()
                 logger.debug('Role ARN {} selected'.format(self.role_arn))
 
             # If they somehow exit out of the role picker or there aren't
@@ -283,6 +312,9 @@ class Login:
                     print('Successfully set credentials with aws-cli.')
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
+
+            if self.web_console:
+                open_web_console(credentials)
 
         # Send the signal to kill the application
         logger.debug("Shutting down Flask")

@@ -300,8 +300,11 @@ def write_id_token(issuer, client_id, token):
 
 @_requires_safe_cache_dir
 def read_sts_credentials(role_arn):
-    # Create a sha256 of the role arn, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+    if role_arn is None:
+        return None
+    else:
+        # Create a sha256 of the role arn, so fix length and remove weird chars
+        path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         return None

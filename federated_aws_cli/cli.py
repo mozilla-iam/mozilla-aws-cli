@@ -81,6 +81,7 @@ def validate_config_file(ctx, param, filenames):
 
 
 @click.command()
+@click.option("-b", "--batch", is_flag=True, help="Run non-interactively")
 @click.option(
     "-c",
     "--config",
@@ -93,11 +94,6 @@ def validate_config_file(ctx, param, filenames):
     help="Relative path to config file",
     callback=validate_config_file)
 @click.option(
-    "-r",
-    "--role-arn",
-    help="AWS IAM Role ARN to assume",
-    callback=validate_arn)
-@click.option(
     "-o",
     "--output",
     default="envvar",
@@ -105,9 +101,14 @@ def validate_config_file(ctx, param, filenames):
     help="How to output the AWS API keys",
     callback=validate_awscli_exists
 )
-@click.option("-b", "--batch", is_flag=True, help="Run non-interactively")
+@click.option(
+    "-r",
+    "--role-arn",
+    help="AWS IAM Role ARN to assume",
+    callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
-def main(config, role_arn, output, verbose, batch):
+@click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
+def main(batch, config, output, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -122,6 +123,7 @@ def main(config, role_arn, output, verbose, batch):
     login = Login(
         authorization_endpoint=config["openid-configuration"][
             "authorization_endpoint"],
+        batch=batch,
         client_id=config["client_id"],
         idtoken_for_roles_url=config["idtoken_for_roles_url"],
         jwks=config["jwks"],
@@ -130,7 +132,7 @@ def main(config, role_arn, output, verbose, batch):
         role_arn=role_arn,
         scope=config["scope"],
         token_endpoint=config["openid-configuration"]["token_endpoint"],
-        batch=batch
+        web_console=web_console,
     )
 
     login.login()
