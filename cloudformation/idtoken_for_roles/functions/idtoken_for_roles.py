@@ -12,6 +12,7 @@ logging.getLogger('botocore').propagate = False
 logging.getLogger('urllib3').propagate = False
 
 # AWS Account : infosec-prod
+BYPASS_CACHE = False
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 S3_FILE_PATH_GROUP_ROLE_MAP = os.getenv(
     'S3_FILE_PATH_GROUP_ROLE_MAP', 'access-group-iam-role-map.json')
@@ -75,7 +76,7 @@ def get_roles_and_aliases(token, key):
         return {'error': 'Invalid JWT signature : {}'.format(e)}
     if 'amr' not in id_token:
         return {'error': 'amr claim missing from ID Token'}
-    if 'group_role_map' not in globals():
+    if BYPASS_CACHE or 'group_role_map' not in globals():
         logger.debug(
             'Group Role Map was not found in globals, refetching from S3')
         group_role_map = get_s3_file(
