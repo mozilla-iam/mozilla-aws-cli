@@ -70,11 +70,7 @@ def open_web_console(credentials):
 
     params = urlencode({
         "Action": "getSigninToken",
-        "Session": json.dumps({
-            "sessionId": credentials["AccessKeyId"],
-            "sessionKey": credentials["SecretAccessKey"],
-            "sessionToken": credentials["SessionToken"]
-        }),
+        "Session": json.dumps(creds),
     })
 
     logger.debug("Web Console params: {}".format(params))
