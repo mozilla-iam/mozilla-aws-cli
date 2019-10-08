@@ -69,7 +69,6 @@ def get_roles_and_aliases(endpoint, token, key):
         else:
             write_group_role_map(endpoint, role_map)
 
-
     return role_map
 
 
