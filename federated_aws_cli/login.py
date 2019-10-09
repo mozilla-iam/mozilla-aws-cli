@@ -1,31 +1,31 @@
 from __future__ import absolute_import
 from jose import jwt
-import base64
-import hashlib
 import json
 import logging
 import os
-import signal
-import sys
 import webbrowser
 
 import requests
 
-from federated_aws_cli import sts_conn
-from federated_aws_cli.cache import (
-    read_group_role_map,
+from . import sts_conn
+from .cache import (
     read_id_token,
     write_aws_cli_credentials,
     write_aws_shared_credentials,
     write_id_token
 )
-from federated_aws_cli.listener import listen, port
-from federated_aws_cli.role_picker import (
+from .listener import listen, port
+from .role_picker import (
     get_aws_env_variables,
     get_aws_shared_credentials,
     get_roles_and_aliases,
     NoPermittedRoles,
     show_role_picker
+)
+from .utils import (
+    base64_without_padding,
+    exit_sigint,
+    generate_challenge,
 )
 
 try:
@@ -37,56 +37,6 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-
-
-def base64_without_padding(data):
-    # https://tools.ietf.org/html/rfc7636#appendix-A
-    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
-
-
-def exit_sigint():
-    # Close stdout/stderr before sending SIGINT, mostly to avoid `click` errors
-    # See: https://github.com/mozilla-iam/federated-aws-cli/issues/88
-    f = open(os.devnull, "w")
-    sys.stdout = sys.stderr = f
-
-    os.kill(os.getpid(), signal.SIGINT)
-
-
-def generate_challenge(code_verifier):
-    # https://tools.ietf.org/html/rfc7636#section-4.2
-    return base64_without_padding(
-        hashlib.sha256(code_verifier.encode()).digest())
-
-
-def open_web_console(credentials):
-    logger.debug("Attempting to open AWS console.")
-
-    creds = {
-        "sessionId": credentials["AccessKeyId"],
-        "sessionKey": credentials["SecretAccessKey"],
-        "sessionToken": credentials["SessionToken"],
-    }
-
-    params = urlencode({
-        "Action": "getSigninToken",
-        "Session": json.dumps(creds),
-    })
-
-    logger.debug("Web Console params: {}".format(params))
-
-    url = "https://signin.aws.amazon.com/federation?Action=getSigninToken"
-    url += "&Session={}".format(quote_plus(json.dumps(creds)))
-
-    token = requests.get(url).json()
-
-    url = "https://signin.aws.amazon.com/federation?Action=login"
-    url += "&Destination=" + quote_plus("https://console.aws.amazon.com/")
-    url += "&SigninToken=" + token["SigninToken"]
-
-    logger.debug("Web browser console URL: {}".format(url))
-
-    webbrowser.open(url)
 
 
 class Login:
@@ -120,6 +70,7 @@ class Login:
         self.openid_configuration = openid_configuration
         self.output = output
         self.role_arn = role_arn
+        self.role_map = None
         self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
         # OIDC scopes of claims to request
@@ -130,6 +81,9 @@ class Login:
         self.token_endpoint = token_endpoint
         self.batch = batch
         self.web_console = web_console
+
+        # Whether or not we have opened a browser tab
+        self.opened_tab = False
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -173,6 +127,7 @@ class Login:
             # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181  # noqa
             logger.debug("About to spawn browser window to {}".format(url))
             webbrowser.get().open_new_tab(url)
+            self.opened_tab = True
 
             # start up the listener, figuring out which port it ran on
             logger.debug("About to start listener running on port {}".format(port))
@@ -236,22 +191,24 @@ class Login:
             audience=self.client_id)
         logger.debug("ID token dict : {}".format(id_token_dict))
 
-        credentials = message = None
-        while credentials is None:
-            roles_and_aliases = get_roles_and_aliases(
-                endpoint=self.idtoken_for_roles_url,
-                token=token["id_token"],
-                key=self.jwks
-            )
-            logger.debug(
-                'Roles and aliases are {}'.format(roles_and_aliases))
+        # get the role map, either from cache or from the endpoint
+        self.role_map = get_roles_and_aliases(
+            endpoint=self.idtoken_for_roles_url,
+            token=token["id_token"],
+            key=self.jwks
+        )
+        logger.debug(
+            'Roles and aliases are {}'.format(self.role_map))
 
+        credentials = message = None
+
+        # TODO: Consider whether this needs to loop forever
+        while credentials is None:
             # If we don't have a role ARN on the command line, we need to show
             # the role picker
             if self.role_arn is None and not self.batch:
                 try:
-                    self.role_arn = show_role_picker(
-                        roles_and_aliases, message)
+                    self.role_arn = show_role_picker(self.role_map, message)
                 except NoPermittedRoles as e:
                     logger.error(e)
                     exit_sigint()
@@ -290,8 +247,6 @@ class Login:
 
         # TODO: Create a global config object?
         if credentials is not None:
-            role_map = read_group_role_map(self.idtoken_for_roles_url)
-
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(credentials))
@@ -299,7 +254,7 @@ class Login:
                 # Write the credentials
                 path = write_aws_shared_credentials(credentials,
                                                     self.role_arn,
-                                                    role_map)
+                                                    self.role_map)
 
                 if path:
                     print('echo "{}"'.format(self.role_arn))
@@ -308,19 +263,49 @@ class Login:
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(credentials,
                                              self.role_arn,
-                                             role_map):
+                                             self.role_map):
                     print('Successfully set credentials with aws-cli.')
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
 
-            if self.web_console:
-                open_web_console(credentials)
-
-        # Send the signal to kill the application
-        logger.debug("Shutting down Flask")
-        exit_sigint()
+            return self.aws_federate(credentials) if self.web_console else None
 
         return credentials is not None
+
+    def aws_federate(self, credentials):
+        logger.debug("Attempting to open AWS console.")
+
+        creds = {
+            "sessionId": credentials["AccessKeyId"],
+            "sessionKey": credentials["SecretAccessKey"],
+            "sessionToken": credentials["SessionToken"],
+        }
+
+        params = urlencode({
+            "Action": "getSigninToken",
+            "Session": json.dumps(creds),
+        })
+
+        logger.debug("Web Console params: {}".format(params))
+
+        url = "https://signin.aws.amazon.com/federation?Action=getSigninToken"
+        url += "&Session={}".format(quote_plus(json.dumps(creds)))
+
+        token = requests.get(url).json()
+
+        url = "https://signin.aws.amazon.com/federation?Action=login"
+        url += "&Destination=" + quote_plus("https://console.aws.amazon.com/")
+        url += "&SigninToken=" + token["SigninToken"]
+
+        logger.debug("Web browser console URL: {}".format(url))
+
+        if self.opened_tab:
+            return url
+        else:
+            self.opened_tab = True
+            webbrowser.open_new_tab(url)
+
+            return None
 
 
 login = Login()
