@@ -73,7 +73,7 @@ def _requires_caching(func):
         if caching:
             return func(*args, **kwargs)
         else:
-            logger.debug("Caching reads disabled.".format(cache_dir))
+            logger.debug("Caching reads disabled on {}.".format(cache_dir))
 
     return wrapper
 
@@ -385,5 +385,5 @@ def verify_dir_permissions(path=DOT_DIR):
         return _fix_permissions(path, 0o700)
 
 
-# First let's see if the directories have the right permission
+# First let's see if the directories have the right permissions
 safe = verify_dir_permissions(DOT_DIR) and verify_dir_permissions(cache_dir)
