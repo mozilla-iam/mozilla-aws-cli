@@ -5,6 +5,8 @@ import socket
 
 from flask import Flask, jsonify, request, send_from_directory
 
+from .utils import exit_sigint
+
 
 # These ports must be configured in the IdP's allowed callback URL list
 # TODO: Move this to the CLI / config section
@@ -41,7 +43,13 @@ port = get_available_port()
 
 @app.route("/<path:filename>")
 def catch_all(filename):
-    return send_from_directory(STATIC_DIR, filename)
+    r = send_from_directory(STATIC_DIR, filename)
+
+    # there is no reason to have caching on localhost, and it makes
+    # debugging considerably harder
+    r.cache_control.max_age = 0
+
+    return r
 
 
 @app.route("/redirect_uri")
@@ -66,23 +74,32 @@ def handle_oidc_redirect_callback():
         '{}'.format(request.json))
 
     # callback into the login.callback() function in login.py
-    success = globals()["callback"](**request.json)
+    redirect = globals()["callback"](**request.json)
 
-    # the callback should send SIGINT, but this is done to prevent
-    # race conditions
-    if success:
+    # Send the signal to kill the application
+    if redirect:
         return jsonify({
-            "result": "OK",
-            "status_code": 500,
+            "result": "redirect",
+            "status_code": 200,
+            "url": redirect,
         })
     else:
-        return jsonify({
-            "result": "OK",
-            "status_code": 500,
-        })
+        return handle_shutdown()
 
 
-def listen(callback=None):
+@app.route("/shutdown", methods=["GET"])
+def handle_shutdown():
+    logger.debug("Shutting down Flask")
+    exit_sigint()
+
+    # this is down to prevent race conditions
+    return jsonify({
+        "result": "shutdown",
+        "status_code": 200,
+    })
+
+
+def listen(callback):
     # set the global callback
     globals()["callback"] = callback
 

@@ -9,6 +9,7 @@ import sys
 import yaml
 import yaml.parser
 
+from .cache import disable_caching
 from .config import DOT_DIR
 from .login import Login
 
@@ -80,6 +81,10 @@ def validate_config_file(ctx, param, filenames):
     return result
 
 
+def validate_disable_caching(ctx, param, value):
+    disable_caching()
+
+
 @click.command()
 @click.option("-b", "--batch", is_flag=True, help="Run non-interactively")
 @click.option(
@@ -93,6 +98,12 @@ def validate_config_file(ctx, param, filenames):
     ],
     help="Relative path to config file",
     callback=validate_config_file)
+@click.option("-nc",
+              "--no-cache",
+              default=False,
+              is_flag=True,
+              help="Don't read locally cached files",
+              callback=validate_disable_caching)
 @click.option(
     "-o",
     "--output",
@@ -108,7 +119,7 @@ def validate_config_file(ctx, param, filenames):
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
-def main(batch, config, output, role_arn, verbose, web_console):
+def main(batch, config, no_cache, output, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)

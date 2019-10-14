@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 # the cache directory is the same place we store the config
 cache_dir = os.path.join(DOT_DIR, "cache")
+caching = True
 
 
 def _fix_permissions(path, permissions):
@@ -64,6 +65,17 @@ def _readable_by_others(path, fix=True):
         readable_by_others = not _fix_permissions(path, 0o600)
 
     return readable_by_others
+
+
+def _requires_caching(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if caching:
+            return func(*args, **kwargs)
+        else:
+            logger.debug("Caching reads disabled on {}.".format(cache_dir))
+
+    return wrapper
 
 
 def _requires_safe_cache_dir(func):
@@ -102,6 +114,12 @@ def _safe_write(path):
     f.close()
 
 
+def disable_caching(*args, **kwargs):
+    logger.debug("Global cache reading disabled.")
+    globals()["caching"] = False
+
+
+@_requires_safe_cache_dir
 def write_aws_cli_credentials(credentials, role_arn, role_map):
     # such as infosec-somerole
     profile = _role_to_profile_name(role_arn, role_map)
@@ -197,6 +215,7 @@ def write_aws_shared_credentials(credentials, role_arn, role_map=None):
         return None
 
 
+@_requires_caching
 @_requires_safe_cache_dir
 def read_group_role_map(url):
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
@@ -235,6 +254,7 @@ def write_group_role_map(url, role_map):
         logger.debug("Unable to write role map to: {}".format(path))
 
 
+@_requires_caching
 @_requires_safe_cache_dir
 def read_id_token(issuer, client_id, key=None):
     if issuer is None or client_id is None:
@@ -298,6 +318,7 @@ def write_id_token(issuer, client_id, token):
         logger.debug("Unable to write id token to: {}".format(path))
 
 
+@_requires_caching
 @_requires_safe_cache_dir
 def read_sts_credentials(role_arn):
     if role_arn is None:
@@ -364,5 +385,5 @@ def verify_dir_permissions(path=DOT_DIR):
         return _fix_permissions(path, 0o700)
 
 
-# First let's see if the directory
+# First let's see if the directories have the right permissions
 safe = verify_dir_permissions(DOT_DIR) and verify_dir_permissions(cache_dir)
