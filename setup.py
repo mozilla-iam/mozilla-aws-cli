@@ -30,9 +30,8 @@ extras = {
 
 setup(
     name="federated_aws_cli",
-    description="CLI application that handled federated authentication for AWS users",
-    author="Mozilla Infosec",
-    author_email="infosec@mozilla.com",
+    description="CLI application that handles federated authentication for AWS users",
+    author="Mozilla Enterprise Information Security",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
@@ -49,6 +48,7 @@ setup(
     include_package_data=True,
     install_requires=requirements,
     long_description=readme,
+    long_description_content_type='text/markdown',
     keywords="federated_aws_cli",
     packages=find_packages(include=["federated_aws_cli"]),
     package_data={'federated_aws_cli': ['static/*', 'static/fonts/*']},
