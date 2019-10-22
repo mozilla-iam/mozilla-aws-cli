@@ -81,8 +81,9 @@ def validate_config_file(ctx, param, filenames):
     return result
 
 
-def validate_disable_caching(ctx, param, value):
-    disable_caching()
+def validate_disable_caching(ctx, param, disabled):
+    if disabled:
+        disable_caching()
 
 
 @click.command()

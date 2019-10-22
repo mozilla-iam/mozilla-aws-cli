@@ -3,6 +3,7 @@ from jose import jwt
 import json
 import logging
 import os
+import time
 import webbrowser
 
 import requests
@@ -19,8 +20,6 @@ from .role_picker import (
     get_aws_env_variables,
     get_aws_shared_credentials,
     get_roles_and_aliases,
-    NoPermittedRoles,
-    show_role_picker
 )
 from .utils import (
     base64_without_padding,
@@ -62,20 +61,19 @@ class Login:
 
         # OIDC client_id of the native OIDC application
         self.client_id = client_id
-
         self.code_verifier = base64_without_padding(os.urandom(32))
         self.code_challenge = generate_challenge(self.code_verifier)
         self.idtoken_for_roles_url = idtoken_for_roles_url
         self.jwks = jwks
         self.openid_configuration = openid_configuration
         self.output = output
+        self.role = None
         self.role_arn = role_arn
         self.role_map = None
-        self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
         # OIDC scopes of claims to request
-        self.scope = scope
-        self.state = base64_without_padding(os.urandom(32))
+        self.oidc_scope = scope
+        self.oidc_state = base64_without_padding(os.urandom(32))
 
         # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
@@ -84,6 +82,23 @@ class Login:
 
         # Whether or not we have opened a browser tab
         self.opened_tab = False
+
+        # Whether we've gotten credentials via STS
+        self.credentials = None
+
+        # This used by the web application to poll the login state
+        self.state = "pending"
+        self.web_state = {}
+
+    def exit(self, message):
+        print(message)
+
+        if self.opened_tab:
+            self.state = "error"
+            self.web_state["message"] = message
+            time.sleep(3600)
+
+        exit_sigint()
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -95,19 +110,23 @@ class Login:
 
         :return: Nothing, as the callback will send SIGINT to terminate
         """
+        self.state = "starting"
+        self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
+
         token = read_id_token(self.openid_configuration.get("issuer"),
                               self.client_id,
                               self.jwks)
 
-        if token is None:
+        if token is None or self.role_arn is None:
+            self.state = "redirecting"
             url_parameters = {
-                "scope": self.scope,
+                "scope": self.oidc_scope,
                 "response_type": "code",
                 "redirect_uri": self.redirect_uri,
                 "client_id": self.client_id,
                 "code_challenge": self.code_challenge,
                 "code_challenge_method": "S256",
-                "state": self.state,
+                "state": self.oidc_state,
             }
 
             # We don't set audience here because Auth0 will set the audience on
@@ -131,11 +150,11 @@ class Login:
 
             # start up the listener, figuring out which port it ran on
             logger.debug("About to start listener running on port {}".format(port))
-            listen(self.callback)
+            listen(self)
         else:
-            self.callback(None, None, token=token)
+            self.get_id_token(None, None, token=token)
 
-    def callback(self, code, state, token=None, **kwargs):
+    def get_id_token(self, code, state, token=None, **kwargs):
         """
         :param code: code GET paramater as sent by IdP
         :param state: state GET parameter as sent by IdP
@@ -145,20 +164,20 @@ class Login:
         :return:
         """
         if kwargs.get('error'):
-            print(
+            self.exit((
                 "Received an error response from the identity provider in "
                 "response to the /authorize request : {}".format(
-                    kwargs.get('error_description')))
-            exit_sigint()
+                    kwargs.get('error_description'))
+            ))
 
         if token is None:  # Callback from web listener
-            if code is None:
-                print("Something wrong happened, could not retrieve session data")
-                exit_sigint()
+            self.state = "getting_id_token"
 
-            if self.state != state:
-                print("Error: State returned from IdP doesn't match state sent")
-                exit_sigint()
+            if code is None:
+                self.exit("Something wrong happened, could not retrieve session data")
+
+            if self.oidc_state != state:
+                self.exit("Error: State returned from IdP doesn't match state sent")
 
             # Exchange the code for a token
             headers = {
@@ -192,6 +211,8 @@ class Login:
         logger.debug("ID token dict : {}".format(id_token_dict))
 
         # get the role map, either from cache or from the endpoint
+        self.state = "getting_role_map"
+
         self.role_map = get_roles_and_aliases(
             endpoint=self.idtoken_for_roles_url,
             token=token["id_token"],
@@ -200,33 +221,24 @@ class Login:
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
 
-        credentials = message = None
-
         # TODO: Consider whether this needs to loop forever
-        while credentials is None:
+        while self.credentials is None:
             # If we don't have a role ARN on the command line, we need to show
             # the role picker
             if self.role_arn is None and not self.batch:
-                try:
-                    self.role_arn = show_role_picker(self.role_map, message)
-                except NoPermittedRoles as e:
-                    logger.error(e)
-                    exit_sigint()
-                logger.debug('Role ARN {} selected'.format(self.role_arn))
+                self.state = "role_picker"
 
-            # If they somehow exit out of the role picker or there aren't
-            # any choices
-            if self.role_arn is None:
-                logger.info('Exiting, no IAM Role ARN selected')
-                exit_sigint()
+                while not self.role_arn:
+                    time.sleep(.05)
 
             # Use the cached credentials or retrieve them from STS
-            credentials = sts_conn.get_credentials(
+            self.state = "getting_sts_credentials"
+            self.credentials = sts_conn.get_credentials(
                 token["id_token"],
                 role_arn=self.role_arn
             )
 
-            if credentials is None:
+            if self.credentials is None:
                 token_vals = ([
                     id_token_dict[x] for x in id_token_dict
                     if x in ['amr', 'iss', 'aud']]
@@ -235,24 +247,32 @@ class Login:
                     'AWS STS Call failed when attempting to assume role {} '
                     'with amr {} iss {} and aud {}'.format(
                         self.role_arn, *token_vals))
-                message = (
+                logger.error(
                     'Unable to assume role {}. Please select a different '
                     'role.'.format(self.role_arn))
-                self.role_arn = None
+
+                if len(self.role_map.get("roles", [])) <= 1:
+                    self.exit("Sorry, no valid roles available. Shutting down.")
+                else:
+                    self.role_map.get("roles", []).remove(self.role_arn)
+                    self.role_arn = None
             if self.batch:
                 break
 
-        logger.debug(credentials)
+        logger.debug(self.credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
+        logger.debug("The id for this is: {}".format(id(self)))
 
         # TODO: Create a global config object?
-        if credentials is not None:
+        if self.credentials is not None:
+            self.state = "role_picker"
+
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
-                print(get_aws_env_variables(credentials))
+                print(get_aws_env_variables(self.credentials))
             elif self.output == "shared":
                 # Write the credentials
-                path = write_aws_shared_credentials(credentials,
+                path = write_aws_shared_credentials(self.credentials,
                                                     self.role_arn,
                                                     self.role_map)
 
@@ -261,24 +281,31 @@ class Login:
                     print(get_aws_shared_credentials(path))
             elif self.output == "awscli":
                 # Call into aws a bunch of times
-                if write_aws_cli_credentials(credentials,
+                if write_aws_cli_credentials(self.credentials,
                                              self.role_arn,
                                              self.role_map):
                     print('Successfully set credentials with aws-cli.')
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
 
-            return self.aws_federate(credentials) if self.web_console else None
+            if self.web_console:
+                self.aws_federate()
+                time.sleep(3600)
 
-        return credentials is not None
+            # If we've opened a tab, we wait for it to terminate things
+            if self.opened_tab:
+                self.state = "finished"
 
-    def aws_federate(self, credentials):
+                # Now we sleep until the web page shuts things down
+                time.sleep(3600)
+
+    def aws_federate(self):
         logger.debug("Attempting to open AWS console.")
 
         creds = {
-            "sessionId": credentials["AccessKeyId"],
-            "sessionKey": credentials["SecretAccessKey"],
-            "sessionToken": credentials["SessionToken"],
+            "sessionId": self.credentials["AccessKeyId"],
+            "sessionKey": self.credentials["SecretAccessKey"],
+            "sessionToken": self.credentials["SessionToken"],
         }
 
         params = urlencode({
@@ -300,6 +327,8 @@ class Login:
         logger.debug("Web browser console URL: {}".format(url))
 
         if self.opened_tab:
+            self.state = "aws_federate"
+            self.web_state["awsFederationUrl"] = url
             return url
         else:
             self.opened_tab = True

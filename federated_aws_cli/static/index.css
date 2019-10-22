@@ -50,8 +50,12 @@ header h2 {
     margin: 0 0 5rem 0;
 }
 
-message {
+message, #role-picker {
     font-size: 1.25rem;
+}
+
+#role-picker li {
+    margin-bottom: .5rem;
 }
 
 .inverted {
@@ -62,4 +66,8 @@ message {
 .px-1 {
     padding-left: 1rem;
     padding-right: 1rem;
+}
+
+.hidden {
+    display: none;
 }
