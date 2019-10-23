@@ -69,12 +69,6 @@ def set_role():
 
 @app.route("/api/roles", methods=["GET"])
 def get_roles():
-    if login.role_map is None:
-        return jsonify({
-            "result": "error",
-            "status": 500,
-        })
-
     roles = {
         "roles": []
     }

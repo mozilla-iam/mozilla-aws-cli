@@ -218,6 +218,10 @@ class Login:
             token=token["id_token"],
             key=self.jwks
         )
+
+        if self.role_map is None:
+            self.exit("Unable to retrieve role map. Shutting down.")
+
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
 
@@ -228,6 +232,7 @@ class Login:
             if self.role_arn is None and not self.batch:
                 self.state = "role_picker"
 
+                # Wait for the POST to /api/roles
                 while not self.role_arn:
                     time.sleep(.05)
 

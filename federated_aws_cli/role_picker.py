@@ -37,11 +37,9 @@ def get_roles_and_aliases(endpoint, token, key):
         role_map = requests.post(endpoint, headers=headers, json=body).json()
 
         if "error" in role_map:
-            from .login import exit_sigint
-
             logging.error(
                 "Unable to retrieve rolemap: {}".format(role_map["error"]))
-            exit_sigint()
+            return None
         else:
             write_group_role_map(endpoint, role_map)
 
