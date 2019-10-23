@@ -208,11 +208,11 @@ def write_aws_shared_credentials(credentials, role_arn, role_map=None):
 
             logger.debug("Successfully wrote AWS shared credentials credentials to: {}".format(path))
 
-            return path
+            return path, profile
     except (IOError, OSError):
         logger.error("Unable to write AWS shared credentials to: {}".format(path))
 
-        return None
+        return None, None
 
 
 @_requires_caching

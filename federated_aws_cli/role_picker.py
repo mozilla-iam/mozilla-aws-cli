@@ -23,15 +23,6 @@ def get_aws_env_variables(credentials):
     return result
 
 
-def get_aws_shared_credentials(path):
-    verb = "set" if platform.system() == "Windows" else "export"
-
-    return "{} AWS_SHARED_CREDENTIALS_FILE={}".format(
-                verb,
-                path,
-           )
-
-
 def get_roles_and_aliases(endpoint, token, key):
     role_map = read_group_role_map(endpoint)
 

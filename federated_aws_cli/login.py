@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import webbrowser
+import platform
 
 import requests
 
@@ -18,7 +19,6 @@ from .cache import (
 from .listener import listen, port
 from .role_picker import (
     get_aws_env_variables,
-    get_aws_shared_credentials,
     get_roles_and_aliases,
 )
 from .utils import (
@@ -271,13 +271,18 @@ class Login:
                 print(get_aws_env_variables(self.credentials))
             elif self.output == "shared":
                 # Write the credentials
-                path = write_aws_shared_credentials(self.credentials,
-                                                    self.role_arn,
-                                                    self.role_map)
+                path, profile = write_aws_shared_credentials(self.credentials,
+                                                             self.role_arn,
+                                                             self.role_map)
 
                 if path:
                     print('echo "{}"'.format(self.role_arn))
-                    print(get_aws_shared_credentials(path))
+                    verb = "set" if platform.system() == "Windows" else "export"
+                    print("{verb} AWS_SHARED_CREDENTIALS_FILE={path}\n{verb} AWS_DEFAULT_PROFILE={profile}".format(
+                        verb=verb,
+                        path=path,
+                        profile=profile
+                    ))
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.credentials,
