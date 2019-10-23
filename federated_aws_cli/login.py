@@ -3,9 +3,9 @@ from jose import jwt
 import json
 import logging
 import os
+import platform
 import time
 import webbrowser
-import platform
 
 import requests
 
