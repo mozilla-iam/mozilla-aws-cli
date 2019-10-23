@@ -177,7 +177,6 @@ class Login:
                 self.exit("Something wrong happened, could not retrieve session data")
 
             if self.oidc_state != state:
-                self.opened_tab = True  # prevent weird race condition
                 self.exit("Error: State returned from IdP doesn't match state sent")
 
             # Exchange the code for a token
@@ -324,7 +323,7 @@ class Login:
         logger.debug("Web Console params: {}".format(params))
 
         url = "https://signin.aws.amazon.com/federation?Action=getSigninToken"
-        url += "&SessionDuration=43200&Session={}".format(quote_plus(json.dumps(creds)))
+        url += "&Session={}".format(quote_plus(json.dumps(creds)))
 
         token = requests.get(url).json()
 
