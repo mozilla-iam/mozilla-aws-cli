@@ -269,8 +269,6 @@ class Login:
 
         # TODO: Create a global config object?
         if self.credentials is not None:
-            self.state = "role_picker"
-
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(self.credentials))

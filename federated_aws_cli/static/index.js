@@ -23,6 +23,8 @@ const selectRole = async (e) => {
             "Content-Type": "application/json",
         }
     });
+
+    state.roleRetrievalCount += 1;
 };
 
 const showRoles = async (roles, message) => {
@@ -52,7 +54,6 @@ const shutdown = async () => {
     });
 };
 
-
 const pollState = setInterval(async () => {
     let response = await fetch("/api/state", {
         method: "GET"
@@ -80,7 +81,6 @@ const pollState = setInterval(async () => {
         });
     } else if (remoteState.state === "role_picker") {
         if (state.roleRetrievalCount > 0) {
-            console.log("huh, state is", state);
             setMessage(`Invalid role ${state.lastRole}. Please pick a different role:`)
         } else {
             setMessage("Please select a role:");
@@ -93,13 +93,12 @@ const pollState = setInterval(async () => {
 
         // show the roles
         const roles = await response.json();
-        state.roleRetrievalCount += 1;
         showRoles(roles["roles"]);
     } else if (remoteState.state === "aws_federate") {
         setMessage("Redirecting to AWS...");
         await shutdown();
 
-        document.location = state.value.awsFederationUrl;
+        document.location = remoteState.value.awsFederationUrl;
     } else if (remoteState.state === "error") {
         setMessage(remoteState.value.message);
         await shutdown();
@@ -109,7 +108,7 @@ const pollState = setInterval(async () => {
         await shutdown();
         setMessage("You may now close this window.");
     }
-}, 500);
+}, 250);
 
 // sleep for any number of milliseconds
 const sleep = (milliseconds) => {
