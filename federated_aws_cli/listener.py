@@ -136,8 +136,10 @@ def handle_oidc_redirect_callback():
             "url": redirect,
         })
     else:
-        return handle_shutdown()
-
+        return jsonify({
+            "result": "invalid_state",
+            "status_code": 500,
+        })
 
 @app.route("/shutdown", methods=["GET"])
 def handle_shutdown():
