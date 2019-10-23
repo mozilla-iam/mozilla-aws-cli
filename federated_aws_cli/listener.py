@@ -57,7 +57,7 @@ def catch_all(filename):
     return r
 
 
-@app.route("/api/setRole", methods=["POST"])
+@app.route("/api/roles", methods=["POST"])
 def set_role():
     login.role_arn = request.json.get("arn")
 
@@ -67,13 +67,12 @@ def set_role():
     })
 
 
-@app.route("/api/roles")
+@app.route("/api/roles", methods=["GET"])
 def get_roles():
     if login.role_map is None:
         return jsonify({
             "result": "error",
             "status": 500,
-
         })
 
     roles = {
@@ -81,15 +80,15 @@ def get_roles():
     }
 
     for arn in login.role_map["roles"]:
-        id = arn.split(":")[4]
-        alias = login.role_map.get("aliases", {}).get(id, [id])[0]
+        account_id = arn.split(":")[4]
+        alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
         role = arn.split(':')[5].split('/')[-1]
 
         roles["roles"].append(
             {
                 "alias": alias,
                 "arn": arn,
-                "id": id,
+                "id": account_id,
                 "role": role,
             }
         )

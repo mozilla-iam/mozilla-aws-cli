@@ -14,7 +14,7 @@ const selectRole = async (e) => {
     // hide the roles from the page
     $("#role-picker").addClass("hidden");
 
-    r = await fetch("/api/setRole", {
+    r = await fetch("/api/roles", {
         method: "POST",
         body: JSON.stringify({
             arn: e.target.dataset.arn,

@@ -261,7 +261,6 @@ class Login:
 
         logger.debug(self.credentials)
         logger.debug("ID token : {}".format(token["id_token"]))
-        logger.debug("The id for this is: {}".format(id(self)))
 
         # TODO: Create a global config object?
         if self.credentials is not None:
