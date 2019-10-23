@@ -4,6 +4,7 @@ import os.path
 import socket
 
 from flask import Flask, jsonify, request, send_from_directory
+from operator import itemgetter
 
 from .utils import exit_sigint
 
@@ -16,6 +17,10 @@ POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801,
 STATIC_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
+login = {
+    "get_id_token": None,
+    "role_map": {},
+}
 
 
 def get_available_port():
@@ -52,6 +57,53 @@ def catch_all(filename):
     return r
 
 
+@app.route("/api/roles", methods=["POST"])
+def set_role():
+    login.role_arn = request.json.get("arn")
+
+    return jsonify({
+        "result": "set_role_arn",
+        "status_code": 200,
+    })
+
+
+@app.route("/api/roles", methods=["GET"])
+def get_roles():
+    roles = {
+        "roles": []
+    }
+
+    for arn in login.role_map["roles"]:
+        account_id = arn.split(":")[4]
+        alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
+        role = arn.split(':')[5].split('/')[-1]
+
+        roles["roles"].append(
+            {
+                "alias": alias,
+                "arn": arn,
+                "id": account_id,
+                "role": role,
+            }
+        )
+
+    # Sort the list by role name
+    roles["roles"] = sorted(roles["roles"], key=itemgetter("role"))
+
+    # Set the state to stop polling for new roles
+    login.state = "awaiting_role"
+
+    return jsonify(roles)
+
+
+@app.route("/api/state")
+def get_state():
+    return jsonify({
+        "state": login.state,
+        "value": login.web_state,
+    })
+
+
 @app.route("/redirect_uri")
 def handle_oidc_redirect():
     """Handles the redirect from Auth0, returning the user a web page which
@@ -74,7 +126,7 @@ def handle_oidc_redirect_callback():
         '{}'.format(request.json))
 
     # callback into the login.callback() function in login.py
-    redirect = globals()["callback"](**request.json)
+    redirect = login.get_id_token(**request.json)
 
     # Send the signal to kill the application
     if redirect:
@@ -99,9 +151,9 @@ def handle_shutdown():
     })
 
 
-def listen(callback):
+def listen(login):
     # set the global callback
-    globals()["callback"] = callback
+    globals()["login"] = login
 
     debug = logger.level == 10  # DEBUG
 
