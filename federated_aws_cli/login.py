@@ -56,6 +56,9 @@ class Login:
         web_console=False,
     ):
 
+        # We use this for tracking various bits
+        self.id = str(id(self))
+
         # URL of the OIDC authorization endpoint obtained from the discovery
         # document
         self.authorization_endpoint = authorization_endpoint
@@ -74,7 +77,7 @@ class Login:
 
         # OIDC scopes of claims to request
         self.oidc_scope = scope
-        self.oidc_state = base64_without_padding(os.urandom(32))
+        self.oidc_state = self.id + "-" + base64_without_padding(os.urandom(32))
 
         # URL of the OIDC token endpoint obtained from the discovery document
         self.token_endpoint = token_endpoint
@@ -89,7 +92,9 @@ class Login:
 
         # This used by the web application to poll the login state
         self.state = "pending"
-        self.web_state = {}
+        self.web_state = {
+            "id": self.id,
+        }
 
     def exit(self, message):
         print(message)
@@ -129,6 +134,10 @@ class Login:
                 "code_challenge_method": "S256",
                 "state": self.oidc_state,
             }
+
+            logger.debug("{} (state), {} (code), {} (id)".format(url_parameters["state"],
+                                                                 url_parameters["code_challenge"],
+                                                                 id(self)))
 
             # We don't set audience here because Auth0 will set the audience on
             # it's own
@@ -178,6 +187,9 @@ class Login:
                 self.exit("Something wrong happened, could not retrieve session data")
 
             if self.oidc_state != state:
+                logger.error("Mismatched state: {} (state) vs. {} (OIDC state) in {}".format(
+                    state, self.oidc_state, id(self)
+                ))
                 self.exit("Error: State returned from IdP doesn't match state sent")
 
             # Exchange the code for a token
