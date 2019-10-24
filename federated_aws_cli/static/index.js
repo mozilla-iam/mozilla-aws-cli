@@ -55,7 +55,8 @@ const shutdown = async () => {
 };
 
 const pollState = setInterval(async () => {
-    let response = await fetch("/api/state", {
+    const id = new URLSearchParams(window.location.search).get("state").split("-")[0];
+    let response = await fetch(`/api/state?id=${id}`, {
         method: "GET"
     });
 
@@ -99,6 +100,9 @@ const pollState = setInterval(async () => {
         await shutdown();
 
         document.location = remoteState.value.awsFederationUrl;
+    } else if (remoteState.state === "invalid_id") {
+        setMessage("Another federation session has been detected. Shutting down.");
+        clearInternal(pollState);
     } else if (remoteState.state === "error") {
         setMessage(remoteState.value.message);
         await shutdown();

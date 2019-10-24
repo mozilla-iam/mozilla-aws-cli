@@ -19,6 +19,7 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 login = {
     "get_id_token": None,
+    "id": -1,
     "role_map": {},
 }
 
@@ -98,6 +99,12 @@ def get_roles():
 
 @app.route("/api/state")
 def get_state():
+    if request.args.get("id") != login.id:
+        return jsonify({
+            "result": "invalid_id",
+            "status_code": 500,
+        })
+
     return jsonify({
         "state": login.state,
         "value": login.web_state,
@@ -125,21 +132,21 @@ def handle_oidc_redirect_callback():
         'Listener received a POST to /redirect_callback with a payload of '
         '{}'.format(request.json))
 
-    # callback into the login.callback() function in login.py
-    redirect = login.get_id_token(**request.json)
-
-    # Send the signal to kill the application
-    if redirect:
+    if request.json.get("state", "").split("-")[0] != login.id:
         return jsonify({
-            "result": "redirect",
-            "status_code": 200,
-            "url": redirect,
-        })
-    else:
-        return jsonify({
-            "result": "invalid_state",
+            "result": "invalid_id",
             "status_code": 500,
         })
+
+    # callback into the login.callback() function in login.py
+    login.get_id_token(**request.json)
+
+    # Send the signal to kill the application
+    return jsonify({
+        "result": "finished",
+        "status_code": 200,
+    })
+
 
 @app.route("/shutdown", methods=["GET"])
 def handle_shutdown():
