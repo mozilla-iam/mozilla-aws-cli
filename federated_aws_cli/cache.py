@@ -14,6 +14,7 @@ from future.utils import viewitems
 from hashlib import sha256
 from jose import jwt
 from stat import S_IRWXG, S_IRWXO, S_IRWXU
+from .utils import role_arn_to_profile_name
 
 from .config import DOT_DIR
 
@@ -108,23 +109,6 @@ def _requires_safe_cache_dir(func):
     return wrapper
 
 
-def _role_to_profile_name(role_arn, role_map):
-    if not role_map:
-        role_map = {}
-
-    # get the plaintext role name
-    role = role_arn.split(":")[-1].split("/")[-1]
-
-    logging.debug("Role map is: {}".format(role_map))
-
-    # Get the user id from the role ARN, and then see if it's in the map
-    account_id = role_arn.split(":")[4]
-    account_id = role_map.get("aliases", {}).get(account_id, [account_id])[0]
-
-    # such as infosec-somerole
-    return "-".join([account_id, role])
-
-
 @contextmanager
 def _safe_write(path):
     # Try to open the file as 600
@@ -141,7 +125,7 @@ def disable_caching(*args, **kwargs):
 @_requires_safe_cache_dir
 def write_aws_cli_credentials(credentials, role_arn, role_map):
     # such as infosec-somerole
-    profile = _role_to_profile_name(role_arn, role_map)
+    profile = role_arn_to_profile_name(role_arn, role_map)
 
     # We call aws a bunch of times, getting all the return values
     retval = 0
@@ -204,7 +188,7 @@ def write_aws_shared_credentials(credentials, role_arn, role_map=None):
     config = read_aws_shared_credentials()
 
     # such as infosec-somerole
-    profile = _role_to_profile_name(role_arn, role_map)
+    profile = role_arn_to_profile_name(role_arn, role_map)
 
     # Add all the new credentials to the config object
     if not config.has_section(profile):
@@ -227,11 +211,11 @@ def write_aws_shared_credentials(credentials, role_arn, role_map=None):
 
             logger.debug("Successfully wrote AWS shared credentials credentials to: {}".format(path))
 
-            return path, profile
+            return path
     except (IOError, OSError):
         logger.error("Unable to write AWS shared credentials to: {}".format(path))
 
-        return None, None
+        return None
 
 
 @_requires_caching
