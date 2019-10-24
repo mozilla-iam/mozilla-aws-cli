@@ -25,6 +25,7 @@ from .utils import (
     base64_without_padding,
     exit_sigint,
     generate_challenge,
+    role_arn_to_profile_name
 )
 
 try:
@@ -281,29 +282,38 @@ class Login:
 
         # TODO: Create a global config object?
         if self.credentials is not None:
+            profile_name = role_arn_to_profile_name(
+                self.role_arn, self.role_map)
+            verb = "set" if platform.system() == "Windows" else "export"
             if self.output == "envvar":
                 print('echo "{}"'.format(self.role_arn))
                 print(get_aws_env_variables(self.credentials))
             elif self.output == "shared":
                 # Write the credentials
-                path, profile = write_aws_shared_credentials(self.credentials,
-                                                             self.role_arn,
-                                                             self.role_map)
-
+                path = write_aws_shared_credentials(
+                    self.credentials,
+                    self.role_arn,
+                    self.role_map)
                 if path:
                     print('echo "{}"'.format(self.role_arn))
-                    verb = "set" if platform.system() == "Windows" else "export"
-                    print("{verb} AWS_SHARED_CREDENTIALS_FILE={path}\n{verb} AWS_DEFAULT_PROFILE={profile}".format(
-                        verb=verb,
-                        path=path,
-                        profile=profile
-                    ))
+                    print(
+                        "{verb} AWS_SHARED_CREDENTIALS_FILE={path}\n"
+                        "{verb} AWS_PROFILE={profile_name}".format(
+                            verb=verb,
+                            path=path,
+                            profile_name=profile_name
+                        ))
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.credentials,
                                              self.role_arn,
                                              self.role_map):
-                    print('Successfully set credentials with aws-cli.')
+                    print(
+                        "{verb} AWS_PROFILE={profile_name}".format(
+                            verb=verb,
+                            profile_name=profile_name
+                        ))
+
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
 
