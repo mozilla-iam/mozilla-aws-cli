@@ -2,7 +2,7 @@
 <html lang="en" class="bg-black">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'self'; font-src 'self'; img-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'self'; font-src 'self'; img-src 'self' https://signin.aws.amazon.com/oauth; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="author" content="April King">
@@ -31,6 +31,8 @@
           {{/each}}
       </ul>
     </script>
+
+    <img id="aws-federation-logout" height="0" width="0">
 
     <script src="js/jquery-3.4.1.min.js"></script>
     <script src="js/handlebars-v4.4.3.js"></script>
