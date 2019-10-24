@@ -19,15 +19,34 @@ from .config import DOT_DIR
 
 if sys.version_info[0] >= 3:
     import configparser
-
-    def timestamp(dt):
-        return dt.timestamp()
 else:
     import ConfigParser as configparser
 
-    # this really only works if it's in UTC
+ZERO = datetime.timedelta(0)
+
+
+class UTC(datetime.tzinfo):
+    """UTC"""
+
+    def utcoffset(self, dt):
+        return ZERO
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return ZERO
+
+
+utc = UTC()
+
+if sys.version_info[0] >= 3:
     def timestamp(dt):
-        return int(dt.strftime('%s'))
+        return dt.timestamp()
+else:
+    def timestamp(dt):
+        epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=utc)
+        return (dt - epoch).total_seconds()
 
 # TODO: move to config
 CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
@@ -334,8 +353,15 @@ def read_sts_credentials(role_arn):
         with open(path, "r") as f:
             sts = json.load(f)
 
-            exp = datetime.datetime.strptime(sts["Expiration"], '%Y-%m-%dT%H:%M:%SZ')
-
+            exp = datetime.datetime.strptime(
+                sts["Expiration"],
+                '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
+            logger.debug("Cached STS credentials expire at {} or {} seconds compared to the current time of {}. expiry - current time = {}".format(
+                exp,
+                timestamp(exp),
+                time.time(),
+                timestamp(exp) - time.time()
+            ))
             if timestamp(exp) - time.time() > CLOCK_SKEW_ALLOWANCE:
                 logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, timestamp(exp) - time.time()))
                 return sts
