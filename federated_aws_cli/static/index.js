@@ -99,7 +99,11 @@ const pollState = setInterval(async () => {
         setMessage("Redirecting to AWS...");
         await shutdown();
 
-        document.location = remoteState.value.awsFederationUrl;
+        // insert the image to log out of AWS and then redirect there once
+        // it has loaded
+        $("#aws-federation-logout").on("load error", () => {
+            document.location = remoteState.value.awsFederationUrl;
+        }).attr("src", "https://signin.aws.amazon.com/oauth?Action=logout");
     } else if (remoteState.state === "invalid_id") {
         setMessage("Another federation session has been detected. Shutting down.");
         clearInternal(pollState);
