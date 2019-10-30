@@ -19,18 +19,19 @@ def test_command_line_interface():
 def test_parse_config():
     good_arn = 'arn:aws:iam::123456789012:role/MyRole'
     bad_arn = 'bogus'
-    good_config_content = '''well_known_url: http://auth.example.com/.well-known/openid-configuration
-client_id: abcdefghijklmnopqrstuvwxyz012345
-scope: openid'''
+    good_config_content = '''[DEFAULT]
+well_known_url = http://auth.example.com/.well-known/openid-configuration
+client_id = abcdefghijklmnopqrstuvwxyz012345
+scope = openid'''
     cases = {
-        'malformed yaml': {
-            'filename': os.path.expanduser(os.path.join("~", ".malformed_yaml")),
+        'malformed ini': {
+            'filename': os.path.expanduser(os.path.join("~", ".malformed")),
             'content': '- a z=x:\ny: "${z}"',
-            'args': ['-c', os.path.expanduser(os.path.join("~", ".malformed_yaml")), '-r', good_arn]
+            'args': ['-c', os.path.expanduser(os.path.join("~", ".malformed")), '-r', good_arn]
         },
         'missing config setting': {
             'filename': os.path.expanduser(os.path.join("~", ".missing_config_setting")),
-            'content': 'well_known_url: http://auth.example.com/.well-known/openid-configuration\n',
+            'content': '[DEFAULT]\nwell_known_url = http://auth.example.com/.well-known/openid-configuration\n',
             'args': ['-c', os.path.expanduser(os.path.join("~", ".missing_config_setting")), '-r', good_arn]
         },
         'bad role arn': {
@@ -48,8 +49,8 @@ scope: openid'''
                 f.write(cases[case]['content'])
             results[case] = runner.invoke(cli.main, cases[case]['args'])
 
-        assert results['malformed yaml'].exit_code != 0
-        assert 'is not valid YAML' in results['malformed yaml'].output
+        assert results['malformed ini'].exit_code != 0
+        assert 'is not a valid INI' in results['malformed ini'].output
 
         assert results['missing config setting'].exit_code != 0
         assert 'settings are missing from the config file' in results['missing config setting'].output
