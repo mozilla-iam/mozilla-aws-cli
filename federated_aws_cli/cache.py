@@ -340,12 +340,12 @@ def read_sts_credentials(role_arn):
             exp = datetime.datetime.strptime(
                 sts["Expiration"],
                 '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
-            logger.debug("Cached STS credentials expire at {} or {} seconds compared to the current time of {}. expiry - current time = {}".format(
-                exp,
-                timestamp(exp),
-                time.time(),
-                timestamp(exp) - time.time()
-            ))
+            logger.debug("Cached STS credentials expire at {} or {} seconds compared "
+                         "to the current time of {}. expiry - current time = {}".format(
+                             exp,
+                             timestamp(exp),
+                             time.time(),
+                             timestamp(exp) - time.time()))
             if timestamp(exp) - time.time() > CLOCK_SKEW_ALLOWANCE:
                 logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, timestamp(exp) - time.time()))
                 return sts

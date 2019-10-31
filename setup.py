@@ -12,10 +12,8 @@ requirements = [
     "Click>=6.0",
     "flask==1.0.2",
     "requests==2.20.1",
-    "PyYAML==5.1",
     "console-menu",
     "python-jose",
-    'backports.shutil_get_terminal_size;python_version<"3.3"'
 ]
 setup_requirements = ["pytest-runner"]
 test_requirements = [
