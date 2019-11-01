@@ -164,7 +164,7 @@ def listen(login):
     # set the global callback
     globals()["login"] = login
 
-    debug = logger.level == 10  # DEBUG
+    debug = True if logger.level == logging.DEBUG else False
 
     # Disable flask logging unless we're at DEBUG
     if not debug:
