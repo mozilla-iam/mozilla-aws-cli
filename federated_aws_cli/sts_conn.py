@@ -25,22 +25,30 @@ def get_credentials(bearer_token, role_arn):
         local_username = pwd.getpwuid(os.getuid())[0]
         role_session_name = 'federated-aws-cli-{}'.format(local_username)
         sts_url = "https://sts.amazonaws.com/"
-        parameters = {
-            'Action': 'AssumeRoleWithWebIdentity',
-            'RoleArn': role_arn,
-            'RoleSessionName': role_session_name,
-            'WebIdentityToken': bearer_token,
-            'Version': '2011-06-15'
-        }
+        duration_seconds = [3600, 43200]  # 1 hour, 12 hours
+        while len(duration_seconds) > 0:
+            # First try to provision a session of 12 hours, then fall back to
+            # 1 hour, the default max, if the 12 hour attempt fails. If that
+            # 1 hour duration also fails, then error out
+            parameters = {
+                'Action': 'AssumeRoleWithWebIdentity',
+                'DurationSeconds': duration_seconds.pop(),
+                'RoleArn': role_arn,
+                'RoleSessionName': role_session_name,
+                'WebIdentityToken': bearer_token,
+                'Version': '2011-06-15'
+            }
 
-        # Call the STS API
-        resp = requests.get(url=sts_url, params=parameters)
-        if resp.status_code != requests.codes.ok:
-            logger.error('AWS STS Call failed {} : {}'.format(resp.status_code, resp.text))
-            return None
-
-        logger.debug('STS Call Response headers : {}'.format(resp.headers))
-        logger.debug('STS Call Response : {}'.format(resp.text))
+            # Call the STS API
+            resp = requests.get(url=sts_url, params=parameters)
+            if resp.status_code != requests.codes.ok:
+                if 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role' in resp.text:
+                    continue
+                logger.error('AWS STS Call failed {} : {}'.format(resp.status_code, resp.text))
+                return None
+            logger.debug('Session established for ')
+            logger.debug('STS Call Response headers : {}'.format(resp.headers))
+            logger.debug('STS Call Response : {}'.format(resp.text))
 
         root = ElementTree.fromstring(resp.content)
         # Create a dictionary of the children of
