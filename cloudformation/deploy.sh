@@ -5,7 +5,7 @@ ACCOUNT_ID=$1
 # idtoken_for_roles/idtoken_for_roles.yaml
 TEMPLATE_FILENAME=$2
 # DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME
-S3_BUCKET=$3
+S3_BUCKET_CODE_STORAGE=$3
 # GroupRoleMapBuilder
 STACK_NAME=$4
 # group-role-map-builder
@@ -57,7 +57,6 @@ fi
 aws cloudformation deploy --template-file $TMPFILE --stack-name $STACK_NAME \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
-    S3BucketName=$S3_BUCKET \
     $PARAMETER_OVERRIDES
 
 echo "Waiting for stack to reach a COMPLETE state"

@@ -29,30 +29,30 @@ deploy-group-role-map-builder:
 	./deploy.sh \
 		 $(PROD_ACCOUNT_ID) \
 		 group_role_map_builder/group_role_map_builder.yaml \
-		 $(PROD_S3_BUCKET_NAME) \
+		 $(PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "ProviderUrls=$(PROD_PROVIDER_URLS) AmrClaims=$(PROD_AMR_CLAIMS)"
+		 "S3BucketName=$(PROD_S3_BUCKET_NAME) ProviderUrls=$(PROD_PROVIDER_URLS) AmrClaims=$(PROD_AMR_CLAIMS)"
 
 .PHONE: deploy-group-role-map-builder-dev
 deploy-group-role-map-builder-dev:
 	./deploy.sh \
 		 $(DEV_ACCOUNT_ID) \
 		 group_role_map_builder/group_role_map_builder.yaml \
-		 $(DEV_S3_BUCKET_NAME) \
+		 $(DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "ProviderUrls=$(DEV_PROVIDER_URLS) AmrClaims=$(DEV_AMR_CLAIMS)"
+		 "S3BucketName=$(DEV_S3_BUCKET_NAME) ProviderUrls=$(DEV_PROVIDER_URLS) AmrClaims=$(DEV_AMR_CLAIMS)"
 
 .PHONE: deploy-idtoken-for-roles-dev
 deploy-idtoken-for-roles-dev:
 	./deploy.sh \
 		 $(DEV_ACCOUNT_ID) \
 		 idtoken_for_roles/idtoken_for_roles.yaml \
-		 $(DEV_S3_BUCKET_NAME) \
+		 $(DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(IDTOKEN_FOR_ROLES_STACK_NAME) \
 		 $(IDTOKEN_FOR_ROLES_CODE_STORAGE_S3_PREFIX) \
-		 "CustomDomainName=$(DEV_DOMAIN_NAME) DomainNameZone=$(DEV_DOMAIN_ZONE) CertificateArn=$(DEV_CERT_ARN) AllowedIssuer=$(DEV_ISSUER) AllowedAudience=$(DEV_CLIENT_ID)" \
+		 "S3BucketName=$(DEV_S3_BUCKET_NAME) CustomDomainName=$(DEV_DOMAIN_NAME) DomainNameZone=$(DEV_DOMAIN_ZONE) CertificateArn=$(DEV_CERT_ARN) AllowedIssuer=$(DEV_ISSUER) AllowedAudience=$(DEV_CLIENT_ID)" \
 		 AliasesEndpointUrl
 
 .PHONE: deploy-idtoken-for-roles
@@ -60,10 +60,10 @@ deploy-idtoken-for-roles:
 	./deploy.sh \
 		 $(PROD_ACCOUNT_ID) \
 		 idtoken_for_roles/idtoken_for_roles.yaml \
-		 $(PROD_S3_BUCKET_NAME) \
+		 $(PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(IDTOKEN_FOR_ROLES_STACK_NAME) \
 		 $(IDTOKEN_FOR_ROLES_CODE_STORAGE_S3_PREFIX) \
-		 "CustomDomainName=$(PROD_DOMAIN_NAME) DomainNameZone=$(PROD_DOMAIN_ZONE) CertificateArn=$(PROD_CERT_ARN) AllowedIssuer=$(PROD_ISSUER) AllowedAudience=$(PROD_CLIENT_ID)" \
+		 "S3BucketName=$(PROD_S3_BUCKET_NAME) CustomDomainName=$(PROD_DOMAIN_NAME) DomainNameZone=$(PROD_DOMAIN_ZONE) CertificateArn=$(PROD_CERT_ARN) AllowedIssuer=$(PROD_ISSUER) AllowedAudience=$(PROD_CLIENT_ID)" \
 		 AliasesEndpointUrl
 
 .PHONE: test-idtoken-for-roles
