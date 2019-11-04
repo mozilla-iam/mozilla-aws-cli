@@ -30,10 +30,11 @@ from .utils import (
 
 try:
     # P3
-    from urllib.parse import quote_plus, urlencode
+    from urllib.parse import quote_plus, urlencode, urlunparse, urlparse
 except ImportError:
     # P2 Compat
     from urllib import quote_plus, urlencode
+    from urlparse import urlunparse, urlparse
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ class Login:
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
         web_console=False,
+        issuer_domain=None
     ):
 
         # We use this for tracking various bits
@@ -83,6 +85,7 @@ class Login:
         self.token_endpoint = token_endpoint
         self.batch = batch
         self.web_console = web_console
+        self.issuer_domain = issuer_domain
 
         # Whether or not we have opened a browser tab
         self.opened_tab = False
@@ -337,21 +340,27 @@ class Login:
             "sessionToken": self.credentials["SessionToken"],
         }
 
-        params = urlencode({
+        query = urlencode({
             "Action": "getSigninToken",
             "Session": json.dumps(creds),
         })
+        logger.debug("Web Console params: {}".format(query))
 
-        logger.debug("Web Console params: {}".format(params))
-
-        url = "https://signin.aws.amazon.com/federation?Action=getSigninToken"
-        url += "&Session={}".format(quote_plus(json.dumps(creds)))
-
+        url_tuple = urlparse('https://signin.aws.amazon.com/federation')
+        url = urlunparse(url_tuple._replace(query=query))
         token = requests.get(url).json()
 
-        url = "https://signin.aws.amazon.com/federation?Action=login"
-        url += "&Destination=" + quote_plus("https://console.aws.amazon.com/")
-        url += "&SigninToken=" + token["SigninToken"]
+        issuer_url_query = urlencode({"role_arn": self.role_arn})
+        issuer_url = urlunparse(
+            ('https', self.issuer_domain, '/', '', issuer_url_query, ''))
+
+        query = urlencode({
+            "Action": "login",
+            "Destination": "https://console.aws.amazon.com/",
+            "SigninToken": token["SigninToken"],
+            "Issuer": issuer_url
+        })
+        url = urlunparse(url_tuple._replace(query=query))
 
         logger.debug("Web browser console URL: {}".format(url))
 
@@ -362,7 +371,6 @@ class Login:
         else:
             self.opened_tab = True
             webbrowser.open_new_tab(url)
-
             return None
 
 
