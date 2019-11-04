@@ -25,14 +25,13 @@ def get_credentials(bearer_token, role_arn):
         local_username = pwd.getpwuid(os.getuid())[0]
         role_session_name = 'federated-aws-cli-{}'.format(local_username)
         sts_url = "https://sts.amazonaws.com/"
-        duration_seconds = [3600, 43200]  # 1 hour, 12 hours
-        while len(duration_seconds) > 0:
+        for duration_seconds in [43200, 3600]:  # 12 hours, 1 hour
             # First try to provision a session of 12 hours, then fall back to
             # 1 hour, the default max, if the 12 hour attempt fails. If that
             # 1 hour duration also fails, then error out
             parameters = {
                 'Action': 'AssumeRoleWithWebIdentity',
-                'DurationSeconds': duration_seconds.pop(),
+                'DurationSeconds': duration_seconds,
                 'RoleArn': role_arn,
                 'RoleSessionName': role_session_name,
                 'WebIdentityToken': bearer_token,
@@ -45,10 +44,14 @@ def get_credentials(bearer_token, role_arn):
                 if 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role' in resp.text:
                     continue
                 logger.error('AWS STS Call failed {} : {}'.format(resp.status_code, resp.text))
-                return None
-            logger.debug('Session established for ')
-            logger.debug('STS Call Response headers : {}'.format(resp.headers))
-            logger.debug('STS Call Response : {}'.format(resp.text))
+            else:
+                logger.debug('Session established for {} seconds'.format(duration_seconds))
+                logger.debug('STS Call Response headers : {}'.format(resp.headers))
+                logger.debug('STS Call Response : {}'.format(resp.text))
+                break
+        else:
+            # No break was encountered so none of the requests returned success
+            return None
 
         root = ElementTree.fromstring(resp.content)
         # Create a dictionary of the children of
