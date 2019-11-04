@@ -28,7 +28,7 @@ const selectRole = async (e) => {
 };
 
 const showRoles = async (roles, message) => {
-    if (roles["roles"].length === 0) {
+    if (roles.length === 0) {
         await shutdown();
         setMessage("Sorry, no roles available. You may now close this window.");
         return;
@@ -38,7 +38,7 @@ const showRoles = async (roles, message) => {
     const template = Handlebars.compile(source);
 
     // display the role options on the page
-    $("#role-picker").html(template(roles)).removeClass("hidden");
+    $("#role-picker").html(template({"roles": roles})).removeClass("hidden");
 
     // set the event handlers on the newly created nodes
     $("a[data-arn]").on("click", selectRole);
