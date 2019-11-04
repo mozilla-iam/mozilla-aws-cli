@@ -26,9 +26,9 @@
 
     <script id="role-picker-template" type="text-/x-handlebars-template">
       <ul>
-          {{#each .}}
-          <li><a data-arn="{{this.arn}}" data-role="{{this.role}}" href="#{{this.arn}}">{{this.role}}</a><br><span style="margin-left: 2em;">Account: {{this.alias}} ({{this.id}})</span></li>
-          {{/each}}
+          {{#roles}}
+          <li><a data-arn="{{arn}}" data-role="{{role}}" href="#{{arn}}">{{role}}</a><br><span style="margin-left: 2em;">Account: {{alias}} ({{id}})</span></li>
+          {{/roles}}
       </ul>
     </script>
 

@@ -70,16 +70,13 @@ def set_role():
 
 @app.route("/api/roles", methods=["GET"])
 def get_roles():
-    roles = {
-        "roles": []
-    }
-
+    roles = []
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
         alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
         role = arn.split(':')[5].split('/')[-1]
 
-        roles["roles"].append(
+        roles.append(
             {
                 "alias": alias,
                 "arn": arn,
@@ -89,7 +86,7 @@ def get_roles():
         )
 
     # Sort the list by role name
-    roles["roles"] = sorted(roles["roles"], key=itemgetter("role"))
+    roles = sorted(roles, key=itemgetter("role"))
 
     # Set the state to stop polling for new roles
     login.state = "awaiting_role"
@@ -164,7 +161,7 @@ def listen(login):
     # set the global callback
     globals()["login"] = login
 
-    debug = logger.level == 10  # DEBUG
+    debug = True if logger.level == logging.DEBUG else False
 
     # Disable flask logging unless we're at DEBUG
     if not debug:
