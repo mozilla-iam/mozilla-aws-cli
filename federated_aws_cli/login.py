@@ -350,7 +350,9 @@ class Login:
         url = urlunparse(url_tuple._replace(query=query))
         token = requests.get(url).json()
 
-        issuer_url_query = urlencode({"role_arn": self.role_arn})
+        account_id = self.role_arn.split(":")[4]
+        role = self.role_arn.split(':')[5].split('/')[-1]
+        issuer_url_query = urlencode({"account": account_id, "role": role})
         issuer_url = urlunparse(
             ('https', self.issuer_domain, '/', '', issuer_url_query, ''))
 
