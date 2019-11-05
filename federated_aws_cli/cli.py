@@ -6,8 +6,6 @@ import logging
 import click
 import requests
 import sys
-import yaml
-import yaml.parser
 
 from .cache import disable_caching
 from .config import DOT_DIR
@@ -15,9 +13,11 @@ from .login import Login
 
 
 if sys.version_info[0] >= 3:
+    import configparser
     basestring = str
 else:
     FileNotFoundError = IOError
+    import ConfigParser as configparser
 
 
 logging.basicConfig()
@@ -53,23 +53,24 @@ def validate_config_file(ctx, param, filenames):
     if not any([os.path.exists(path) for path in filenames]):
         raise click.BadParameter('Config files {} not found'.format(" ".join(filenames)))
 
-    result = {}
     for filename in filenames:
         try:
-            with open(filename, "r") as stream:
-                # guard against empty files
-                results = yaml.load(stream, Loader=yaml.SafeLoader)
+            # guard against empty files
+            with open(filename, "r") as f:
+                config = configparser.ConfigParser()
 
-                if results is not None:
-                    result.update(results)
+                if sys.version_info >= (3, 2):
+                    config.read_file(f)
+                else:
+                    config.readfp(f)
         except FileNotFoundError:
             pass
-        except (yaml.parser.ParserError, yaml.parser.ScannerError):
+        except (configparser.Error):
             raise click.BadParameter(
-                'Config file {} is not valid YAML'.format(filename))
+                'Config file {} is not a valid INI file.'.format(filename))
 
     missing_settings = (
-        {'well_known_url', 'client_id', 'scope'} - set(result.keys()))
+        {'well_known_url', 'client_id', 'scope'} - set(config.defaults().keys()))
 
     if missing_settings:
         raise click.BadParameter(
@@ -78,7 +79,7 @@ def validate_config_file(ctx, param, filenames):
                 's' if len(missing_settings) > 1 else '',
                 " ".join(filenames)))
 
-    return result
+    return config.defaults()
 
 
 def validate_disable_caching(ctx, param, disabled):
@@ -94,8 +95,8 @@ def validate_disable_caching(ctx, param, disabled):
     # TODO: Support Windows
     # TODO: Rename to something much better
     default=[
-        os.path.join("/etc", "federated_aws_cli", "config.yaml"),
-        os.path.join(DOT_DIR, "config.yaml"),
+        os.path.join("/etc", "federated_aws_cli", "config"),
+        os.path.join(DOT_DIR, "config"),
     ],
     help="Relative path to config file",
     callback=validate_config_file)

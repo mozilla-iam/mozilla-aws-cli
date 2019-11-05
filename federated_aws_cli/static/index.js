@@ -38,7 +38,7 @@ const showRoles = async (roles, message) => {
     const template = Handlebars.compile(source);
 
     // display the role options on the page
-    $("#role-picker").html(template(roles)).removeClass("hidden");
+    $("#role-picker").html(template({"roles": roles})).removeClass("hidden");
 
     // set the event handlers on the newly created nodes
     $("a[data-arn]").on("click", selectRole);
@@ -94,7 +94,7 @@ const pollState = setInterval(async () => {
 
         // show the roles
         const roles = await response.json();
-        showRoles(roles["roles"]);
+        showRoles(roles);
     } else if (remoteState.state === "aws_federate") {
         setMessage("Redirecting to AWS...");
         await shutdown();
