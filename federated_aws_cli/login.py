@@ -55,7 +55,7 @@ class Login:
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
         web_console=False,
-        issuer_domain=None
+        issuer_domain=None,
     ):
 
         # We use this for tracking various bits
@@ -360,7 +360,7 @@ class Login:
             "Action": "login",
             "Destination": "https://console.aws.amazon.com/",
             "SigninToken": token["SigninToken"],
-            "Issuer": issuer_url
+            "Issuer": issuer_url,
         })
         url = urlunparse(url_tuple._replace(query=query))
 
