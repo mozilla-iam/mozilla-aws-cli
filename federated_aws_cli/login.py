@@ -78,7 +78,7 @@ class Login:
         self.role_map = None
 
         # OIDC scopes of claims to request
-        self.oidc_scope = scope
+        self.oidc_scope = scope if scope is not None else "openid"
         self.oidc_state = self.id + "-" + base64_without_padding(os.urandom(32))
 
         # URL of the OIDC token endpoint obtained from the discovery document

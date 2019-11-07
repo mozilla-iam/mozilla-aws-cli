@@ -70,7 +70,7 @@ def validate_config_file(ctx, param, filenames):
                 'Config file {} is not a valid INI file.'.format(filename))
 
     missing_settings = (
-        {'well_known_url', 'client_id', 'scope'} - set(config.defaults().keys()))
+        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
 
     if missing_settings:
         raise click.BadParameter(
@@ -143,7 +143,7 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
         openid_configuration=config["openid-configuration"],
         output=output,
         role_arn=role_arn,
-        scope=config["scope"],
+        scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],
         web_console=web_console,
         issuer_domain=config.get("issuer_domain", "aws.security.mozilla.com")
