@@ -22,7 +22,7 @@ def test_parse_config():
     good_config_content = '''[DEFAULT]
 well_known_url = http://auth.example.com/.well-known/openid-configuration
 client_id = abcdefghijklmnopqrstuvwxyz012345
-scope = openid'''
+idtoken_for_roles_url = https://example.com/roles'''
     cases = {
         'malformed ini': {
             'filename': os.path.expanduser(os.path.join("~", ".malformed")),
