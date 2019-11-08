@@ -30,10 +30,10 @@ from .utils import (
 
 try:
     # P3
-    from urllib.parse import quote_plus, urlencode, urlunparse, urlparse
+    from urllib.parse import urlencode, urlunparse, urlparse
 except ImportError:
     # P2 Compat
-    from urllib import quote_plus, urlencode
+    from urllib import urlencode
     from urlparse import urlunparse, urlparse
 
 
