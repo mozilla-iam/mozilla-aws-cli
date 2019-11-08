@@ -30,10 +30,10 @@ from .utils import (
 
 try:
     # P3
-    from urllib.parse import quote_plus, urlencode, urlunparse, urlparse
+    from urllib.parse import urlencode, urlunparse, urlparse
 except ImportError:
     # P2 Compat
-    from urllib import quote_plus, urlencode
+    from urllib import urlencode
     from urlparse import urlunparse, urlparse
 
 
@@ -300,12 +300,13 @@ class Login:
                 if path:
                     print('echo "{}"'.format(self.role_arn))
                     print(
-                        "{verb} AWS_SHARED_CREDENTIALS_FILE={path}\n"
-                        "{verb} AWS_PROFILE={profile_name}".format(
-                            verb=verb,
+                        "{verb} AWS_PROFILE={profile_name}\n"
+                        "{verb} AWS_SHARED_CREDENTIALS_FILE={path}".format(
                             path=path,
-                            profile_name=profile_name
-                        ))
+                            profile_name=profile_name,
+                            verb=verb,
+                        )
+                    )
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.credentials,
@@ -373,7 +374,9 @@ class Login:
         else:
             self.opened_tab = True
             webbrowser.open_new_tab(url)
-            return None
+
+            # Shut everything down if we're directly sending people to AWS
+            exit_sigint()
 
 
 login = Login()
