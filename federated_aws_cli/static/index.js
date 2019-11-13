@@ -1,4 +1,10 @@
+const config = {
+    maxStateChecks: 2500, // about 15 minutes
+    sleepTime: 350,       // milliseconds
+};
+
 const state = {
+    getStateCount: 0,
     lastRole: undefined,
     roleRetrievalCount: 0,
 };
@@ -38,7 +44,7 @@ const showRoles = async (roles, message) => {
     const template = Handlebars.compile(source);
 
     // display the role options on the page
-    $("#role-picker").html(template({"roles": roles})).removeClass("hidden");
+    $("#role-picker").html(template({"accounts": roles})).removeClass("hidden");
 
     // set the event handlers on the newly created nodes
     $("a[data-arn]").on("click", selectRole);
@@ -46,6 +52,7 @@ const showRoles = async (roles, message) => {
 
 const shutdown = async () => {
     clearInterval(pollState);
+    $("#role-picker").addClass("hidden");
 
     // shutdown the listener
     await fetch("/shutdown", {
@@ -62,7 +69,12 @@ const pollState = setInterval(async () => {
 
     const remoteState = await response.json();
 
-    console.log("state is", remoteState);
+    // error out if we've been doing this too long
+    state.getStateCount += 1;
+    if (state.getStateCount > config.maxStateChecks) {
+        setMessage("Timed out, please try again.");
+        await shutdown();
+    }
 
     if (remoteState.state === "redirecting") {
         const url = new URL(document.location);
@@ -116,7 +128,7 @@ const pollState = setInterval(async () => {
         await shutdown();
         setMessage("You may now close this window.");
     }
-}, 250);
+}, config.sleepTime);
 
 // sleep for any number of milliseconds
 const sleep = (milliseconds) => {
