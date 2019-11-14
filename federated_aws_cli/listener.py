@@ -70,23 +70,26 @@ def set_role():
 
 @app.route("/api/roles", methods=["GET"])
 def get_roles():
-    roles = []
+    roles = {}
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
         alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
-        role = arn.split(':')[5].split('/')[-1]
 
-        roles.append(
-            {
-                "alias": alias,
-                "arn": arn,
-                "id": account_id,
-                "role": role,
-            }
-        )
+        role = {
+            "alias": alias,
+            "arn": arn,
+            "id": account_id,
+            "role": arn.split(':')[5].split('/')[-1],
+        }
+
+        if alias in roles:
+            roles[alias].append(role)
+        else:
+            roles[alias] = [role]
 
     # Sort the list by role name
-    roles = sorted(roles, key=itemgetter("role"))
+    for alias in roles:
+        roles[alias] = sorted(roles[alias], key=itemgetter("role"))
 
     # Set the state to stop polling for new roles
     login.state = "awaiting_role"
