@@ -146,7 +146,7 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
         scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],
         web_console=web_console,
-        issuer_domain=config.get("issuer_domain", "aws.security.mozilla.com")
+        issuer_domain=config.get("issuer_domain", "aws.sso.mozilla.com")
     )
 
     login.login()
