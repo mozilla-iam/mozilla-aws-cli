@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function which builds the OIDC claim group to role map file and uploads it to S3. Function is triggered hourly
 Metadata:
-  Source: https://github.com/mozilla-iam/federated-aws-cli/blob/master/cloudformation/group_role_map_builder/group_role_map_builder.yaml
+  Source: https://github.com/mozilla-iam/mozilla-aws-cli/blob/master/cloudformation/group_role_map_builder/group_role_map_builder.yaml
   'AWS::CloudFormation::Interface':
     ParameterGroups:
     - Label:
@@ -144,7 +144,7 @@ Resources:
         - Key: stack
           Value: !Ref AWS::StackName
         - Key: source
-          Value: https://github.com/mozilla-iam/federated-aws-cli/tree/master/cloudformation
+          Value: https://github.com/mozilla-iam/mozilla-aws-cli/tree/master/cloudformation
       Timeout: 900
   GroupRoleMapBuilderScheduledRule:
     Type: AWS::Events::Rule

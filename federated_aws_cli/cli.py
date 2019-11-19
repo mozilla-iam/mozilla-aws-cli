@@ -105,7 +105,7 @@ def validate_disable_caching(ctx, param, disabled):
     # TODO: Support Windows
     # TODO: Rename to something much better
     default=[
-        os.path.join("/etc", "federated_aws_cli", "config"),
+        os.path.join("/etc", "mozilla_aws_cli", "config"),
         os.path.join(DOT_DIR, "config"),
     ],
     help="Relative path to config file",

@@ -1,14 +1,14 @@
 ```mermaid
 sequenceDiagram
 
-participant FCLI as AWS Federated CLI
+participant FCLI as Mozilla AWS CLI
 participant ACLI as AWS CLI
 participant WB as Web Browser
 participant PKCE as PKCE (Auth0)
 participant AWS as AWS API
 participant S3 as AWS S3
 
-Note over FCLI: User calls AWS <br>Federated CLI<br>with a role ARN
+Note over FCLI: User calls Mozilla <br>AWS CLI<br>with a role ARN
 FCLI->>FCLI: Generate state, code_verified, code_challenge
 note over FCLI: Listen on :10801
 FCLI->>WB: webbrowser.open(https://auth.../authorize?code_challenge=...&state=...)

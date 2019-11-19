@@ -27,8 +27,8 @@ extras = {
 }
 
 setup(
-    name="federated_aws_cli",
-    description="CLI application that handles federated authentication for AWS users",
+    name="mozilla_aws_cli",
+    description="Command line tool to enable accessing AWS using federated single sign on",
     author="Mozilla Enterprise Information Security",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
@@ -42,19 +42,19 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    entry_points={"console_scripts": ["federated_aws_cli=federated_aws_cli.cli:main"]},
+    entry_points={"console_scripts": ["maws=mozilla_aws_cli.cli:main"]},
     include_package_data=True,
     install_requires=requirements,
     long_description=readme,
     long_description_content_type='text/markdown',
-    keywords="federated_aws_cli",
-    packages=find_packages(include=["federated_aws_cli"]),
-    package_data={'federated_aws_cli': ['static/*', 'static/fonts/*']},
+    keywords="maws Mozilla AWS CLI",
+    packages=find_packages(include=["mozilla_aws_cli"]),
+    package_data={'mozilla_aws_cli': ['static/*', 'static/*/*']},
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
     extras_require=extras,
-    url="https://github.com/mozilla-iam/federated_aws_cli",
+    url="https://github.com/mozilla-iam/mozilla-aws-cli",
     version="0.0.1",
     zip_safe=False,
 )

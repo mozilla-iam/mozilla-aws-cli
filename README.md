@@ -1,7 +1,6 @@
-# federated-aws-cli
+# mozilla-aws-cli
 
-
-CLI application that handled federated authentication for AWS users
+Command line tool to enable accessing AWS using federated single sign on
 
 ## Prerequisites
 
@@ -37,14 +36,18 @@ CLI application that handled federated authentication for AWS users
 
 ## Run the tool
 
-`python -m federated_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+`maws --role-arn arn:aws:iam::123456789012:role/example-role`
 
-Note : You must run `python -m federated_aws_cli.cli` instead of
-`python federated_aws_cli/cli.py` because federated_aws_cli uses absolute imports.
+or
+
+`python -m mozilla_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+
+Note : You must run `python -m mozilla_aws_cli.cli` instead of
+`python mozilla_aws_cli/cli.py` because mozilla_aws_cli uses absolute imports.
 
 ## Sequence diagram
 
-[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
+[<img src="https://raw.githubusercontent.com/mozilla-iam/mozilla-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
 
 ## Notes
 
@@ -57,7 +60,7 @@ Note : You must run `python -m federated_aws_cli.cli` instead of
 ## Details
 
 This is a collection of technical details that we've decided or discovered in
-building the federated-aws-cli
+building the mozilla-aws-cli
 
 * The user group list should be set in the OIDC claim as a list of groups
   instead of a string with delimiters

@@ -43,7 +43,7 @@ VALID_OPERATORS = (
 # via : https://tools.ietf.org/html/rfc4287#section-4.2.7.2
 S3_FILE_LINK_HEADER = os.getenv(
     'S3_FILE_LINK_HEADER',
-    '<https://github.com/mozilla-iam/federated-aws-cli/tree/master/'
+    '<https://github.com/mozilla-iam/mozilla-aws-cli/tree/master/'
     'cloudformation>; rel="via"',
 )
 
