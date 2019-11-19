@@ -109,6 +109,7 @@ def validate_disable_caching(ctx, param, disabled):
         os.path.join(DOT_DIR, "config"),
     ],
     help="Relative path to config file",
+    metavar="<path>",
     callback=validate_config_file)
 @click.option("-nc",
               "--no-cache",
@@ -128,6 +129,7 @@ def validate_disable_caching(ctx, param, disabled):
     "-r",
     "--role-arn",
     help="AWS IAM Role ARN to assume",
+    metavar="<arn>",
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
