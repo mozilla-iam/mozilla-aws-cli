@@ -11,10 +11,11 @@ from .cache import read_sts_credentials, write_sts_credentials
 logger = logging.getLogger(__name__)
 
 
-def get_credentials(bearer_token, role_arn):
+def get_credentials(bearer_token, id_token_dict, role_arn):
     """Exchange a bearer token and IAM Role ARN for AWS API keys
 
     :param bearer_token: OpenID Connect ID token provided by IdP
+    :param id_token_dict: Parsed bearer_token
     :param role_arn: AWS IAM Role ARN of the role to assume
     :return: dict : Dictionary of credential information
     """
@@ -22,8 +23,10 @@ def get_credentials(bearer_token, role_arn):
     credentials = read_sts_credentials(role_arn)
 
     if credentials is None:
-        local_username = pwd.getpwuid(os.getuid())[0]
-        role_session_name = 'federated-aws-cli-{}'.format(local_username)
+        role_session_name = (
+            id_token_dict['email']
+            if 'email' in id_token_dict
+            else id_token_dict['sub'].split('|')[-1])
         sts_url = "https://sts.amazonaws.com/"
         for duration_seconds in [43200, 3600]:  # 12 hours, 1 hour
             # First try to provision a session of 12 hours, then fall back to
