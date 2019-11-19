@@ -5,14 +5,13 @@ import logging
 import boto3
 from jose import jwt, exceptions
 
-logger = logging.getLogger(__name__)
-logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger()
+logging.getLogger().setLevel(os.getenv('LOG_LEVEL', 'INFO'))
 logging.getLogger('boto3').propagate = False
 logging.getLogger('botocore').propagate = False
 logging.getLogger('urllib3').propagate = False
 
 # AWS Account : infosec-prod
-BYPASS_CACHE = False
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 S3_FILE_PATH_GROUP_ROLE_MAP = os.getenv(
     'S3_FILE_PATH_GROUP_ROLE_MAP', 'access-group-iam-role-map.json')
@@ -48,7 +47,7 @@ def get_s3_file(
     return json.load(response['Body'])
 
 
-def get_roles_and_aliases(token, key):
+def get_roles_and_aliases(token, key, cache):
     global group_role_map
     global account_alias_map
 
@@ -76,12 +75,12 @@ def get_roles_and_aliases(token, key):
         return {'error': 'Invalid JWT signature : {}'.format(e)}
     if 'amr' not in id_token:
         return {'error': 'amr claim missing from ID Token'}
-    if BYPASS_CACHE or 'group_role_map' not in globals():
+    if (not cache) or ('group_role_map' not in globals()):
         logger.debug(
             'Group Role Map was not found in globals, refetching from S3')
         group_role_map = get_s3_file(
             S3_BUCKET_NAME, S3_FILE_PATH_GROUP_ROLE_MAP)
-    if 'account_alias_map' not in globals():
+    if (not cache) or ('account_alias_map' not in globals()):
         logger.debug(
             'Account Alias Map was not found in globals, refetching from S3')
         account_alias_map = get_s3_file(S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP)
@@ -102,9 +101,9 @@ def get_roles_and_aliases(token, key):
     return {'roles': list(roles), 'aliases': aliases}
 
 
-def get_aliases():
+def get_aliases(cache):
     global account_alias_map
-    if 'account_alias_map' not in globals():
+    if (not cache) or ('account_alias_map' not in globals()):
         logger.debug(
             'Account Alias Map was not found in globals, refetching from S3')
         account_alias_map = get_s3_file(S3_BUCKET_NAME, S3_FILE_PATH_ALIAS_MAP)
@@ -116,7 +115,8 @@ def lambda_handler(event, context):
 
     token = event.get('token')
     key = event.get('key')
+    cache = event.get('cache', True)
     if token and key:
-        return get_roles_and_aliases(token, key)
+        return get_roles_and_aliases(token, key, cache)
     else:
-        return get_aliases()
+        return get_aliases(cache)
