@@ -232,3 +232,56 @@ access to, possible reasons are :
   * in the ID token for role API that allows you to exchange your ID token for
     a list of roles so that the role picker can show you a menu of available
     roles
+
+## Creating enterprise / organization configuration
+
+If you want to deploy the Mozilla AWS CLI across your organization and establish
+default configuration values without requiring users to create config files you
+can do so by implementing a standard `mozilla_aws_cli_config` module.
+
+Here are the steps assuming an example organization called Yoyodyne
+
+1. Create a new code repo. A good name would be `mozilla-aws-cli-yoyodyne`
+2. In that repo create a `setup.py`
+   ```python
+   #!/usr/bin/env python
+
+   from setuptools import setup
+
+   setup(
+       name="mozilla-aws-cli-yoyodyne",
+       description="Yoyodyne specific deployment of the mozilla_aws_cli",
+       install_requires=["mozilla_aws_cli"],
+       packages=["mozilla_aws_cli_config"],
+       url="https://github.com/yoyodyne/mozilla-aws-cli-yoyodyne",
+       version="1.0.0",
+   )
+   ```
+   * `install_requires` depends on the `mozilla_aws_cli` to ensure that if you
+     instruct the user to `pip install mozilla-aws-cli-yoyodyne` they will get
+     the Yoyodyne config and the tool
+3. Create a directory called `mozilla_aws_cli_config`
+   * This is the reserved / well known module name that every organization can
+     implement. This name must be `mozilla_aws_cli_config` exactly and not
+     include any part of your organization name (e.g. Yoyodyne)
+4. Within that `mozilla_aws_cli_config` directory create a single `__init__.py`
+   file. This will contain your organizations default configuration settings
+5. In this `__init__.py` file create a single variable called `config`
+   containing your organizations default configuration settings.
+   * Yoyodyne's `__init__.py` might look like
+     ```python
+     config = {
+         "client_id": "abcdefghiJKLMNOPQRSTUVWXYZ012345",
+         "idtoken_for_roles_url": "https://roles-and-aliases.sso.yoyodyne.com/roles",
+         "well_known_url": "https://auth.yoyodyne.auth0.com/.well-known/openid-configuration"
+     }
+     ```
+
+The resulting repository called `mozilla-aws-cli-yoyodyne` would look like this
+
+```
+mozilla-aws-cli-yoyodyne/
+├── mozilla_aws_cli_config
+│   └── __init__.py
+└── setup.py
+```
