@@ -1,7 +1,6 @@
-# federated-aws-cli
+# mozilla-aws-cli
 
-
-CLI application that handled federated authentication for AWS users
+Command line tool to enable accessing AWS using federated single sign on
 
 ## Prerequisites
 
@@ -37,14 +36,18 @@ CLI application that handled federated authentication for AWS users
 
 ## Run the tool
 
-`python -m federated_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+`maws --role-arn arn:aws:iam::123456789012:role/example-role`
 
-Note : You must run `python -m federated_aws_cli.cli` instead of
-`python federated_aws_cli/cli.py` because federated_aws_cli uses absolute imports.
+or
+
+`python -m mozilla_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+
+Note : You must run `python -m mozilla_aws_cli.cli` instead of
+`python mozilla_aws_cli/cli.py` because mozilla_aws_cli uses absolute imports.
 
 ## Sequence diagram
 
-[<img src="https://raw.githubusercontent.com/mozilla-iam/federated-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
+[<img src="https://raw.githubusercontent.com/mozilla-iam/mozilla-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
 
 ## Notes
 
@@ -57,7 +60,7 @@ Note : You must run `python -m federated_aws_cli.cli` instead of
 ## Details
 
 This is a collection of technical details that we've decided or discovered in
-building the federated-aws-cli
+building the mozilla-aws-cli
 
 * The user group list should be set in the OIDC claim as a list of groups
   instead of a string with delimiters
@@ -232,3 +235,56 @@ access to, possible reasons are :
   * in the ID token for role API that allows you to exchange your ID token for
     a list of roles so that the role picker can show you a menu of available
     roles
+
+## Creating enterprise / organization configuration
+
+If you want to deploy the Mozilla AWS CLI across your organization and establish
+default configuration values without requiring users to create config files you
+can do so by implementing a standard `mozilla_aws_cli_config` module.
+
+Here are the steps assuming an example organization called Yoyodyne
+
+1. Create a new code repo. A good name would be `mozilla-aws-cli-yoyodyne`
+2. In that repo create a `setup.py`
+   ```python
+   #!/usr/bin/env python
+
+   from setuptools import setup
+
+   setup(
+       name="mozilla-aws-cli-yoyodyne",
+       description="Yoyodyne specific deployment of the mozilla_aws_cli",
+       install_requires=["mozilla_aws_cli"],
+       packages=["mozilla_aws_cli_config"],
+       url="https://github.com/yoyodyne/mozilla-aws-cli-yoyodyne",
+       version="1.0.0",
+   )
+   ```
+   * `install_requires` depends on the `mozilla_aws_cli` to ensure that if you
+     instruct the user to `pip install mozilla-aws-cli-yoyodyne` they will get
+     the Yoyodyne config and the tool
+3. Create a directory called `mozilla_aws_cli_config`
+   * This is the reserved / well known module name that every organization can
+     implement. This name must be `mozilla_aws_cli_config` exactly and not
+     include any part of your organization name (e.g. Yoyodyne)
+4. Within that `mozilla_aws_cli_config` directory create a single `__init__.py`
+   file. This will contain your organizations default configuration settings
+5. In this `__init__.py` file create a single variable called `config`
+   containing your organizations default configuration settings.
+   * Yoyodyne's `__init__.py` might look like
+     ```python
+     config = {
+         "client_id": "abcdefghiJKLMNOPQRSTUVWXYZ012345",
+         "idtoken_for_roles_url": "https://roles-and-aliases.sso.yoyodyne.com/roles",
+         "well_known_url": "https://auth.yoyodyne.auth0.com/.well-known/openid-configuration"
+     }
+     ```
+
+The resulting repository called `mozilla-aws-cli-yoyodyne` would look like this
+
+```
+mozilla-aws-cli-yoyodyne/
+├── mozilla_aws_cli_config
+│   └── __init__.py
+└── setup.py
+```

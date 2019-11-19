@@ -11,6 +11,12 @@ from .cache import disable_caching
 from .config import DOT_DIR
 from .login import Login
 
+try:
+    import mozilla_aws_cli_config
+except ImportError:
+    # There is no overriding configuration package that implements the
+    # "mozilla_aws_cli_config" module. Use the normal config acquisition methods
+    mozilla_aws_cli_config = None
 
 if sys.version_info[0] >= 3:
     import configparser
@@ -47,6 +53,10 @@ def validate_awscli_exists(ctx, param, value):
 
 
 def validate_config_file(ctx, param, filenames):
+    if mozilla_aws_cli_config is not None:
+        # Override the --config file contents
+        return mozilla_aws_cli_config.config
+
     if isinstance(filenames, basestring):
         filenames = [filenames]
 
@@ -95,10 +105,11 @@ def validate_disable_caching(ctx, param, disabled):
     # TODO: Support Windows
     # TODO: Rename to something much better
     default=[
-        os.path.join("/etc", "federated_aws_cli", "config"),
+        os.path.join("/etc", "mozilla_aws_cli", "config"),
         os.path.join(DOT_DIR, "config"),
     ],
     help="Relative path to config file",
+    metavar="<path>",
     callback=validate_config_file)
 @click.option("-nc",
               "--no-cache",
@@ -118,6 +129,7 @@ def validate_disable_caching(ctx, param, disabled):
     "-r",
     "--role-arn",
     help="AWS IAM Role ARN to assume",
+    metavar="<arn>",
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")

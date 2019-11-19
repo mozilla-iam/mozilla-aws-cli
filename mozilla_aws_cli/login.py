@@ -256,6 +256,7 @@ class Login:
             self.state = "getting_sts_credentials"
             self.credentials = sts_conn.get_credentials(
                 token["id_token"],
+                id_token_dict,
                 role_arn=self.role_arn
             )
 

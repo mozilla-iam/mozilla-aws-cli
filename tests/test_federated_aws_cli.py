@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tests for `federated_aws_cli` package."""
+"""Tests for `mozilla_aws_cli` package."""
 
 import os
 from click.testing import CliRunner
-from federated_aws_cli import cli
+from mozilla_aws_cli import cli
 
 
 def test_command_line_interface():
