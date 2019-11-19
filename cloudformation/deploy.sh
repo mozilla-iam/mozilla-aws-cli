@@ -2,13 +2,13 @@
 
 # 656532927350
 ACCOUNT_ID=$1
-# idtoken_for_roles/idtoken_for_roles.yaml
+# path/to/example.yaml
 TEMPLATE_FILENAME=$2
 # DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME
-S3_BUCKET_CODE_STORAGE=$3
-# GroupRoleMapBuilder
+S3_BUCKET=$3
+# ExampleStackName
 STACK_NAME=$4
-# group-role-map-builder
+# s3-path-prefix
 S3_PREFIX=$5
 S3_PREFIX_ARG="--s3-prefix $S3_PREFIX"
 
@@ -25,10 +25,16 @@ if [ "$7" != "none" ]; then
 fi
 
 # Confirm that we have access to AWS and we're in the right account
-if ! aws sts get-caller-identity --output text |& grep $ACCOUNT_ID >/dev/null; then
+set +e
+result="$(aws sts get-caller-identity --output text 2>&1)"
+if ! echo "$result" | grep 'arn:aws:sts' >/dev/null; then
+  echo "Error : $result"
+  exit 1
+elif ! echo "$result" | grep "$ACCOUNT_ID" >/dev/null; then
   echo "Unable to access AWS or wrong account"
   exit 1
 fi
+set -e
 
 # This tempfile is required because of https://github.com/aws/aws-cli/issues/2504
 TMPFILE=$(mktemp --suffix .yaml)
@@ -54,14 +60,21 @@ else
   wait_verb=stack-create-complete
 fi
 
-aws cloudformation deploy --template-file $TMPFILE --stack-name $STACK_NAME \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides \
-    $PARAMETER_OVERRIDES
-
-echo "Waiting for stack to reach a COMPLETE state"
-aws cloudformation wait $wait_verb --stack-name  $STACK_NAME
-
-if [ "$OUTPUT_VAR_NAME" ]; then
-  aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='${OUTPUT_VAR_NAME}'].OutputValue" --output text
+set +e
+if aws cloudformation deploy --template-file $TMPFILE --stack-name $STACK_NAME \
+    --capabilities CAPABILITY_IAM \
+    --parameter-overrides \
+      $PARAMETER_OVERRIDES; then
+  echo "Waiting for stack to reach a COMPLETE state"
+  if aws cloudformation wait $wait_verb --stack-name  $STACK_NAME; then
+    if [ "$OUTPUT_VAR_NAME" ]; then
+      aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='${OUTPUT_VAR_NAME}'].OutputValue" --output text
+    fi
+    exit 0
+  fi
 fi
+aws cloudformation describe-stack-events \
+  --stack-name $STACK_NAME \
+  --query 'StackEvents[?ends_with(ResourceStatus, `_FAILED`)].[LogicalResourceId, ResourceType, ResourceStatusReason]' \
+  --output text
+exit 1
