@@ -36,14 +36,39 @@ Command line tool to enable accessing AWS using federated single sign on
 
 ## Run the tool
 
-`maws --role-arn arn:aws:iam::123456789012:role/example-role`
+There are various ways you can run `maws`. The tool can output environment
+variable setting text to activate your AWS session inside your terminal. Here
+are some methods to use the tool.
 
-or
+### Sub command
 
-`python -m mozilla_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+You could run `maws` within a `$()` sub-shell and execute the results
 
-Note : You must run `python -m mozilla_aws_cli.cli` instead of
-`python mozilla_aws_cli/cli.py` because mozilla_aws_cli uses absolute imports.
+* Interactively prompt for which IAM role to assume
+  * `$(maws)`
+* Pass the IAM role to assume as a command line argument
+  * `$(maws --role-arn arn:aws:iam::123456789012:role/example-role)`
+* Not only enable command line access to AWS, also log into the web console
+  * `$(maws -w)`
+
+### Process substitution
+
+This uses [process substitution](http://tldp.org/LDP/abs/html/process-sub.html).
+Here are some examples of how you could run it
+
+`source <(maws -w)`
+
+### Eval
+
+You could eval the results
+
+`eval $(maws --role-arn arn:aws:iam::123456789012:role/example-role)`
+
+### Copy paste
+
+Take the output of the command and copy paste it into your terminal
+
+`maws`
 
 ## Sequence diagram
 
@@ -235,6 +260,16 @@ access to, possible reasons are :
   * in the ID token for role API that allows you to exchange your ID token for
     a list of roles so that the role picker can show you a menu of available
     roles
+
+## Development
+
+When developing the tool and testing you can run it without installing it like
+this
+
+`python -m mozilla_aws_cli.cli --role-arn arn:aws:iam::123456789012:role/example-role`
+
+Note : You must run `python -m mozilla_aws_cli.cli` instead of
+`python mozilla_aws_cli/cli.py` because mozilla_aws_cli uses absolute imports.
 
 ## Creating enterprise / organization configuration
 
