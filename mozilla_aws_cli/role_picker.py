@@ -7,19 +7,15 @@ from .cache import read_group_role_map, write_group_role_map
 
 logger = logging.getLogger(__name__)
 
-ENV_VARIABLE_NAME_MAP = {
-    "AccessKeyId": "AWS_ACCESS_KEY_ID",
-    "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
-    "SessionToken": "AWS_SESSION_TOKEN",
-}
 
-
-def get_aws_env_variables(credentials):
-    result = ""
-    verb = "set" if platform.system() == "Windows" else "export"
-    for key in [x for x in credentials if x in ENV_VARIABLE_NAME_MAP]:
-        result += "{} {}={}\n".format(
-            verb, ENV_VARIABLE_NAME_MAP[key], credentials[key])
+def output_set_env_vars(var_map):
+    if platform.system() == "Windows":
+        result = "\n".join(
+            ["set {}={}".format(x, var_map[x]) for x in var_map])
+    else:
+        result = "export"
+        for key in var_map:
+            result += " {}={}".format(key, var_map[key])
     return result
 
 

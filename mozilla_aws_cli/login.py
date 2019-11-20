@@ -18,7 +18,7 @@ from .cache import (
 )
 from .listener import listen, port
 from .role_picker import (
-    get_aws_env_variables,
+    output_set_env_vars,
     get_roles_and_aliases,
 )
 from .utils import (
@@ -38,7 +38,11 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-
+ENV_VARIABLE_NAME_MAP = {
+    "AccessKeyId": "AWS_ACCESS_KEY_ID",
+    "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
+    "SessionToken": "AWS_SESSION_TOKEN",
+}
 
 class Login:
     # Maybe this would be better to unroll from config?
@@ -288,10 +292,11 @@ class Login:
         if self.credentials is not None:
             profile_name = role_arn_to_profile_name(
                 self.role_arn, self.role_map)
-            verb = "set" if platform.system() == "Windows" else "export"
             if self.output == "envvar":
-                print('echo "{}"'.format(self.role_arn))
-                print(get_aws_env_variables(self.credentials))
+                output_map = {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
+                              for x in self.credentials
+                              if x in ENV_VARIABLE_NAME_MAP}
+                print(output_set_env_vars(output_map))
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -299,26 +304,17 @@ class Login:
                     self.role_arn,
                     self.role_map)
                 if path:
-                    print('echo "{}"'.format(self.role_arn))
-                    print(
-                        "{verb} AWS_PROFILE={profile_name}\n"
-                        "{verb} AWS_SHARED_CREDENTIALS_FILE={path}".format(
-                            path=path,
-                            profile_name=profile_name,
-                            verb=verb,
-                        )
-                    )
+                    output_map = {
+                        'AWS_PROFILE': profile_name,
+                        'AWS_SHARED_CREDENTIALS_FILE': path}
+                    print(output_set_env_vars(output_map))
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.credentials,
                                              self.role_arn,
                                              self.role_map):
-                    print(
-                        "{verb} AWS_PROFILE={profile_name}".format(
-                            verb=verb,
-                            profile_name=profile_name
-                        ))
-
+                    output_map = {'AWS_PROFILE': profile_name}
+                    print(output_set_env_vars(output_map))
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
 
