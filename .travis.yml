@@ -18,9 +18,9 @@ script: tox
 deploy:
   provider: pypi
   distributions: sdist bdist_wheel
-  user: mozilla-infosec
+  user: mozillaiam
   password:
-    secure: PLEASE_REPLACE_ME
+    secure: "M4znHHonRnyPXGmfubwQt0V3ALiTWic9j+eSpVrxjxsIvGXOJ8cS2aE4RSQIR8T0XwqaQl9nlkd57ZgrolpSU88Ee3484pwMVYp/kFS8W+JKrHQ85bwHwfgdvDrxxW27Xte4llIElvd41wYNz4QuR47ssHpozI9mW3n6D/UiQeOmu/C/qlxLvf9A9EzQPfT3kc0QvoYIhE2w6MbFdcmR+lLMNODFgTZbkhsd+ZTSqJksOXr0N96IUNYd0qzLp4QPTZwifWc6RH0NEFNr+YvtPYZP9sGRKqo6jZPFbKM6rww7Y044KA1V9l3jNruO4BpssGMEo5LzPh8dk1fdu3mKEXH99OAklL9wPsZsYdR9Q8RM1xUsFyRxvkMYOJ4M1TKUfl2zuQXP9YNNALoBot1KUNdojR+V+6L99Te1Vg6ocAu8NYeGtA3gkYcN4rD296vt7cKwFXFrQGObQuGWfIo1Z+wiO0VQYgJ+RbXi+ey2AHZZpDMiLKXhzNBFO5bbAeZPxp23bcxYhAYzW8vu6ybccxh2ui3aBYG0j5HWYooM79blMfxKkpw5Sa5HhgY7YeCEjWheIC+wU2WE6X4Ftam6sT6H1pxqM4zXljb0RsN2biiTPLYQaMts4Jdh+fbMMB0WeYJ25A71wxYBpmpD+NoEUiU5WrLZ8IK5f4B673MCaV8="
   on:
     tags: true
     repo: mozilla-iam/mozilla-aws-cli
