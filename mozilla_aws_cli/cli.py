@@ -53,15 +53,13 @@ def validate_awscli_exists(ctx, param, value):
 
 
 def validate_config_file(ctx, param, filenames):
-    if mozilla_aws_cli_config is not None:
-        # Override the --config file contents
-        return mozilla_aws_cli_config.config
-
     if isinstance(filenames, basestring):
         filenames = [filenames]
 
-    if not any([os.path.exists(path) for path in filenames]):
-        raise click.BadParameter('Config files {} not found'.format(" ".join(filenames)))
+    if (not any([os.path.exists(path) for path in filenames]) and
+            mozilla_aws_cli_config is None):
+        raise click.BadParameter(
+            'Config files {} not found'.format(" ".join(filenames)))
 
     for filename in filenames:
         try:
@@ -78,6 +76,10 @@ def validate_config_file(ctx, param, filenames):
         except (configparser.Error):
             raise click.BadParameter(
                 'Config file {} is not a valid INI file.'.format(filename))
+    if mozilla_aws_cli_config is not None:
+        # Override the --config file contents with the mozilla_aws_cli_config
+        # module contents
+        config['DEFAULT'].update(mozilla_aws_cli_config.config)
 
     missing_settings = (
         {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
