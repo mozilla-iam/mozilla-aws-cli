@@ -61,12 +61,11 @@ def validate_config_file(ctx, param, filenames):
         raise click.BadParameter(
             'Config files {} not found'.format(" ".join(filenames)))
 
+    config = configparser.ConfigParser()
     for filename in filenames:
         try:
             # guard against empty files
             with open(filename, "r") as f:
-                config = configparser.ConfigParser()
-
                 if sys.version_info >= (3, 2):
                     config.read_file(f)
                 else:
@@ -79,7 +78,8 @@ def validate_config_file(ctx, param, filenames):
     if mozilla_aws_cli_config is not None:
         # Override the --config file contents with the mozilla_aws_cli_config
         # module contents
-        config['DEFAULT'].update(mozilla_aws_cli_config.config)
+        for key in mozilla_aws_cli_config.config:
+            config.set('DEFAULT', key, mozilla_aws_cli_config.config[key])
 
     missing_settings = (
         {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
