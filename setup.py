@@ -55,6 +55,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="0.1.0",
+    version="0.1.1",
     zip_safe=False,
 )
