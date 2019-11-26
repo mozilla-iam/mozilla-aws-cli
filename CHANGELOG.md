@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.0.2...v0.1.0
-[0.0.2]: https://github.com/olivierlacan/keep-a-changelog/releases/tag/v0.0.2
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.0.2...v0.1.0
+[0.0.2]: https://github.com/mozilla-iam/mozilla-aws-cli/releases/tag/v0.0.2
