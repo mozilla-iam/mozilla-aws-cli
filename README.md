@@ -40,7 +40,7 @@ There are various ways you can run `maws`. The tool can output environment
 variable setting text to activate your AWS session inside your terminal. Here
 are some methods to use the tool.
 
-### Sub command
+### Subcommand
 
 You could run `maws` within a `$()` sub-shell and execute the results
 
@@ -50,6 +50,11 @@ You could run `maws` within a `$()` sub-shell and execute the results
   * `$(maws --role-arn arn:aws:iam::123456789012:role/example-role)`
 * Not only enable command line access to AWS, also log into the web console
   * `$(maws -w)`
+
+> :warning: **Users of [YADR](https://github.com/skwp/dotfiles) and zsh**:
+> Subcommands can result in a broken authentication flow, and so it is
+> recommended that you use either process substitution or `eval`, as described
+> below.
 
 ### Process substitution
 
