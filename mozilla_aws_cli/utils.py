@@ -6,6 +6,9 @@ import signal
 import sys
 
 
+logger = logging.getLogger(__name__)
+
+
 def base64_without_padding(data):
     # https://tools.ietf.org/html/rfc7636#appendix-A
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
@@ -33,7 +36,7 @@ def role_arn_to_profile_name(role_arn, role_map):
     # get the plaintext role name
     role = role_arn.split(":")[-1].split("/")[-1]
 
-    logging.debug("Role map is: {}".format(role_map))
+    logger.debug("Role map is: {}".format(role_map))
 
     # Get the AWS account id from the role ARN, and then see if it's in the map
     account_id = role_arn.split(":")[4]
