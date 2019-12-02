@@ -2,6 +2,7 @@ import errno
 import logging
 import os.path
 import socket
+import time
 
 from flask import Flask, jsonify, request, send_from_directory
 from operator import itemgetter
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 login = {
     "get_id_token": None,
     "id": -1,
+    "last_state_check": None,
     "role_map": {},
 }
 
@@ -104,6 +106,9 @@ def get_state():
             "result": "invalid_id",
             "status_code": 500,
         })
+
+    # Update the last time state was checked
+    login.last_state_check = time.time()
 
     return jsonify({
         "state": login.state,

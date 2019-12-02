@@ -97,6 +97,10 @@ class Login:
         # Whether we've gotten credentials via STS
         self.credentials = None
 
+        # This is how long we will wait to see if we can get the
+        self.last_state_check = None
+        self.max_sleep_no_state_check = 2  # seconds
+
         # This used by the web application to poll the login state
         self.state = "pending"
         self.web_state = {
@@ -112,6 +116,21 @@ class Login:
             time.sleep(3600)
 
         exit_sigint()
+
+    def sleep(self, seconds):
+        """
+        Sleeps for :seconds: unless the web interface hasn't checked in for
+        a little while. If it hasn't, we exit the CLI with an error.
+        """
+        # Don't exit if we've never checked state before
+        if self.last_state_check is None:
+            pass
+        elif time.time() - self.last_state_check > self.max_sleep_no_state_check:
+            logger.error("No response from web interface for {} seconds,"
+                         " shutting down.".format(self.max_sleep_no_state_check))
+            exit_sigint()
+
+        time.sleep(seconds)
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -254,7 +273,7 @@ class Login:
 
                 # Wait for the POST to /api/roles
                 while not self.role_arn:
-                    time.sleep(.05)
+                    self.sleep(.05)
 
             # Use the cached credentials or retrieve them from STS
             self.state = "getting_sts_credentials"
