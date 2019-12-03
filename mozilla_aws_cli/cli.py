@@ -84,7 +84,7 @@ def validate_config_file(ctx, param, filenames):
         # module contents
         for key in mozilla_aws_cli_config.config:
             if key in config.defaults() and config.defaults()[key] != mozilla_aws_cli_config.config[key]:
-                raise click.BadOptionUsage(None, "setting for `{}` exists in both global module and local config file".format(key))
+                raise click.BadOptionUsage(None, "setting for `{}` exists in both the Python module ({}) as well as one of the config files ({}). Either uninstall the Python package or remove the setting from the config file".format(key, mozilla_aws_cli_config.__file__, filenames))
 
             config.defaults()[key] = mozilla_aws_cli_config.config[key]
 
