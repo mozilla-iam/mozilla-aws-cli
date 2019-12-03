@@ -31,6 +31,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 logging.getLogger('urllib3').propagate = False
 
+VALID_OUTPUT_OPTIONS = ("envvar", "shared", "awscli")
+
 
 def validate_arn(ctx, param, value):
     # arn:aws:iam::account-id:role/role-name
@@ -45,8 +47,10 @@ def validate_arn(ctx, param, value):
         return value
 
 
-def validate_awscli_exists(ctx, param, value):
-    if value.lower() == 'awscli' and not find_executable('aws'):
+def validate_output(ctx, param, value):
+    if value is None:
+        pass
+    elif value.lower() == 'awscli' and not find_executable('aws'):
         raise click.BadParameter('AWS CLI is not detected on local system.')
 
     return value
@@ -79,17 +83,24 @@ def validate_config_file(ctx, param, filenames):
         # Override the --config file contents with the mozilla_aws_cli_config
         # module contents
         for key in mozilla_aws_cli_config.config:
-            config.set('DEFAULT', key, mozilla_aws_cli_config.config[key])
+            if key in config.defaults() and config.defaults()[key] != mozilla_aws_cli_config.config[key]:
+                raise click.BadOptionUsage(None, "setting for `{}` exists in both global module and local config file".format(key))
+
+            config.defaults()[key] = mozilla_aws_cli_config.config[key]
 
     missing_settings = (
         {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
 
     if missing_settings:
-        raise click.BadParameter(
-            '{} setting{} are missing from the config files {}'.format(
-                ', '.join(missing_settings),
+        message = '{} setting{} are missing from config files: {}'.format(
+                ', '.join(["`{}`".format(setting) for setting in missing_settings]),
                 's' if len(missing_settings) > 1 else '',
-                " ".join(filenames)))
+                " ".join(filenames))
+        raise click.BadOptionUsage(None, message)
+
+    if config.defaults().get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
+        raise click.BadParameter('{}'.format(config.defaults()["output"]),
+                                 param_hint="`output` in config file")
 
     return config.defaults()
 
@@ -122,10 +133,9 @@ def validate_disable_caching(ctx, param, disabled):
 @click.option(
     "-o",
     "--output",
-    default="envvar",
-    type=click.Choice(["envvar", "shared", "awscli"]),
+    type=click.Choice(VALID_OUTPUT_OPTIONS),
     help="How to output the AWS API keys",
-    callback=validate_awscli_exists
+    callback=validate_output
 )
 @click.option(
     "-r",
@@ -139,6 +149,11 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
+
+    # The output setting "envvar" if not specified on the command line or in a
+    # config file
+    if output is None:
+        output = config.get("output", "envvar")
 
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
