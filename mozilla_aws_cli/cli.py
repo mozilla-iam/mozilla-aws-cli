@@ -92,10 +92,13 @@ def validate_config_file(ctx, param, filenames):
         {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
 
     if missing_settings:
-        message = '{} setting{} are missing from config files: {}'.format(
-                ', '.join(["`{}`".format(setting) for setting in missing_settings]),
-                's' if len(missing_settings) > 1 else '',
-                " ".join(filenames))
+        missing_setting_list = ', '.join(["`{}`".format(setting) for setting in missing_settings])
+        plural = 's are' if len(missing_settings) > 1 else ' is'
+        filename_list = " ".join(filenames)
+        message = '{missing_setting_list} setting{plural} missing from config files: {filename_list}'.format(
+            missing_setting_list=missing_setting_list,
+            plural=plural,
+            filename_list=filename_list)
         raise click.BadOptionUsage(None, message)
 
     if config.defaults().get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
