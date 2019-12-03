@@ -60,7 +60,8 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
                 logger.error(
                     'AWS STS Call failed {status} {Type} {Code} : {Message}'.format(
                         status=resp.status_code, **error))
-                if 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role' in error['Message']:
+                if (error['Code'] == 'ValidationError'
+                        and error['Message'] == 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role.'):
                     continue
                 else:
                     raise STSWarning(error['Type'], error['Code'], error['Message'])
