@@ -28,10 +28,11 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             if 'email' in id_token_dict
             else id_token_dict['sub'].split('|')[-1])
         sts_url = "https://sts.amazonaws.com/"
-        for duration_seconds in [43200, 3600]:  # 12 hours, 1 hour
+        for duration_seconds in [43200, 3600, 900]:  # 12 hours, 1 hour, 15 mins
             # First try to provision a session of 12 hours, then fall back to
             # 1 hour, the default max, if the 12 hour attempt fails. If that
-            # 1 hour duration also fails, then error out
+            # 1 hour duration also fails, then fall back to the minimum of 15
+            # minutes
             parameters = {
                 'Action': 'AssumeRoleWithWebIdentity',
                 'DurationSeconds': duration_seconds,
