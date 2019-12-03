@@ -107,6 +107,9 @@ const pollState = setInterval(async () => {
         // show the roles
         const roles = await response.json();
         showRoles(roles);
+    } else if (remoteState.state === "restart_auth") {
+        setMessage("Redirecting to identity provider...");
+        window.location.replace(remoteState.value.idpUrl);
     } else if (remoteState.state === "aws_federate") {
         setMessage("Redirecting to AWS...");
         await shutdown();

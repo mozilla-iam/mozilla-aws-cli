@@ -9,6 +9,12 @@ from operator import itemgetter
 
 from .utils import exit_sigint
 
+try:
+    # P3
+    from urllib.parse import urlencode
+except ImportError:
+    # P2 Compat
+    from urllib import urlencode
 
 # These ports must be configured in the IdP's allowed callback URL list
 # TODO: Move this to the CLI / config section
@@ -24,6 +30,7 @@ login = {
     "last_state_check": None,
     "role_map": {},
 }
+STSWarning = type('STSWarning', (Warning,), dict())
 
 
 def get_available_port():
@@ -63,6 +70,8 @@ def catch_all(filename):
 @app.route("/api/roles", methods=["POST"])
 def set_role():
     login.role_arn = request.json.get("arn")
+    logger.debug('IAM Role ARN selected from role picker : {}'.format(
+        login.role_arn))
 
     return jsonify({
         "result": "set_role_arn",
@@ -73,6 +82,8 @@ def set_role():
 @app.route("/api/roles", methods=["GET"])
 def get_roles():
     roles = {}
+    if login.role_map is None and login.token is not None:
+        login.get_role_map()
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
         alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
@@ -101,6 +112,11 @@ def get_roles():
 
 @app.route("/api/state")
 def get_state():
+    logger.debug('Call received to /api/state with id of {}. Returning state {} and web_state {}'.format(
+        request.args.get("id"),
+        login.state,
+        login.web_state
+    ))
     if request.args.get("id") != login.id:
         return jsonify({
             "result": "invalid_id",
@@ -144,7 +160,45 @@ def handle_oidc_redirect_callback():
         })
 
     # callback into the login.callback() function in login.py
+    logger.debug("redirect_callback : request is {}".format(request.json))
     login.get_id_token(**request.json)
+    login.validate_id_token()
+    logger.debug("id_token_dict : {}".format(login.id_token_dict))
+    if login.id_token_dict is None:
+        logger.debug('Validation of token failed : {}'.format(login.token))
+        # TODO : What should we do in this case? How should the UI handle this?
+        return jsonify({
+            "result": "id_token_validation_failed",
+            "status_code": 400,
+        })
+
+    login.get_role_map()
+    try:
+        login.exchange_token_for_credentials()
+    except STSWarning as e:
+        if e.args[1] == 'ExpiredTokenException':
+            logger.debug('AWS says that the ID token is expired : {}'.format(e[2]))
+            login.token = None
+            url_parameters = {
+                "scope": login.oidc_scope,
+                "response_type": "code",
+                "redirect_uri": login.redirect_uri,
+                "client_id": login.client_id,
+                "code_challenge": login.code_challenge,
+                "code_challenge_method": "S256",
+                "state": login.oidc_state,
+            }
+            url = "{}?{}".format(login.authorization_endpoint,
+                                 urlencode(url_parameters))
+            logger.debug('Setting state to restart_auth and idpUrl to {}'.format(url))
+            login.state = "restart_auth"
+            login.web_state["idpUrl"] = url
+            return jsonify({
+                "result": "restart_auth",
+                "status_code": 200,
+            })
+
+    login.print_output()
 
     # Send the signal to kill the application
     return jsonify({
