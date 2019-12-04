@@ -9,6 +9,9 @@ from .cache import read_sts_credentials, write_sts_credentials
 
 
 logger = logging.getLogger(__name__)
+# Create some exception classes
+MalformedResponseWarning = type('MalformedResponseWarning', (Warning,), dict())
+STSWarning = type('STSWarning', (Warning,), dict())
 
 
 def get_credentials(bearer_token, id_token_dict, role_arn):
@@ -17,7 +20,8 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
     :param bearer_token: OpenID Connect ID token provided by IdP
     :param id_token_dict: Parsed bearer_token
     :param role_arn: AWS IAM Role ARN of the role to assume
-    :return: dict : Dictionary of credential information
+    :return: dict : Dictionary of credential information or None if the
+        bearer_token can't be used to produce credentials
     """
     # Try to read the locally cached STS credentials
     credentials = read_sts_credentials(role_arn)
@@ -28,10 +32,11 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             if 'email' in id_token_dict
             else id_token_dict['sub'].split('|')[-1])
         sts_url = "https://sts.amazonaws.com/"
-        for duration_seconds in [43200, 3600]:  # 12 hours, 1 hour
+        for duration_seconds in [43200, 3600, 900]:  # 12 hours, 1 hour, 15 mins
             # First try to provision a session of 12 hours, then fall back to
             # 1 hour, the default max, if the 12 hour attempt fails. If that
-            # 1 hour duration also fails, then error out
+            # 1 hour duration also fails, then fall back to the minimum of 15
+            # minutes
             parameters = {
                 'Action': 'AssumeRoleWithWebIdentity',
                 'DurationSeconds': duration_seconds,
@@ -43,10 +48,23 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
 
             # Call the STS API
             resp = requests.get(url=sts_url, params=parameters)
+            try:
+                root = ElementTree.fromstring(resp.content)
+            except ElementTree.ParseError as e:
+                raise MalformedResponseWarning('Unable to parse XML response to AssumeRoleWithWebIdentity call')
             if resp.status_code != requests.codes.ok:
-                if 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role' in resp.text:
+                error = dict(
+                    [(x.tag.split('}', 1)[-1], x.text) for x in root.find(
+                        './sts:Error',
+                        {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})])
+                logger.error(
+                    'AWS STS Call failed {status} {Type} {Code} : {Message}'.format(
+                        status=resp.status_code, **error))
+                if (error['Code'] == 'ValidationError'
+                        and error['Message'] == 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role.'):
                     continue
-                logger.error('AWS STS Call failed {} : {}'.format(resp.status_code, resp.text))
+                else:
+                    raise STSWarning(error['Type'], error['Code'], error['Message'])
             else:
                 logger.debug('Session established for {} seconds'.format(duration_seconds))
                 logger.debug('STS Call Response headers : {}'.format(resp.headers))
@@ -54,9 +72,8 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
                 break
         else:
             # No break was encountered so none of the requests returned success
-            return None
+            raise STSWarning('Sender', 'NoAcceptableDuration', 'No DurationSeconds was found that did not exceed the MaxSessionDuration for the role')
 
-        root = ElementTree.fromstring(resp.content)
         # Create a dictionary of the children of
         # AssumeRoleWithWebIdentityResult/Credentials and their values
         credentials = dict([(x.tag.split('}', 1)[-1], x.text) for x in root.find(

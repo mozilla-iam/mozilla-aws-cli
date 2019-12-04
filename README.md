@@ -328,3 +328,14 @@ mozilla-aws-cli-yoyodyne/
 │   └── __init__.py
 └── setup.py
 ```
+
+## Other projects in this space
+
+* https://github.com/aidan-/aws-cli-federator
+* https://github.com/Nike-Inc/gimme-aws-creds
+* https://github.com/sportradar/aws-azure-login
+* https://github.com/oktadeveloper/okta-aws-cli-assume-role
+* https://github.com/jmhale/okta-awscli
+* https://github.com/prolane/samltoawsstskeys
+* https://github.com/physera/onelogin-aws-cli
+* https://github.com/kxseven/axe/blob/master/bin/subcommands/axe-token-krb5formauth-create

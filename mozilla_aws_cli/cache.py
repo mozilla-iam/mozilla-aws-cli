@@ -50,8 +50,9 @@ else:
         return (dt - epoch).total_seconds()
 
 # TODO: move to config
-CLOCK_SKEW_ALLOWANCE = 300         # 5 minutes
-GROUP_ROLE_MAP_CACHE_TIME = 3600   # 1 hour
+CLOCK_SKEW_ALLOWANCE = 300  # 5 minutes
+UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE = 86400  # 1 day
+GROUP_ROLE_MAP_CACHE_TIME = 3600  # 1 hour
 CREDENTIALS_TO_AWS_MAP = {
     "AccessKeyId": "aws_access_key_id",
     "SecretAccessKey": "aws_secret_access_key",
@@ -289,7 +290,8 @@ def read_id_token(issuer, client_id, key=None):
         except jose.exceptions.JOSEError:
             return None
 
-        if id_token_dict.get('exp') - time.time() > CLOCK_SKEW_ALLOWANCE:
+        if (id_token_dict.get('exp') - time.time() > CLOCK_SKEW_ALLOWANCE
+                and time.time() - id_token_dict.get('iat') < UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE):
             logger.debug("Successfully read cached id token at: {}".format(path))
             return token
         else:
@@ -347,7 +349,7 @@ def read_sts_credentials(role_arn):
                              time.time(),
                              timestamp(exp) - time.time()))
             if timestamp(exp) - time.time() > CLOCK_SKEW_ALLOWANCE:
-                logger.debug("Using STS credentials at: {}, expiring in: {}".format(path, timestamp(exp) - time.time()))
+                logger.debug("Using STS credentials at: {} expiring in: {}".format(path, timestamp(exp) - time.time()))
                 return sts
             else:
                 logger.debug(

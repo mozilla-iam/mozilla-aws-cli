@@ -30,6 +30,7 @@ setup(
     name="mozilla_aws_cli",
     description="Command line tool to enable accessing AWS using federated single sign on",
     author="Mozilla Enterprise Information Security",
+    author_email="iam@discourse.mozilla.org",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",

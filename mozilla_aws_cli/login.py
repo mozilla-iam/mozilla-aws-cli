@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from jose import jwt
+from jose import jwt, JWTError
 import json
 import logging
 import os
@@ -43,6 +43,8 @@ ENV_VARIABLE_NAME_MAP = {
     "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
     "SessionToken": "AWS_SESSION_TOKEN",
 }
+STSWarning = type('STSWarning', (Warning,), dict())
+
 
 class Login:
     # Maybe this would be better to unroll from config?
@@ -93,6 +95,10 @@ class Login:
 
         # Whether or not we have opened a browser tab
         self.opened_tab = False
+
+        # The ID Token returned from the identity provider
+        self.token = None
+        self.id_token_dict = None
 
         # Whether we've gotten credentials via STS
         self.credentials = None
@@ -145,11 +151,54 @@ class Login:
         self.state = "starting"
         self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
-        token = read_id_token(self.openid_configuration.get("issuer"),
+        self.token = read_id_token(self.openid_configuration.get("issuer"),
                               self.client_id,
                               self.jwks)
 
-        if token is None or self.role_arn is None:
+        if self.token is not None and self.role_arn is not None:
+            logger.debug(
+                "We have a cached ID token and the role was passed as an "
+                "argument")
+            self.validate_id_token()
+            if self.id_token_dict is None:
+                # If validation failed, set token back to None
+                self.token = None
+            else:
+                # The ID Token verifies
+                self.get_role_map()
+                try:
+                    self.exchange_token_for_credentials()
+                except STSWarning as e:
+                    if e.args[1] == 'ExpiredTokenException':
+                        logger.debug('Looks like that cached ID token is expired, setting self.token to None')
+                        self.token = None
+                    else:
+                        raise
+                if self.token is not None and self.role_arn is not None:
+                    self.print_output()
+
+        if self.token is not None and self.role_arn is None:
+            logger.debug(
+                "We have a cached ID token but the role passed on the command "
+                "line wasn't valid. Show the role picker")
+            self.state = 'redirecting'
+            url_parameters = {
+                "state": self.oidc_state,
+                "code": "foo"
+            }
+            webbrowser.get().open_new_tab(
+                "{}?{}".format(
+                    self.redirect_uri,
+                    urlencode(url_parameters)
+                ))
+            self.opened_tab = True
+            logger.debug("About to start listener running on port {}".format(port))
+            listen(self)
+        elif self.token is None or self.role_arn is None:
+            logger.debug(
+                "Either the cached ID token was invalid or missing and we need "
+                "to get a new one, or the user passed no role_arn on the "
+                "command line so we need to spawn the role picker")
             self.state = "redirecting"
             url_parameters = {
                 "scope": self.oidc_scope,
@@ -187,10 +236,9 @@ class Login:
             # start up the listener, figuring out which port it ran on
             logger.debug("About to start listener running on port {}".format(port))
             listen(self)
-        else:
-            self.get_id_token(None, None, token=token)
 
-    def get_id_token(self, code, state, token=None, **kwargs):
+
+    def get_id_token(self, code=None, state=None, token=None, **kwargs):
         """
         :param code: code GET paramater as sent by IdP
         :param state: state GET parameter as sent by IdP
@@ -206,7 +254,7 @@ class Login:
                     kwargs.get('error_description'))
             ))
 
-        if token is None:  # Callback from web listener
+        if self.token is None and token is None:  # Callback from web listener
             self.state = "getting_id_token"
 
             if code is None:
@@ -233,28 +281,37 @@ class Login:
             logger.debug(
                 "POSTing to token endpoint to exchange code for id_token: "
                 "{}".format(body))
-            token = requests.post(
+            self.token = requests.post(
                 self.token_endpoint, headers=headers, json=body).json()
 
             # attempt to cache the id token
             write_id_token(self.openid_configuration.get("issuer"),
                            self.client_id,
-                           token)
+                           self.token)
+        elif self.token is None:
+            self.token = token
 
+    def validate_id_token(self):
         # decode the token for logging purposes
-        logger.debug("Validating response from endpoint: {}".format(token))
-        id_token_dict = jwt.decode(
-            token=token["id_token"],
-            key=self.jwks,
-            audience=self.client_id)
-        logger.debug("ID token dict : {}".format(id_token_dict))
+        logger.debug("Validating response from endpoint: {}".format(self.token))
+        try:
+            self.id_token_dict = jwt.decode(
+                token=self.token["id_token"],
+                key=self.jwks,
+                audience=self.client_id)
+        except JWTError as e:
+            logger.error('ID Token failed validation : {}'.format(e))
+            return None
+        logger.debug("ID token dict : {}".format(self.id_token_dict))
 
+
+    def get_role_map(self):
         # get the role map, either from cache or from the endpoint
         self.state = "getting_role_map"
 
         self.role_map = get_roles_and_aliases(
             endpoint=self.idtoken_for_roles_url,
-            token=token["id_token"],
+            token=self.token["id_token"],
             key=self.jwks
         )
 
@@ -264,6 +321,8 @@ class Login:
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
 
+
+    def exchange_token_for_credentials(self):
         # TODO: Consider whether this needs to loop forever
         while self.credentials is None:
             # If we don't have a role ARN on the command line, we need to show
@@ -277,36 +336,39 @@ class Login:
 
             # Use the cached credentials or retrieve them from STS
             self.state = "getting_sts_credentials"
-            self.credentials = sts_conn.get_credentials(
-                token["id_token"],
-                id_token_dict,
-                role_arn=self.role_arn
-            )
-
-            if self.credentials is None:
-                token_vals = ([
-                    id_token_dict[x] for x in id_token_dict
-                    if x in ['amr', 'iss', 'aud']]
-                    if jwt else ['unknown'] * 3)
-                logger.error(
-                    'AWS STS Call failed when attempting to assume role {} '
-                    'with amr {} iss {} and aud {}'.format(
-                        self.role_arn, *token_vals))
-                logger.error(
-                    'Unable to assume role {}. Please select a different '
-                    'role.'.format(self.role_arn))
-
-                if len(self.role_map.get("roles", [])) <= 1:
-                    self.exit("Sorry, no valid roles available. Shutting down.")
-                else:
+            try:
+                self.credentials = sts_conn.get_credentials(
+                    self.token["id_token"],
+                    self.id_token_dict,
+                    role_arn=self.role_arn
+                )
+            except STSWarning as e:
+                if e.args[1] == 'AccessDenied':
+                    # Not authorized to perform sts:AssumeRoleWithWebIdentity
+                    # Either that role doesn't exist or it exists but doesn't
+                    # permit the user because of the conditions
+                    logger.error(
+                        'Unable to assume role {}. Please select a different '
+                        'role.'.format(self.role_arn))
                     self.role_map.get("roles", []).remove(self.role_arn)
                     self.role_arn = None
+                    if len(self.role_map.get("roles", [])) <= 1:
+                        self.exit(
+                            "Sorry, no valid roles available. Shutting down.")
+                elif e.args[1] == 'ExpiredTokenException':
+                    # The ID token is expired
+                    raise
+                else:
+                    raise
+
             if self.batch:
                 break
 
         logger.debug(self.credentials)
-        logger.debug("ID token : {}".format(token["id_token"]))
+        logger.debug("ID token : {}".format(self.token["id_token"]))
 
+
+    def print_output(self):
         # TODO: Create a global config object?
         if self.credentials is not None:
             profile_name = role_arn_to_profile_name(

@@ -107,6 +107,9 @@ const pollState = setInterval(async () => {
         // show the roles
         const roles = await response.json();
         showRoles(roles);
+    } else if (remoteState.state === "restart_auth") {
+        setMessage("Redirecting to identity provider...");
+        window.location.replace(remoteState.value.idpUrl);
     } else if (remoteState.state === "aws_federate") {
         setMessage("Redirecting to AWS...");
         await shutdown();
@@ -114,7 +117,7 @@ const pollState = setInterval(async () => {
         // insert the image to log out of AWS and then redirect there once
         // it has loaded
         $("#aws-federation-logout").on("load error", () => {
-            document.location = remoteState.value.awsFederationUrl;
+            window.location.replace = remoteState.value.awsFederationUrl;
         }).attr("src", "https://signin.aws.amazon.com/oauth?Action=logout");
     } else if (remoteState.state === "invalid_id") {
         setMessage("Another federation session has been detected. Shutting down.");
