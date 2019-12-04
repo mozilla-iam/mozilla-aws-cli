@@ -153,11 +153,8 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
     if verbose:
         logger.setLevel(logging.DEBUG)
 
-    # The output setting "envvar" if not specified on the command line or in a
-    # config file
-    if output is None:
-        output = config.get("output", "envvar")
-
+    # Order of precedence : output, config["output"], "envvar"
+    config["output"] = output if output is not None else config.get("output", "envvar")
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
 
@@ -173,7 +170,7 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
         idtoken_for_roles_url=config["idtoken_for_roles_url"],
         jwks=config["jwks"],
         openid_configuration=config["openid-configuration"],
-        output=output,
+        config=config,
         role_arn=role_arn,
         scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],

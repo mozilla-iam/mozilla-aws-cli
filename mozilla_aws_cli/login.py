@@ -56,7 +56,7 @@ class Login:
         idtoken_for_roles_url=None,
         jwks=None,
         openid_configuration=None,
-        output=None,
+        config=None,
         role_arn=None,
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
@@ -78,7 +78,8 @@ class Login:
         self.idtoken_for_roles_url = idtoken_for_roles_url
         self.jwks = jwks
         self.openid_configuration = openid_configuration
-        self.output = output
+        self.config = {} if config is None else config
+        self.output = config.get("output", "envvar")
         self.role = None
         self.role_arn = role_arn
         self.role_map = None
