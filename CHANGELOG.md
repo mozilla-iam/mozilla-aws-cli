@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+* Documentation warning about YADR and ZSH #140
+* Detection of ID Tokens that are older than AWS allows #150
+* 15 minute session duration fallback for IAM Roles which have under 1 hour max
+  session durations #150
+* Detection of expired ID tokens initiating a new auth flow #150
+* Faster login when using `-w` as now the cached ID Token is used if it's valid #150
+* Documentation on config file format
+* `print_role_arn` config setting
+* printing the role_arn to the console
+
+### Changed
+* Config file path changed from mozilla_aws_cli to maws #139
+* Config file parsing to use an intentional `maws` section
+
+### Fixed
+* Shutdown the CLI if the web interface gets closed #143 #128
+* Utils not using the global logger #147
+* Config file and config module settings not being merged #151
 
 ## [0.1.1] - 2019-11-21
 ### Fixed
