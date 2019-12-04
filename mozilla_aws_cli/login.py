@@ -79,7 +79,7 @@ class Login:
         self.jwks = jwks
         self.openid_configuration = openid_configuration
         self.config = {} if config is None else config
-        self.output = config.get("output", "envvar")
+        self.output = self.config.get("output", "envvar")
         self.role = None
         self.role_arn = role_arn
         self.role_map = None

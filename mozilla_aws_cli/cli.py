@@ -79,17 +79,26 @@ def validate_config_file(ctx, param, filenames):
         except (configparser.Error):
             raise click.BadParameter(
                 'Config file {} is not a valid INI file.'.format(filename))
+    if not config.has_section('maws'):
+        config.add_section('maws')
+
+    result = dict(config.items('maws'))
     if mozilla_aws_cli_config is not None:
         # Override the --config file contents with the mozilla_aws_cli_config
         # module contents
         for key in mozilla_aws_cli_config.config:
-            if key in config.defaults() and config.defaults()[key] != mozilla_aws_cli_config.config[key]:
-                raise click.BadOptionUsage(None, "setting for `{}` exists in both the Python module ({}) as well as one of the config files ({}). Either uninstall the Python package or remove the setting from the config file".format(key, mozilla_aws_cli_config.__file__, filenames))
+            if key in result and result[key] != mozilla_aws_cli_config.config[key]:
+                raise click.BadOptionUsage(
+                    None,
+                    "setting for `{}` exists in both the Python module ({}) "
+                    "as well as one of the config files ({}). Either "
+                    "uninstall the Python package or remove the setting from "
+                    "the config file".format(
+                        key, mozilla_aws_cli_config.__file__, filenames))
 
-            config.defaults()[key] = mozilla_aws_cli_config.config[key]
-
+            result[key] = mozilla_aws_cli_config.config[key]
     missing_settings = (
-        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
+        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(result.keys()))
 
     if missing_settings:
         missing_setting_list = ', '.join(["`{}`".format(setting) for setting in missing_settings])
@@ -101,11 +110,10 @@ def validate_config_file(ctx, param, filenames):
             filename_list=filename_list)
         raise click.BadOptionUsage(None, message)
 
-    if config.defaults().get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
-        raise click.BadParameter('{}'.format(config.defaults()["output"]),
+    if result.get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
+        raise click.BadParameter('{}'.format(result["output"]),
                                  param_hint="`output` in config file")
-
-    return config.defaults()
+    return result
 
 
 def validate_disable_caching(ctx, param, disabled):
