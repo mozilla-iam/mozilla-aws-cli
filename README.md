@@ -17,22 +17,67 @@ Command line tool to enable accessing AWS using federated single sign on
 
 ## Instructions
 
-## Create a config
+Users can either configure Mozilla AWS CLI with a [python package](#creating-enterprise--organization-configuration)
+provided by their organization, or they can create a config file by hand.
 
-`cp config.yaml.inc config.yaml`
+## Create a config file
+
+The default files that configuration is fetched from are
+* `/etc/maws/config`
+* `~/.maws/config`
+
+where settings in `/etc/maws/config` are overridden by settings in `~/.maws/config`.
+
+Users can also assert which config file(s) to read from using the `-c` or `--config`
+command line arguments.
+
+These config files use the standard [INI file format](https://en.wikipedia.org/wiki/INI_file).
+
+The `config` file should contain a single section called `[maws]` and can
+contain the following settings.
+
+There are three *required* settings which must either be set in a [python package](#creating-enterprise--organization-configuration)
+provided by the organization or in the user's config file. Those required
+settings are
 
 * `well_known_url`: The
   [OpenID Connect Discovery Endpoint URL](https://openid.net/specs/openid-connect-discovery-1_0.html).
   ([Auth0](https://auth0.com/docs/protocols/oidc/openid-connect-discovery))
-* client_id: The Auth0 `client_id` generated when the Auth0
+* `client_id`: The Auth0 `client_id` generated when the Auth0
   [application](https://auth0.com/docs/applications) was created in the
   prerequisites
-* scope: A space delimited list of
+* `idtoken_for_roles_url` : The URL of the ID Token For Roles API. This URL
+  comes from the location that the user's organization has deployed the
+  [idtoken_for_roles](https://github.com/mozilla-iam/mozilla-aws-cli/tree/master/cloudformation)
+  API. This API lets a user exchange an ID token for a list of groups and roles
+  that they have rights to.
+
+Additional optional settings that can be configured in the config file are
+ 
+* `scope`: A space delimited list of
   [OpenID Connect Scopes](https://auth0.com/docs/scopes/current/oidc-scopes).
   For example `openid`. Avoid including a scope which passes too much data which
   will exceed the maximum AWS allowed size of the ID Token (for example at
   Mozilla we neglect to include the raw full group list which is included in the
   ID Token when the `https://sso.mozilla.com/claim/groups` scope is requested.
+* `output` : The output format for the tool to use. This must be one of the
+  following values
+  * `envvar` : A set of environment variables that load the temporary
+    credentials directly in to the environment without writing them to a file
+  * `shared` : A set of environment variables that reference a dedicated maws
+    AWS config file which is created
+  * `awscli` : A set of environment variables that reference the default AWS
+    CLI / AWS SDK config file which is written to
+* `print_role_arn` : Whether or not `maws` should display the AWS IAM Role ARN
+  on the command line. This can values like `yes`, `no`, `true`, `false`
+
+The resulting config would looks something like this
+```ini
+[maws]
+client_id = abcdefg
+idtoken_for_roles_url = https://roles-and-aliases.example/roles
+well_known_url = http://auth.example.com/.well-known/openid-configuration
+```
 
 ## Run the tool
 

@@ -79,17 +79,30 @@ def validate_config_file(ctx, param, filenames):
         except (configparser.Error):
             raise click.BadParameter(
                 'Config file {} is not a valid INI file.'.format(filename))
+    if not config.has_section('maws'):
+        config.add_section('maws')
+
+    result = dict(config.items('maws'))
+    for boolean_field in ['print_role_arn']:
+        if boolean_field in result:
+            result[boolean_field] = config.getboolean('maws', boolean_field)
+
     if mozilla_aws_cli_config is not None:
         # Override the --config file contents with the mozilla_aws_cli_config
         # module contents
         for key in mozilla_aws_cli_config.config:
-            if key in config.defaults() and config.defaults()[key] != mozilla_aws_cli_config.config[key]:
-                raise click.BadOptionUsage(None, "setting for `{}` exists in both the Python module ({}) as well as one of the config files ({}). Either uninstall the Python package or remove the setting from the config file".format(key, mozilla_aws_cli_config.__file__, filenames))
+            if key in result and result[key] != mozilla_aws_cli_config.config[key]:
+                raise click.BadOptionUsage(
+                    None,
+                    "setting for `{}` exists in both the Python module ({}) "
+                    "as well as one of the config files ({}). Either "
+                    "uninstall the Python package or remove the setting from "
+                    "the config file".format(
+                        key, mozilla_aws_cli_config.__file__, filenames))
 
-            config.defaults()[key] = mozilla_aws_cli_config.config[key]
-
+            result[key] = mozilla_aws_cli_config.config[key]
     missing_settings = (
-        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(config.defaults().keys()))
+        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(result.keys()))
 
     if missing_settings:
         missing_setting_list = ', '.join(["`{}`".format(setting) for setting in missing_settings])
@@ -101,11 +114,10 @@ def validate_config_file(ctx, param, filenames):
             filename_list=filename_list)
         raise click.BadOptionUsage(None, message)
 
-    if config.defaults().get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
-        raise click.BadParameter('{}'.format(config.defaults()["output"]),
+    if result.get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
+        raise click.BadParameter('{}'.format(result["output"]),
                                  param_hint="`output` in config file")
-
-    return config.defaults()
+    return result
 
 
 def validate_disable_caching(ctx, param, disabled):
@@ -153,15 +165,11 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
     if verbose:
         logger.setLevel(logging.DEBUG)
 
-    # The output setting "envvar" if not specified on the command line or in a
-    # config file
-    if output is None:
-        output = config.get("output", "envvar")
-
+    # Order of precedence : output, config["output"], "envvar"
+    config["output"] = output if output is not None else config.get("output", "envvar")
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
 
-    logger.debug("JWKS : {}".format(config["jwks"]))
     logger.debug("Config : {}".format(config))
 
     # Instantiate a login object, and begin login process
@@ -173,7 +181,7 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
         idtoken_for_roles_url=config["idtoken_for_roles_url"],
         jwks=config["jwks"],
         openid_configuration=config["openid-configuration"],
-        output=output,
+        config=config,
         role_arn=role_arn,
         scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],
