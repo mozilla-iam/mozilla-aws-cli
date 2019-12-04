@@ -83,6 +83,10 @@ def validate_config_file(ctx, param, filenames):
         config.add_section('maws')
 
     result = dict(config.items('maws'))
+    for boolean_field in ['print_role_arn']:
+        if boolean_field in result:
+            result[boolean_field] = config.getboolean('maws', boolean_field)
+
     if mozilla_aws_cli_config is not None:
         # Override the --config file contents with the mozilla_aws_cli_config
         # module contents

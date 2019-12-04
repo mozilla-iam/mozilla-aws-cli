@@ -1,8 +1,9 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from jose import jwt, JWTError
 import json
 import logging
 import os
+import sys
 import platform
 import time
 import webbrowser
@@ -80,6 +81,7 @@ class Login:
         self.openid_configuration = openid_configuration
         self.config = {} if config is None else config
         self.output = self.config.get("output", "envvar")
+        self.print_role_arn = self.config.get("print_role_arn", True)
         self.role = None
         self.role_arn = role_arn
         self.role_map = None
@@ -374,11 +376,11 @@ class Login:
         if self.credentials is not None:
             profile_name = role_arn_to_profile_name(
                 self.role_arn, self.role_map)
+            output_map = {}
             if self.output == "envvar":
-                output_map = {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
+                output_map.update({ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
                               for x in self.credentials
-                              if x in ENV_VARIABLE_NAME_MAP}
-                print(output_set_env_vars(output_map))
+                              if x in ENV_VARIABLE_NAME_MAP})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -386,19 +388,23 @@ class Login:
                     self.role_arn,
                     self.role_map)
                 if path:
-                    output_map = {
+                    output_map.update({
                         'AWS_PROFILE': profile_name,
-                        'AWS_SHARED_CREDENTIALS_FILE': path}
-                    print(output_set_env_vars(output_map))
+                        'AWS_SHARED_CREDENTIALS_FILE': path})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.credentials,
                                              self.role_arn,
                                              self.role_map):
-                    output_map = {'AWS_PROFILE': profile_name}
-                    print(output_set_env_vars(output_map))
+                    output_map.update({'AWS_PROFILE': profile_name})
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
+            else:
+                raise ValueError('Output setting unknown : {}'.format(self.output))
+            print(output_set_env_vars(output_map))
+            if self.print_role_arn:
+                print("Environment variables set for role {}".format(
+                    self.role_arn), file=sys.stderr)
 
             if self.web_console:
                 self.aws_federate()
