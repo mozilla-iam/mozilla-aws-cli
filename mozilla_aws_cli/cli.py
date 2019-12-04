@@ -158,7 +158,6 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
 
-    logger.debug("JWKS : {}".format(config["jwks"]))
     logger.debug("Config : {}".format(config))
 
     # Instantiate a login object, and begin login process
