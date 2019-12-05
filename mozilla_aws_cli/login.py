@@ -58,6 +58,7 @@ class Login:
         jwks=None,
         openid_configuration=None,
         config=None,
+        profile_name=None,
         role_arn=None,
         scope="openid",
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
@@ -76,10 +77,10 @@ class Login:
         self.client_id = client_id
         self.code_verifier = base64_without_padding(os.urandom(32))
         self.code_challenge = generate_challenge(self.code_verifier)
+        self.config = {} if config is None else config
         self.idtoken_for_roles_url = idtoken_for_roles_url
         self.jwks = jwks
         self.openid_configuration = openid_configuration
-        self.config = {} if config is None else config
         self.output = self.config.get("output", "envvar")
         self.print_role_arn = self.config.get("print_role_arn", True)
         self.role = None
@@ -91,9 +92,8 @@ class Login:
         self.oidc_state = self.id + "-" + base64_without_padding(os.urandom(32))
 
         # URL of the OIDC token endpoint obtained from the discovery document
-        self.token_endpoint = token_endpoint
         self.batch = batch
-        self.web_console = web_console
+        self.token_endpoint = token_endpoint
         self.issuer_domain = issuer_domain
 
         # Whether or not we have opened a browser tab
@@ -109,6 +109,12 @@ class Login:
         # This is how long we will wait to see if we can get the
         self.last_state_check = None
         self.max_sleep_no_state_check = 2  # seconds
+
+        # Whether we should open the AWS web console or not
+        self.web_console = web_console
+
+        # If we're using the AWS CLI output, what profile should we use
+        self.profile_name = profile_name
 
         # This used by the web application to poll the login state
         self.state = "pending"
@@ -377,8 +383,9 @@ class Login:
     def print_output(self):
         # TODO: Create a global config object?
         if self.credentials is not None:
-            profile_name = role_arn_to_profile_name(
-                self.role_arn, self.role_map)
+            if self.profile_name is None:
+                self.profile_name = role_arn_to_profile_name(
+                    self.role_arn, self.role_map)
             output_map = {}
             if self.output == "envvar":
                 output_map.update({ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
@@ -387,24 +394,30 @@ class Login:
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
+                    self.profile_name,
                     self.credentials,
                     self.role_arn,
                     self.role_map)
                 if path:
                     output_map.update({
-                        'AWS_PROFILE': profile_name,
+                        'AWS_PROFILE': self.profile_name,
                         'AWS_SHARED_CREDENTIALS_FILE': path})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
-                if write_aws_cli_credentials(self.credentials,
+                if write_aws_cli_credentials(self.profile_name,
+                                             self.credentials,
                                              self.role_arn,
                                              self.role_map):
-                    output_map.update({'AWS_PROFILE': profile_name})
+                    if self.profile_name != "default":
+                        output_map.update({'AWS_PROFILE': self.profile_name})
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
             else:
                 raise ValueError('Output setting unknown : {}'.format(self.output))
-            print(output_set_env_vars(output_map))
+
+            if output_map:
+                print(output_set_env_vars(output_map))
+
             if self.print_role_arn:
                 print("Environment variables set for role {}".format(
                     self.role_arn), file=sys.stderr)

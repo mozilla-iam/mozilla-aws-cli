@@ -124,10 +124,7 @@ def disable_caching(*args, **kwargs):
 
 
 @_requires_safe_cache_dir
-def write_aws_cli_credentials(credentials, role_arn, role_map):
-    # such as infosec-somerole
-    profile = role_arn_to_profile_name(role_arn, role_map)
-
+def write_aws_cli_credentials(profile, credentials, role_arn, role_map):
     # We call aws a bunch of times, getting all the return values
     retval = 0
 
@@ -135,8 +132,10 @@ def write_aws_cli_credentials(credentials, role_arn, role_map):
     for cred_key, aws_key in viewitems(CREDENTIALS_TO_AWS_MAP):
         if cred_key in credentials:
             process = ["aws", "configure", "set",
-                       aws_key, credentials[cred_key],
-                       "--profile", profile]
+                       aws_key, credentials[cred_key]]
+
+            if profile != "default":
+                process += ["--profile", profile]
 
             _retval = subprocess.call(process)
             retval = retval | _retval
@@ -182,14 +181,11 @@ def read_aws_shared_credentials():
 
 
 @_requires_safe_cache_dir
-def write_aws_shared_credentials(credentials, role_arn, role_map=None):
+def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
     path = os.path.join(DOT_DIR, "credentials")
 
     # Try to read in the existing credentials
     config = read_aws_shared_credentials()
-
-    # such as infosec-somerole
-    profile = role_arn_to_profile_name(role_arn, role_map)
 
     # Add all the new credentials to the config object
     if not config.has_section(profile):
