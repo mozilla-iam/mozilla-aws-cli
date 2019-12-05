@@ -320,7 +320,7 @@ class Login:
 
         if self.role_map is None:
             self.exit("Unable to retrieve role map. Shutting down.")
-        elif self.role_arn not in self.role_map["roles"]:
+        elif self.role_arn and self.role_arn not in self.role_map["roles"]:
             self.exit("`{}` not found in list of available role ARNs.".format(
                 self.role_arn))
 
