@@ -12,7 +12,6 @@ requirements = [
     "Click>=6.0",
     "flask>=1.0.2",
     "requests>=2.20.1",
-    "console-menu",
     "python-jose",
 ]
 setup_requirements = ["pytest-runner"]
