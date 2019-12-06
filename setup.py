@@ -12,7 +12,6 @@ requirements = [
     "Click>=6.0",
     "flask>=1.0.2",
     "requests>=2.20.1",
-    "console-menu",
     "python-jose",
 ]
 setup_requirements = ["pytest-runner"]
@@ -56,6 +55,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="0.1.1",
+    version="0.2.0",
     zip_safe=False,
 )

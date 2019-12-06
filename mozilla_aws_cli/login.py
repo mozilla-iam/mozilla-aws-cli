@@ -317,9 +317,9 @@ class Login:
     def get_role_map(self):
         # get the role map, either from cache or from the endpoint
         self.state = "getting_role_map"
-
+        url = "{}roles".format(self.idtoken_for_roles_url)
         self.role_map = get_roles_and_aliases(
-            endpoint=self.idtoken_for_roles_url,
+            endpoint=url,
             token=self.token["id_token"],
             key=self.jwks
         )
