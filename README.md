@@ -50,7 +50,8 @@ settings are
   comes from the location that the user's organization has deployed the
   [idtoken_for_roles](https://github.com/mozilla-iam/mozilla-aws-cli/tree/master/cloudformation)
   API. This API lets a user exchange an ID token for a list of groups and roles
-  that they have rights to.
+  that they have rights to. This URL should be the base URL of the API, ending
+  in `/`
 
 Additional optional settings that can be configured in the config file are
  

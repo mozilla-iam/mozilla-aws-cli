@@ -137,6 +137,7 @@ Resources:
           VALID_AMRS: !Ref AmrClaims
       Handler: group_role_map_builder.lambda_handler
       Runtime: python3.7
+      ReservedConcurrentExecutions: 1
       Role: !GetAtt GroupRoleMapBuilderRole.Arn
       Tags:
         - Key: application
@@ -205,3 +206,13 @@ Outputs:
   GroupRoleMapConsumerUserSecretAccessKey:
     Description: The AWS API Access Key Secret Key of the GroupRoleMapConsumerUser
     Value: !GetAtt GroupRoleMapConsumerAccessKey.SecretAccessKey
+  GroupRoleMapBuilderFunctionName:
+    Description: Name of the Group Role Map Builder AWS Lambda function
+    Value: !Ref GroupRoleMapBuilderFunction
+    Export:
+      Name: GroupRoleMapBuilderFunctionName
+  GroupRoleMapBuilderFunctionArn:
+    Description: ARN of the Group Role Map Builder AWS Lambda function
+    Value: !GetAtt GroupRoleMapBuilderFunction.Arn
+    Export:
+      Name: GroupRoleMapBuilderFunctionArn

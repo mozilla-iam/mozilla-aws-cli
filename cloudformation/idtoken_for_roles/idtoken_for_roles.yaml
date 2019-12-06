@@ -15,11 +15,10 @@ Metadata:
       Parameters:
       - AllowedIssuer
       - AllowedAudience
+      - AllowedMapBuilderSubPrefix
     - Label:
         default: API
       Parameters:
-      - RolesPathPrefix
-      - AliasesPathPrefix
       - CustomDomainName
       - DomainNameZone
       - CertificateArn
@@ -34,10 +33,8 @@ Metadata:
         default: Allowed OIDC Issuer
       AllowedAudience:
         default: Allowed OIDC Audience
-      RolesPathPrefix:
-        default: API Path Prefix for the Group Role Map endpoint
-      AliasesPathPrefix:
-        default: API Path Prefix for the AWS Account Alias Map endpoint
+      AllowedMapBuilderSubPrefix:
+        default: The prefix of the sub OIDC claim that is required for premission to initiate a group role map rebuild
       CustomDomainName:
         default: Custom DNS Domain Name
       DomainNameZone:
@@ -62,14 +59,9 @@ Parameters:
   AllowedAudience:
     Type: String
     Description: OIDC Audience. For Mozilla this is the Auth0 Client ID
-  RolesPathPrefix:
+  AllowedMapBuilderSubPrefix:
     Type: String
-    Description: The URL path prefix to POST ID tokens to and get back roles
-    Default: roles
-  AliasesPathPrefix:
-    Type: String
-    Description: The URL path prefix to GET account aliases from
-    Default: account-aliases
+    Description: The prefix of the sub OIDC claim that is required for premission to initiate a group role map rebuild
   CustomDomainName:
     Type: String
     Description: The custom domain name to use for the API
@@ -128,6 +120,15 @@ Resources:
                 Action:
                   - s3:ListBucket
                 Resource: !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName']]
+        - PolicyName: AllowInvokeGroupRoleMapBuilder
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                - lambda:Invoke*
+                Resource:
+                  - !ImportValue GroupRoleMapBuilderFunctionArn
   IdtokenForRolesFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -140,6 +141,9 @@ Resources:
           S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
           ALLOWED_ISSUER: !Ref AllowedIssuer
           ALLOWED_AUDIENCE: !Ref AllowedAudience
+          LOG_LEVEL: INFO
+          ALLOWED_MAP_BUILDER_SUB_PREFIX: !Ref AllowedMapBuilderSubPrefix
+          GROUP_ROLE_MAP_BUILDER_FUNCTION_NAME: !ImportValue GroupRoleMapBuilderFunctionName
       Handler: idtoken_for_roles.lambda_handler
       Runtime: python3.7
       Role: !GetAtt IdtokenForRolesFunctionRole.Arn
@@ -224,7 +228,8 @@ Resources:
   IdtokenForRolesApiDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - IdtokenForRoleRolesRequest
+      - IdtokenForRoleRolesGetRequest
+      - IdtokenForRoleRolesPostRequest
     Properties:
       RestApiId: !Ref IdtokenForRolesApi
       StageName: DummyStage
@@ -241,62 +246,44 @@ Resources:
     Properties:
       RestApiId: !Ref IdtokenForRolesApi
       ParentId: !GetAtt IdtokenForRolesApi.RootResourceId
-      PathPart: !Ref RolesPathPrefix
-  AliasesResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref IdtokenForRolesApi
-      ParentId: !GetAtt IdtokenForRolesApi.RootResourceId
-      PathPart: !Ref AliasesPathPrefix
-  IdtokenForRoleRolesRequest:
-    DependsOn: IdtokenForRolesLambdaPermission
-    Type: AWS::ApiGateway::Method
-    Properties:
-      AuthorizationType: NONE
-      HttpMethod: POST
-      Integration:
-        Type: AWS
-        IntegrationHttpMethod: POST
-        Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
-        IntegrationResponses:
-          - StatusCode: '200'
-#        RequestTemplates:
-#          application/json: '{"name": "$input.params(\'name\')"}'
-#      RequestParameters:
-#        method.request.querystring.name: false
-      ResourceId: !Ref IdtokenForRolesResource
-      RestApiId: !Ref IdtokenForRolesApi
-      MethodResponses:
-        - StatusCode: '200'
-          # TODO Add a 403 mapping for when the idtoken is invalid
-  AliasesRequest:
+      PathPart: '{proxy+}'
+  IdtokenForRoleRolesGetRequest:
     DependsOn: IdtokenForRolesLambdaPermission
     Type: AWS::ApiGateway::Method
     Properties:
       AuthorizationType: NONE
       HttpMethod: GET
       Integration:
-        Type: AWS
+        Type: AWS_PROXY
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#set-up-lambda-proxy-integration-using-cli
+        # "For Lambda integrations, you must use the HTTP method of POST for the
+        # integration request, according to the specification of the Lambda service
+        # action for function invocations."
         IntegrationHttpMethod: POST
         Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
-        IntegrationResponses:
-          - StatusCode: '200'
-      ResourceId: !Ref AliasesResource
+      ResourceId: !Ref IdtokenForRolesResource
       RestApiId: !Ref IdtokenForRolesApi
-      MethodResponses:
-        - StatusCode: '200'
+  IdtokenForRoleRolesPostRequest:
+    DependsOn: IdtokenForRolesLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        Type: AWS_PROXY
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#set-up-lambda-proxy-integration-using-cli
+        # "For Lambda integrations, you must use the HTTP method of POST for the
+        # integration request, according to the specification of the Lambda service
+        # action for function invocations."
+        IntegrationHttpMethod: POST
+        Uri: !Join [ '', [ 'arn:aws:apigateway:', !Ref 'AWS::Region', ':lambda:path/2015-03-31/functions/', !GetAtt 'IdtokenForRolesFunction.Arn', '/invocations' ] ]
+      ResourceId: !Ref IdtokenForRolesResource
+      RestApiId: !Ref IdtokenForRolesApi
 Outputs:
-  RolesEndpointUrl:
-    Description: The URL of the token for roles API Endpoint
+  EndpointUrl:
+    Description: The URL of the ID token for roles API Endpoint
     Value:
       Fn::If:
         - UseCustomDomainName
-        - !Join [ '', [ 'https://', !Ref 'CustomDomainName', '/', !Ref 'RolesPathPrefix'] ]
-        - !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'RolesPathPrefix' ] ]
-  AliasesEndpointUrl:
-    Description: The URL of the token for aliases API Endpoint
-    Value:
-      Fn::If:
-        - UseCustomDomainName
-        - !Join [ '', [ 'https://', !Ref 'CustomDomainName', '/', !Ref 'AliasesPathPrefix'] ]
-        - !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/', !Ref 'AliasesPathPrefix' ] ]
+        - !Join [ '', [ 'https://', !Ref 'CustomDomainName', '/'] ]
+        - !Join [ '', [ 'https://', !Ref 'IdtokenForRolesApi', '.execute-api.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref 'IdtokenForRolesApiStage', '/' ] ]
