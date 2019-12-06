@@ -152,6 +152,9 @@ def validate_disable_caching(ctx, param, disabled):
     help="How to output the AWS API keys",
     callback=validate_output
 )
+@click.option("--profile",
+              metavar="<profile>",
+              help="Override profile name used with `awscli` or `shared` output")
 @click.option(
     "-r",
     "--role-arn",
@@ -160,12 +163,14 @@ def validate_disable_caching(ctx, param, disabled):
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
-def main(batch, config, no_cache, output, role_arn, verbose, web_console):
+def main(batch, config, no_cache, output,
+         profile, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
         logger.setLevel(logging.DEBUG)
 
     # Order of precedence : output, config["output"], "envvar"
+    profile = config.get("profile") if profile is None else profile
     config["output"] = output if output is not None else config.get("output", "envvar")
     config["openid-configuration"] = requests.get(config["well_known_url"]).json()
     config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
@@ -182,6 +187,7 @@ def main(batch, config, no_cache, output, role_arn, verbose, web_console):
         jwks=config["jwks"],
         openid_configuration=config["openid-configuration"],
         config=config,
+        profile_name=profile,
         role_arn=role_arn,
         scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],
