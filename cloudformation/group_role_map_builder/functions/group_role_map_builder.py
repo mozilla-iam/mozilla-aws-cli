@@ -8,7 +8,7 @@ import logging
 import boto3
 
 logger = logging.getLogger(__name__)
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(os.getenv('LOG_LEVEL', 'INFO'))
 logging.getLogger('boto3').propagate = False
 logging.getLogger('botocore').propagate = False
 logging.getLogger('urllib3').propagate = False
