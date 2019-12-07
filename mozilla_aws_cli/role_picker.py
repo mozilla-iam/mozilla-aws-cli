@@ -19,22 +19,26 @@ def output_set_env_vars(var_map):
     return result
 
 
-def get_roles_and_aliases(endpoint, token, key):
+def get_roles_and_aliases(endpoint, token, key, cache=True):
     role_map = read_group_role_map(endpoint)
 
     if role_map is None:
-        logging.debug("Getting roles and aliases from: {}".format(endpoint))
         headers = {"Content-Type": "application/json"}
         body = {
             "token": token,
             "key": key,
+            "cache": cache
         }
 
+        logging.debug("Getting roles and aliases from {} by POSTing {}".format(
+            endpoint,
+            body
+        ))
         role_map = requests.post(endpoint, headers=headers, json=body).json()
 
         if "error" in role_map:
             logging.error(
-                "Unable to retrieve rolemap: {}".format(role_map["error"]))
+                "Unable to retrieve role map: {}".format(role_map["error"]))
             return None
         else:
             write_group_role_map(endpoint, role_map)
