@@ -126,7 +126,7 @@ class Login:
 
 
     def exit(self, message):
-        print(message)
+        print(message, file=sys.stderr)
 
         if self.opened_tab:
             self.state = "error"
@@ -186,6 +186,8 @@ class Login:
                         self.token = None
                     else:
                         raise
+                except requests.exceptions.ConnectionError as e:
+                    self.exit("Unable to contact AWS : {}".format(e))
                 if self.token is not None and self.role_arn is not None:
                     self.print_output()
 
@@ -293,8 +295,12 @@ class Login:
             logger.debug(
                 "POSTing to token endpoint to exchange code for id_token: "
                 "{}".format(body))
-            self.token = requests.post(
-                self.token_endpoint, headers=headers, json=body).json()
+            try:
+                self.token = requests.post(
+                    self.token_endpoint, headers=headers, json=body).json()
+            except requests.exceptions.ConnectionError as e:
+                self.exit("Unable to fetch a token from the identity provider "
+                          ": {}".format(e))
 
             # attempt to cache the id token
             write_id_token(self.openid_configuration.get("issuer"),
@@ -454,7 +460,11 @@ class Login:
 
         url_tuple = urlparse('https://signin.aws.amazon.com/federation')
         url = urlunparse(url_tuple._replace(query=query))
-        token = requests.get(url).json()
+        try:
+            token = requests.get(url).json()
+        except requests.exceptions.ConnectionError as e:
+            self.exit("Unable to contact AWS to open web console : {}".format(
+                e))
 
         account_id = self.role_arn.split(":")[4]
         role = self.role_arn.split(':')[5].split('/')[-1]

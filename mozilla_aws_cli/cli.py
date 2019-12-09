@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from distutils.spawn import find_executable
 import os
 import logging
@@ -172,8 +172,13 @@ def main(batch, config, cache, output,
     # Order of precedence : output, config["output"], "envvar"
     profile = config.get("profile") if profile is None else profile
     config["output"] = output if output is not None else config.get("output", "envvar")
-    config["openid-configuration"] = requests.get(config["well_known_url"]).json()
-    config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
+    try:
+        config["openid-configuration"] = requests.get(config["well_known_url"]).json()
+        config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
+    except requests.exceptions.ConnectionError as e:
+        print("Unable to contact identity provider {} : {}".format(
+            config["well_known_url"], e), file=sys.stderr)
+        return False
 
     logger.debug("Config : {}".format(config))
 

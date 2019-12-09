@@ -34,7 +34,10 @@ def get_roles_and_aliases(endpoint, token, key, cache=True):
             endpoint,
             body
         ))
-        role_map = requests.post(endpoint, headers=headers, json=body).json()
+        try:
+            role_map = requests.post(endpoint, headers=headers, json=body).json()
+        except requests.exceptions.ConnectionError as e:
+            role_map = {"error": str(e)}
 
         if "error" in role_map:
             logging.error(
