@@ -1,10 +1,13 @@
+from __future__ import print_function
 import errno
 import logging
+import sys
 import os.path
 import socket
 import time
 
 from flask import Flask, jsonify, request, send_from_directory
+import requests.exceptions
 from operator import itemgetter
 
 from .utils import exit_sigint
@@ -197,6 +200,8 @@ def handle_oidc_redirect_callback():
                 "result": "restart_auth",
                 "status_code": 200,
             })
+    except requests.exceptions.ConnectionError as e:
+        login.exit("Unable to contact AWS : {}".format(e))
 
     login.print_output()
 
