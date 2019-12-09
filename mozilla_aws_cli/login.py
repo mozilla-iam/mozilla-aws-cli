@@ -178,6 +178,9 @@ class Login:
             else:
                 # The ID Token verifies
                 self.get_role_map()
+                if self.role_arn not in self.role_map["roles"]:
+                    self.exit("`{}` not found in list of available role ARNs.".format(
+                        self.role_arn))
                 try:
                     self.exchange_token_for_credentials()
                 except STSWarning as e:
@@ -186,10 +189,16 @@ class Login:
                         self.token = None
                 except requests.exceptions.ConnectionError as e:
                     self.exit("Unable to contact AWS : {}".format(e))
-                if self.batch and self.role_arn is None:
-                    self.exit(
-                        'Unable to fetch AWS STS credentials with ID '
-                        'token. Exiting due to batch mode.')
+                if self.role_arn is None:
+                    if self.batch:
+                        self.exit(
+                            'Unable to fetch AWS STS credentials with ID '
+                            'token. Exiting due to batch mode.')
+                    else:
+                        print(
+                            'Unable to assume IAM role. Spawning web role '
+                            'picker to pick a different role.',
+                            file=sys.stderr)
                 if self.token is not None and self.role_arn is not None:
                     self.print_output()
 
@@ -338,9 +347,6 @@ class Login:
 
         if self.role_map is None:
             self.exit("Unable to retrieve role map. Shutting down.")
-        elif self.role_arn and self.role_arn not in self.role_map["roles"]:
-            self.exit("`{}` not found in list of available role ARNs.".format(
-                self.role_arn))
 
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
@@ -371,8 +377,13 @@ class Login:
                 # Not authorized to perform sts:AssumeRoleWithWebIdentity
                 # Either that role doesn't exist or it exists but doesn't
                 # permit the user because of the conditions
+                # Either way, lets refresh the group role map in case it's out
+                # of date
                 logger.debug('Unable to assume role {}'.format(self.role_arn))
-                self.role_map.get("roles", []).remove(self.role_arn)
+                self.cache = False
+                self.get_role_map()
+                if self.role_arn in self.role_map.get("roles", []):
+                    self.role_map.get("roles", []).remove(self.role_arn)
                 self.role_arn = None
                 if len(self.role_map.get("roles", [])) <= 1:
                     self.exit(

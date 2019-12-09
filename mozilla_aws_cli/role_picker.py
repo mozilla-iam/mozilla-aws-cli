@@ -22,7 +22,7 @@ def output_set_env_vars(var_map):
 def get_roles_and_aliases(endpoint, token, key, cache=True):
     role_map = read_group_role_map(endpoint)
 
-    if role_map is None:
+    if role_map is None or not cache:
         headers = {"Content-Type": "application/json"}
         body = {
             "token": token,
