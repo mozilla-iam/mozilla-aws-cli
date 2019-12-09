@@ -64,6 +64,7 @@ class Login:
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
         web_console=False,
         issuer_domain=None,
+        cache=True
     ):
 
         # We use this for tracking various bits
@@ -121,6 +122,8 @@ class Login:
         self.web_state = {
             "id": self.id,
         }
+        self.cache = cache
+
 
     def exit(self, message):
         print(message)
@@ -188,12 +191,12 @@ class Login:
 
         if self.token is not None and self.role_arn is None:
             logger.debug(
-                "We have a cached ID token but the role passed on the command "
-                "line wasn't valid. Show the role picker")
+                "We have a cached ID token but either no role was passed on "
+                "the command line or it wasn't valid. Show the role picker")
             self.state = 'redirecting'
             url_parameters = {
                 "state": self.oidc_state,
-                "code": "foo"
+                "code": "this value is unused"
             }
             webbrowser.get().open_new_tab(
                 "{}?{}".format(
@@ -321,7 +324,8 @@ class Login:
         self.role_map = get_roles_and_aliases(
             endpoint=url,
             token=self.token["id_token"],
-            key=self.jwks
+            key=self.jwks,
+            cache=self.cache
         )
 
         if self.role_map is None:

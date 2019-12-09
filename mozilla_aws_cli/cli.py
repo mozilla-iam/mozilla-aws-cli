@@ -120,9 +120,10 @@ def validate_config_file(ctx, param, filenames):
     return result
 
 
-def validate_disable_caching(ctx, param, disabled):
-    if disabled:
+def validate_cache(ctx, param, cache):
+    if not cache:
         disable_caching()
+    return cache
 
 
 @click.command()
@@ -139,12 +140,11 @@ def validate_disable_caching(ctx, param, disabled):
     help="Relative path to config file",
     metavar="<path>",
     callback=validate_config_file)
-@click.option("-nc",
-              "--no-cache",
-              default=False,
-              is_flag=True,
-              help="Don't read locally cached files",
-              callback=validate_disable_caching)
+@click.option("--cache/--no-cache",
+              " /-nc",
+              default=True,
+              help="Use locally cached files",
+              callback=validate_cache)
 @click.option(
     "-o",
     "--output",
@@ -163,7 +163,7 @@ def validate_disable_caching(ctx, param, disabled):
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
-def main(batch, config, no_cache, output,
+def main(batch, config, cache, output,
          profile, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
@@ -192,7 +192,8 @@ def main(batch, config, no_cache, output,
         scope=config.get("scope"),
         token_endpoint=config["openid-configuration"]["token_endpoint"],
         web_console=web_console,
-        issuer_domain=config.get("issuer_domain", "aws.sso.mozilla.com")
+        issuer_domain=config.get("issuer_domain", "aws.sso.mozilla.com"),
+        cache=cache
     )
 
     login.login()
