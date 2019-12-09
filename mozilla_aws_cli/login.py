@@ -26,7 +26,8 @@ from .utils import (
     base64_without_padding,
     exit_sigint,
     generate_challenge,
-    role_arn_to_profile_name
+    role_arn_to_profile_name,
+    STSWarning
 )
 
 try:
@@ -44,7 +45,6 @@ ENV_VARIABLE_NAME_MAP = {
     "SecretAccessKey": "AWS_SECRET_ACCESS_KEY",
     "SessionToken": "AWS_SESSION_TOKEN",
 }
-STSWarning = type('STSWarning', (Warning,), dict())
 
 
 class Login:
@@ -178,16 +178,27 @@ class Login:
             else:
                 # The ID Token verifies
                 self.get_role_map()
+                if self.role_arn not in self.role_map["roles"]:
+                    self.exit("`{}` not found in list of available role ARNs.".format(
+                        self.role_arn))
                 try:
                     self.exchange_token_for_credentials()
                 except STSWarning as e:
                     if e.args[1] == 'ExpiredTokenException':
                         logger.debug('Looks like that cached ID token is expired, setting self.token to None')
                         self.token = None
-                    else:
-                        raise
                 except requests.exceptions.ConnectionError as e:
                     self.exit("Unable to contact AWS : {}".format(e))
+                if self.role_arn is None:
+                    if self.batch:
+                        self.exit(
+                            'Unable to fetch AWS STS credentials with ID '
+                            'token. Exiting due to batch mode.')
+                    else:
+                        print(
+                            'Unable to assume IAM role. Spawning web role '
+                            'picker to pick a different role.',
+                            file=sys.stderr)
                 if self.token is not None and self.role_arn is not None:
                     self.print_output()
 
@@ -336,58 +347,52 @@ class Login:
 
         if self.role_map is None:
             self.exit("Unable to retrieve role map. Shutting down.")
-        elif self.role_arn and self.role_arn not in self.role_map["roles"]:
-            self.exit("`{}` not found in list of available role ARNs.".format(
-                self.role_arn))
 
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
 
 
     def exchange_token_for_credentials(self):
-        # TODO: Consider whether this needs to loop forever
-        while self.credentials is None:
-            # If we don't have a role ARN on the command line, we need to show
-            # the role picker
-            if self.role_arn is None and not self.batch:
-                self.state = "role_picker"
+        # If we don't have a role ARN on the command line, we need to show
+        # the role picker
+        if self.role_arn is None and not self.batch:
+            self.state = "role_picker"
 
-                # Wait for the POST to /api/roles
-                while not self.role_arn:
-                    self.sleep(.05)
+            # Wait for the POST to /api/roles
+            while not self.role_arn:
+                self.sleep(.05)
 
-            # Use the cached credentials or retrieve them from STS
-            self.state = "getting_sts_credentials"
-            try:
-                self.credentials = sts_conn.get_credentials(
-                    self.token["id_token"],
-                    self.id_token_dict,
-                    role_arn=self.role_arn
-                )
-            except STSWarning as e:
-                if e.args[1] == 'AccessDenied':
-                    # Not authorized to perform sts:AssumeRoleWithWebIdentity
-                    # Either that role doesn't exist or it exists but doesn't
-                    # permit the user because of the conditions
-                    logger.error(
-                        'Unable to assume role {}. Please select a different '
-                        'role.'.format(self.role_arn))
+        # Use the cached credentials or retrieve them from STS
+        self.state = "getting_sts_credentials"
+        try:
+            self.credentials = sts_conn.get_credentials(
+                self.token["id_token"],
+                self.id_token_dict,
+                role_arn=self.role_arn
+            )
+            logger.debug(self.credentials)
+            logger.debug("ID token : {}".format(self.token["id_token"]))
+        except STSWarning as e:
+            if e.args[1] == 'AccessDenied':
+                # Not authorized to perform sts:AssumeRoleWithWebIdentity
+                # Either that role doesn't exist or it exists but doesn't
+                # permit the user because of the conditions
+                # Either way, lets refresh the group role map in case it's out
+                # of date
+                logger.debug('Unable to assume role {}'.format(self.role_arn))
+                self.cache = False
+                self.get_role_map()
+                if self.role_arn in self.role_map.get("roles", []):
                     self.role_map.get("roles", []).remove(self.role_arn)
-                    self.role_arn = None
-                    if len(self.role_map.get("roles", [])) <= 1:
-                        self.exit(
-                            "Sorry, no valid roles available. Shutting down.")
-                elif e.args[1] == 'ExpiredTokenException':
-                    # The ID token is expired
-                    raise
-                else:
-                    raise
-
-            if self.batch:
-                break
-
-        logger.debug(self.credentials)
-        logger.debug("ID token : {}".format(self.token["id_token"]))
+                self.role_arn = None
+                if len(self.role_map.get("roles", [])) <= 1:
+                    self.exit(
+                        "Sorry, no valid roles available. Shutting down.")
+            elif e.args[1] == 'ExpiredTokenException':
+                # The ID token is expired
+                raise
+            else:
+                raise
 
 
     def print_output(self):

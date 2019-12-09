@@ -26,7 +26,10 @@ else:
     import ConfigParser as configparser
 
 
-logging.basicConfig()
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] '
+           '%(message)s',
+    datefmt='%Y-%m-%d:%H:%M:%S')
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 logging.getLogger('urllib3').propagate = False
