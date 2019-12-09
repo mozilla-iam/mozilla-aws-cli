@@ -6,12 +6,12 @@ from xml.etree import ElementTree
 import requests
 
 from .cache import read_sts_credentials, write_sts_credentials
+from .utils import STSWarning
 
 
 logger = logging.getLogger(__name__)
 # Create some exception classes
 MalformedResponseWarning = type('MalformedResponseWarning', (Warning,), dict())
-STSWarning = type('STSWarning', (Warning,), dict())
 
 
 def get_credentials(bearer_token, id_token_dict, role_arn):
@@ -57,7 +57,7 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
                     [(x.tag.split('}', 1)[-1], x.text) for x in root.find(
                         './sts:Error',
                         {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})])
-                logger.error(
+                logger.debug(
                     'AWS STS Call failed {status} {Type} {Code} : {Message}'.format(
                         status=resp.status_code, **error))
                 if (error['Code'] == 'ValidationError'

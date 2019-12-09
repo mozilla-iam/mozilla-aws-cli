@@ -7,6 +7,7 @@ import sys
 
 
 logger = logging.getLogger(__name__)
+STSWarning = type('STSWarning', (Warning,), dict())
 
 
 def base64_without_padding(data):

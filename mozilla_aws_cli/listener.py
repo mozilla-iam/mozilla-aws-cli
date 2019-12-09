@@ -10,7 +10,7 @@ from flask import Flask, jsonify, request, send_from_directory
 import requests.exceptions
 from operator import itemgetter
 
-from .utils import exit_sigint
+from .utils import exit_sigint, STSWarning
 
 try:
     # P3
@@ -33,7 +33,6 @@ login = {
     "last_state_check": None,
     "role_map": {},
 }
-STSWarning = type('STSWarning', (Warning,), dict())
 
 
 def get_available_port():
@@ -177,7 +176,9 @@ def handle_oidc_redirect_callback():
 
     login.get_role_map()
     try:
-        login.exchange_token_for_credentials()
+        # TODO: Consider whether this needs to loop forever
+        while login.credentials is None:
+            login.exchange_token_for_credentials()
     except STSWarning as e:
         if e.args[1] == 'ExpiredTokenException':
             logger.debug('AWS says that the ID token is expired : {}'.format(e[2]))
