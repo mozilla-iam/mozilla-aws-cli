@@ -164,6 +164,9 @@ def read_aws_shared_credentials():
                                            comment_prefixes=())
 
     if not os.path.exists(path) or _readable_by_others(path):
+        logger.debug(
+            "There is no credentials file at {} or it exists but is readable "
+            "by others. We won't use it".format(path))
         return config
 
     logger.debug("Trying to read credentials file at: {}".format(path))
@@ -222,6 +225,9 @@ def read_group_role_map(url):
     path = os.path.join(cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
+        logger.debug(
+            "There is no role map file at {} or it exists but is readable "
+            "by others. We won't use it".format(path))
         return None
 
     if time.time() - os.path.getmtime(path) > GROUP_ROLE_MAP_CACHE_TIME:  # expired
@@ -266,35 +272,35 @@ def read_id_token(issuer, client_id, key=None):
     path = os.path.join(cache_dir, "id_" + issuer + "_" + client_id)
 
     if not os.path.exists(path) or _readable_by_others(path):
+        logger.debug(
+            "There is no ID token file at {} or it exists but is readable "
+            "by others. We won't use it".format(path))
         return None
 
-    if not _readable_by_others(path):
-        try:
-            with open(path, "r") as f:
-                token = json.load(f)
-        except (IOError, OSError):
-            logger.debug("Unable to read id token from: {}".format(path))
-            return None
+    try:
+        with open(path, "r") as f:
+            token = json.load(f)
+    except (IOError, OSError):
+        logger.debug("Unable to read id token from: {}".format(path))
+        return None
 
-        # Try to decode the ID token
-        try:
-            id_token_dict = jwt.decode(
-                token=token["id_token"],
-                key=key,
-                audience=client_id
-            )
-        except jose.exceptions.JOSEError:
-            return None
+    # Try to decode the ID token
+    try:
+        id_token_dict = jwt.decode(
+            token=token["id_token"],
+            key=key,
+            audience=client_id
+        )
+    except jose.exceptions.JOSEError:
+        return None
 
-        if (id_token_dict.get('exp') - time.time() > CLOCK_SKEW_ALLOWANCE
-                and time.time() - id_token_dict.get('iat') < UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE):
-            logger.debug("Successfully read cached id token at: {}".format(path))
-            return token
-        else:
-            logger.debug("Cached id token has expired: {}".format(path))
-            return None
+    if (id_token_dict.get('exp') - time.time() > CLOCK_SKEW_ALLOWANCE
+            and time.time() - id_token_dict.get('iat') < UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE):
+        logger.debug("Successfully read cached id token at: {}".format(path))
+        return token
     else:
-        logger.error("Error: id token at {} has improper permissions!".format(path))
+        logger.debug("Cached id token has expired: {}".format(path))
+        return None
 
 
 @_requires_safe_cache_dir
@@ -329,6 +335,9 @@ def read_sts_credentials(role_arn):
         path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
+        logger.debug(
+            "There is no STS credential file at {} or it exists but is "
+            "readable by others. We won't use it".format(path))
         return None
 
     try:
@@ -374,23 +383,23 @@ def write_sts_credentials(role_arn, sts_creds):
 def verify_dir_permissions(path=DOT_DIR):
     if os.path.exists(path):
         mode = os.stat(path).st_mode
-
         logger.debug("Directory permissions on {} are: {}".format(path, mode))
-
-        return (
+        if (
             mode & S_IRWXU == 448   # 7
             and not mode & S_IRWXG  # 0
             and not mode & S_IRWXO  # 0
-        )
-    # Attempt to create the directory with the right permissions, if it doesn't exist
+        ):
+            # Directory exists and permissions are correct
+            return True
     else:
+        # Attempt to create the directory with the right permissions, if it doesn't exist
         try:
             os.mkdir(path)
         except (IOError, OSError):
             logger.debug("Unable to create directory: {}".format(path))
             return False
 
-        return _fix_permissions(path, 0o700)
+    return _fix_permissions(path, 0o700)
 
 
 # First let's see if the directories have the right permissions
