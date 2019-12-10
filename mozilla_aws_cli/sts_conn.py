@@ -1,5 +1,3 @@
-import pwd
-import os
 import logging
 from xml.etree import ElementTree
 
