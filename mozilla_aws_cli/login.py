@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import sys
-import platform
 import time
 import webbrowser
 
@@ -187,9 +186,10 @@ class Login:
                     self.print_output()
 
         if self.token is not None and self.role_arn is None:
-            logger.debug(
-                "We have a cached ID token but the role passed on the command "
-                "line wasn't valid. Show the role picker")
+            if self.role_arn is not None:
+                logger.debug(
+                    "We have a cached ID token but the role passed on the command "
+                    "line ({}) wasn't valid. Showing the role picker.".format(self.role_arn))
             self.state = 'redirecting'
             url_parameters = {
                 "state": self.oidc_state,
