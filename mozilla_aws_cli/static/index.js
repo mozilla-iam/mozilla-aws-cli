@@ -54,11 +54,17 @@ const shutdown = async () => {
     clearInterval(pollState);
     $("#role-picker").addClass("hidden");
 
-    // shutdown the listener
-    await fetch("/shutdown", {
-        method: "GET",
-        cache: "no-cache",
-    });
+    // shutdown the listener - this often fails because it shuts down before
+    // it can deliver a response, so we need to wrap it in an exception
+    try {
+        await fetch("/shutdown", {
+            method: "GET",
+            cache: "no-cache",
+        });
+    } catch (error) {
+        // pass
+    }
+
 };
 
 const pollState = setInterval(async () => {

@@ -14,9 +14,8 @@ from future.utils import viewitems
 from hashlib import sha256
 from jose import jwt
 from stat import S_IRWXG, S_IRWXO, S_IRWXU
-from .utils import role_arn_to_profile_name
 
-from .config import DOT_DIR
+from .config import DOT_DIR, IS_WINDOWS
 
 if sys.version_info[0] >= 3:
     import configparser
@@ -67,6 +66,10 @@ caching = True
 
 
 def _fix_permissions(path, permissions):
+    # Windows uses %APPDATA%, which is presumed to be secure
+    if IS_WINDOWS:
+        return True
+
     try:
         os.chmod(path, permissions)
         logger.debug("Successfully repaired permissions on: {}".format(path))
@@ -77,11 +80,15 @@ def _fix_permissions(path, permissions):
 
 
 def _readable_by_others(path, fix=True):
+    # Windows uses %APPDATA%, which is presumed to be secure
+    if IS_WINDOWS:
+        return False
+
     mode = os.stat(path).st_mode
     readable_by_others = mode & S_IRWXG or mode & S_IRWXO
 
     if readable_by_others and fix:
-        logger.debug("Cached file at {} has invalid permissions. Attempting to fix.".format(path))
+        logger.debug("Cached file at {} has invalid permissions of {}. Attempting to fix.".format(path, mode))
 
         readable_by_others = not _fix_permissions(path, 0o600)
 
@@ -103,7 +110,8 @@ def _requires_safe_cache_dir(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not safe:
-            logger.debug("Cache directory at {} has invalid permissions.".format(cache_dir))
+            mode = os.stat(cache_dir).st_mode
+            logger.debug("Cache directory at {} has invalid permissions of {}.".format(cache_dir, mode))
         else:
             return func(*args, **kwargs)
 
@@ -381,7 +389,10 @@ def write_sts_credentials(role_arn, sts_creds):
 
 
 def verify_dir_permissions(path=DOT_DIR):
-    if os.path.exists(path):
+    # Windows uses %APPDATA%, which is presumed to be secure
+    if os.path.exists(path) and IS_WINDOWS:
+        return True
+    elif os.path.exists(path):
         mode = os.stat(path).st_mode
         logger.debug("Directory permissions on {} are: {}".format(path, mode))
         if (
