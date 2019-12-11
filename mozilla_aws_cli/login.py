@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import sys
-import platform
 import time
 import webbrowser
 

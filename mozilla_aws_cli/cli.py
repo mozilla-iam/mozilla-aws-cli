@@ -8,7 +8,7 @@ import requests
 import sys
 
 from .cache import disable_caching
-from .config import DOT_DIR
+from .config import CONFIG_PATHS
 from .login import Login
 
 try:
@@ -136,10 +136,7 @@ def validate_cache(ctx, param, cache):
     "--config",
     # TODO: Support Windows
     # TODO: Rename to something much better
-    default=[
-        os.path.join("/etc", "maws", "config"),
-        os.path.join(DOT_DIR, "config"),
-    ],
+    default=CONFIG_PATHS,
     help="Relative path to config file",
     metavar="<path>",
     callback=validate_config_file)
