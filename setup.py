@@ -11,6 +11,7 @@ with open("README.md") as readme_file:
 requirements = [
     "Click>=6.0",
     "flask>=1.0.2",
+    "future",
     "requests>=2.20.1",
     "python-jose",
 ]
