@@ -101,7 +101,7 @@ def validate_config_file(ctx, param, filenames):
                     "as well as one of the config files ({}). Either "
                     "uninstall the Python package or remove the setting from "
                     "the config file".format(
-                        key, mozilla_aws_cli_config.__file__, filenames))
+                        key, mozilla_aws_cli_config.__package__, filenames))
 
             result[key] = mozilla_aws_cli_config.config[key]
     missing_settings = (
