@@ -367,7 +367,7 @@ class Login:
             self.credentials = sts_conn.get_credentials(
                 self.token["id_token"],
                 self.id_token_dict,
-                role_arn=self.role_arn
+                self.role_arn,
             )
             logger.debug(self.credentials)
             logger.debug("ID token : {}".format(self.token["id_token"]))
