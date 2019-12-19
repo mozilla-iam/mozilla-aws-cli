@@ -7,7 +7,9 @@ from .cache import read_sts_credentials, write_sts_credentials
 from .utils import STSWarning
 
 
+CREDENTIAL_REQUEST_DURATIONS = (43200, 3600, 9000)  # 12 hours, 1 hour, 15 mins
 logger = logging.getLogger(__name__)
+
 # Create some exception classes
 MalformedResponseWarning = type('MalformedResponseWarning', (Warning,), dict())
 
@@ -30,11 +32,12 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             if 'email' in id_token_dict
             else id_token_dict['sub'].split('|')[-1])
         sts_url = "https://sts.amazonaws.com/"
-        for duration_seconds in [43200, 3600, 900]:  # 12 hours, 1 hour, 15 mins
-            # First try to provision a session of 12 hours, then fall back to
-            # 1 hour, the default max, if the 12 hour attempt fails. If that
-            # 1 hour duration also fails, then fall back to the minimum of 15
-            # minutes
+
+        # First try to provision a session of 12 hours, then fall back to
+        # 1 hour, the default max, if the 12 hour attempt fails. If that
+        # 1 hour duration also fails, then fall back to the minimum of 15
+        # minutes
+        for duration_seconds in CREDENTIAL_REQUEST_DURATIONS:
             parameters = {
                 'Action': 'AssumeRoleWithWebIdentity',
                 'DurationSeconds': duration_seconds,
@@ -45,11 +48,14 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             }
 
             # Call the STS API
-            resp = requests.get(url=sts_url, params=parameters)
             try:
+                resp = requests.get(url=sts_url, params=parameters)
                 root = ElementTree.fromstring(resp.content)
+                logger.debug("The XML response is: {}".format(resp.content))
             except ElementTree.ParseError as e:
                 raise MalformedResponseWarning('Unable to parse XML response to AssumeRoleWithWebIdentity call')
+            except requests.exceptions.ConnectionError as e:
+                raise STSWarning("Unable to contact AWS STS for credentials: {}".format(e))
             if resp.status_code != requests.codes.ok:
                 error = dict(
                     [(x.tag.split('}', 1)[-1], x.text) for x in root.find(
