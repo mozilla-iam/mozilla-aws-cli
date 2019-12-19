@@ -1,7 +1,6 @@
 from __future__ import print_function
 import errno
 import logging
-import sys
 import os.path
 import socket
 import time
