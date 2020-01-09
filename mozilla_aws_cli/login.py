@@ -130,24 +130,7 @@ class Login:
         if self.opened_tab:
             self.state = "error"
             self.web_state["message"] = message
-            time.sleep(3600)
 
-        exit_sigint()
-
-    def sleep(self, seconds):
-        """
-        Sleeps for :seconds: unless the web interface hasn't checked in for
-        a little while. If it hasn't, we exit the CLI with an error.
-        """
-        # Don't exit if we've never checked state before
-        if self.last_state_check is None:
-            pass
-        elif time.time() - self.last_state_check > self.max_sleep_no_state_check:
-            logger.error("No response from web interface for {} seconds,"
-                         " shutting down.".format(self.max_sleep_no_state_check))
-            exit_sigint()
-
-        time.sleep(seconds)
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -157,7 +140,7 @@ class Login:
         CLI. CLI then exchanges the code for an tokens with the IdP and returns
         the tokens
 
-        :return: Nothing, as the callback will send SIGINT to terminate
+        :return: Whether or not the login succeeded
         """
         self.state = "starting"
         self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
@@ -170,36 +153,26 @@ class Login:
             logger.debug(
                 "We have a cached ID token and the role was passed as an "
                 "argument")
-            self.validate_id_token()
-            if self.id_token_dict is None:
+            if self.validate_id_token() is None:
                 # If validation failed, set token back to None
                 self.token = None
             else:
                 # The ID Token verifies
                 self.get_role_map()
-                if self.role_arn not in self.role_map["roles"]:
-                    self.exit("`{}` not found in list of available role ARNs.".format(
-                        self.role_arn))
-                try:
-                    self.exchange_token_for_credentials()
-                except STSWarning as e:
-                    if e.args[1] == 'ExpiredTokenException':
-                        logger.debug('Looks like that cached ID token is expired, setting self.token to None')
-                        self.token = None
-                except requests.exceptions.ConnectionError as e:
-                    self.exit("Unable to contact AWS : {}".format(e))
+                result = self.exchange_token_for_credentials()
                 if self.role_arn is None:
                     if self.batch:
                         self.exit(
                             'Unable to fetch AWS STS credentials with ID '
                             'token. Exiting due to batch mode.')
+                        return False
                     else:
                         print(
                             'Unable to assume IAM role. Spawning web role '
                             'picker to pick a different role.',
                             file=sys.stderr)
-                if self.token is not None and self.role_arn is not None:
-                    self.print_output()
+                if result == 'finished':
+                    return True
 
         if self.token is not None and self.role_arn is None:
             logger.debug(
@@ -260,6 +233,7 @@ class Login:
             # start up the listener, figuring out which port it ran on
             logger.debug("About to start listener running on port {}".format(port))
             listen(self)
+        return True
 
 
     def get_id_token(self, code=None, state=None, token=None, **kwargs):
@@ -277,18 +251,21 @@ class Login:
                 "response to the /authorize request : {}".format(
                     kwargs.get('error_description'))
             ))
+            return False
 
         if self.token is None and token is None:  # Callback from web listener
             self.state = "getting_id_token"
 
             if code is None:
                 self.exit("Something wrong happened, could not retrieve session data")
+                return False
 
             if self.oidc_state != state:
                 logger.error("Mismatched state: {} (state) vs. {} (OIDC state) in {}".format(
                     state, self.oidc_state, id(self)
                 ))
                 self.exit("Error: State returned from IdP doesn't match state sent")
+                return False
 
             # Exchange the code for a token
             headers = {
@@ -311,6 +288,7 @@ class Login:
             except requests.exceptions.ConnectionError as e:
                 self.exit("Unable to fetch a token from the identity provider "
                           ": {}".format(e))
+                return False
 
             # attempt to cache the id token
             write_id_token(self.openid_configuration.get("issuer"),
@@ -318,6 +296,8 @@ class Login:
                            self.token)
         elif self.token is None:
             self.token = token
+        return self.token
+
 
     def validate_id_token(self):
         # decode the token for logging purposes
@@ -331,6 +311,7 @@ class Login:
             logger.error('ID Token failed validation : {}'.format(e))
             return None
         logger.debug("ID token dict : {}".format(self.id_token_dict))
+        return self.id_token_dict
 
 
     def get_role_map(self):
@@ -346,21 +327,14 @@ class Login:
 
         if self.role_map is None:
             self.exit("Unable to retrieve role map. Shutting down.")
+            return False
 
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
+        return self.role_map
 
 
     def exchange_token_for_credentials(self):
-        # If we don't have a role ARN on the command line, we need to show
-        # the role picker
-        if self.role_arn is None and not self.batch:
-            self.state = "role_picker"
-
-            # Wait for the POST to /api/roles
-            while not self.role_arn:
-                self.sleep(.05)
-
         # Use the cached credentials or retrieve them from STS
         self.state = "getting_sts_credentials"
         try:
@@ -371,6 +345,8 @@ class Login:
             )
             logger.debug(self.credentials)
             logger.debug("ID token : {}".format(self.token["id_token"]))
+            self.print_output()
+            return self.state
         except STSWarning as e:
             if e.args[1] == 'AccessDenied':
                 # Not authorized to perform sts:AssumeRoleWithWebIdentity
@@ -381,17 +357,42 @@ class Login:
                 logger.debug('Unable to assume role {}'.format(self.role_arn))
                 self.cache = False
                 self.get_role_map()
+                if self.batch:
+                    self.exit(
+                        "Unable to assume role. Shutting down due to batch "
+                        "mode being enabled")
+                    return 'error'
+                self.state = "role_picker"
                 if self.role_arn in self.role_map.get("roles", []):
                     self.role_map.get("roles", []).remove(self.role_arn)
                 self.role_arn = None
                 if len(self.role_map.get("roles", [])) <= 1:
                     self.exit(
                         "Sorry, no valid roles available. Shutting down.")
+                    return 'error'
             elif e.args[1] == 'ExpiredTokenException':
-                # The ID token is expired
-                raise
+                logger.debug('AWS says that the ID token is expired : {}'.format(e[2]))
+                self.token = None
+                url_parameters = {
+                    "scope": self.oidc_scope,
+                    "response_type": "code",
+                    "redirect_uri": self.redirect_uri,
+                    "client_id": self.client_id,
+                    "code_challenge": self.code_challenge,
+                    "code_challenge_method": "S256",
+                    "state": self.oidc_state,
+                }
+                url = "{}?{}".format(self.authorization_endpoint,
+                                     urlencode(url_parameters))
+                self.state = "restart_auth"
+                self.web_state['idpUrl'] = url
+                return 'restart_auth'
             else:
-                raise
+                self.exit("Unable to contact AWS : {}".format(e))
+                return 'error'
+        except Exception as e:
+            self.exit("Unable to contact AWS : {}".format(e))
+            return 'error'
 
 
     def print_output(self):
@@ -438,14 +439,9 @@ class Login:
 
             if self.web_console:
                 self.aws_federate()
-                time.sleep(3600)
-
-            # If we've opened a tab, we wait for it to terminate things
-            if self.opened_tab:
+            else:
                 self.state = "finished"
 
-                # Now we sleep until the web page shuts things down
-                time.sleep(3600)
 
     def aws_federate(self):
         logger.debug("Attempting to open AWS console.")
@@ -469,6 +465,7 @@ class Login:
         except requests.exceptions.ConnectionError as e:
             self.exit("Unable to contact AWS to open web console : {}".format(
                 e))
+            return None
 
         account_id = self.role_arn.split(":")[4]
         role = self.role_arn.split(':')[5].split('/')[-1]
@@ -489,13 +486,11 @@ class Login:
         if self.opened_tab:
             self.state = "aws_federate"
             self.web_state["awsFederationUrl"] = url
-            return url
         else:
             self.opened_tab = True
             webbrowser.open_new_tab(url)
-
-            # Shut everything down if we're directly sending people to AWS
-            exit_sigint()
+            self.state = "finished"
+        return url
 
 
 login = Login()
