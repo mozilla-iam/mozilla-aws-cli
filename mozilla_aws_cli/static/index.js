@@ -4,9 +4,11 @@ const config = {
 };
 
 const state = {
+    backendInProgress: false,
     getStateCount: 0,
+    heartbeatRunning: false,
     lastRole: undefined,
-    roleRetrievalCount: 0,
+    roleRetrievalCount: 0
 };
 
 const setMessage = (message) => {
@@ -68,7 +70,27 @@ const shutdown = async () => {
 };
 
 const pollState = setInterval(async () => {
+    if (!state.backendInProgress) {
+        state.backendInProgress = true;
+    } else {
+        // The previous pollState async has not yet finished, skipping this async execution
+        return false;
+    }
     const id = new URLSearchParams(window.location.search).get("state").split("-")[0];
+    if (!state.heartbeatRunning) {
+        state.heartbeatRunning = true;
+        fetch(`/api/heartbeat?id=${id}`, {
+            method: "GET"
+        }).then((response) => {
+            return response.json();
+        }).then((responseJson) => {
+            if (responseJson.result !== "running") {
+                state.heartbeatRunning = false;
+            }
+        });
+
+    }
+
     let response = await fetch(`/api/state?id=${id}`, {
         method: "GET"
     });
@@ -98,13 +120,8 @@ const pollState = setInterval(async () => {
                 "Content-Type": "application/json",
             }
         });
+        await r.json();
     } else if (remoteState.state === "role_picker") {
-        if (state.roleRetrievalCount > 0) {
-            setMessage(`Invalid role ${state.lastRole}. Please pick a different role:`)
-        } else {
-            setMessage("Please select a role:");
-        }
-
         response = await fetch("/api/roles", {
             method: "GET",
             cache: "no-cache"
@@ -112,6 +129,11 @@ const pollState = setInterval(async () => {
 
         // show the roles
         const roles = await response.json();
+        if (state.roleRetrievalCount > 0) {
+            setMessage(`Invalid role ${state.lastRole}. Please pick a different role:`)
+        } else {
+            setMessage("Please select a role:");
+        }
         showRoles(roles);
     } else if (remoteState.state === "restart_auth") {
         setMessage("Redirecting to identity provider...");
@@ -129,7 +151,7 @@ const pollState = setInterval(async () => {
         setMessage("Another federation session has been detected. Shutting down.");
         clearInternal(pollState);
     } else if (remoteState.state === "error") {
-        setMessage(remoteState.value.message);
+        setMessage(`Encountered error : ${remoteState.value}`);
         await shutdown();
     } else if (remoteState.state === "finished") {
         // shutdown the web server, the poller, and close the window
@@ -137,9 +159,10 @@ const pollState = setInterval(async () => {
         await shutdown();
         setMessage("You may now close this window.");
     }
+    state.backendInProgress = false;
 }, config.sleepTime);
 
 // sleep for any number of milliseconds
 const sleep = (milliseconds) => {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
 };

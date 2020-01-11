@@ -179,6 +179,8 @@ def main(batch, config, cache, output,
         print("Unable to contact identity provider {} : {}".format(
             config["well_known_url"], e), file=sys.stderr)
         return False
+    if batch and role_arn is None:
+        raise click.exceptions.UsageError('You must pass a role_arn in batch mode')
 
     logger.debug("Config : {}".format(config))
 

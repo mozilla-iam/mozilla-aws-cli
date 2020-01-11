@@ -75,7 +75,7 @@ def set_role():
         login.role_arn))
 
     return jsonify({
-        "result": "set_role_arn",
+        "result": login.exchange_token_for_credentials(),
         "status_code": 200,
     })
 
@@ -84,7 +84,8 @@ def set_role():
 def get_roles():
     roles = {}
     if login.role_map is None and login.token is not None:
-        login.get_role_map()
+        if not login.get_role_map():
+            return jsonify({})
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
         alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
@@ -111,6 +112,31 @@ def get_roles():
     return jsonify(roles)
 
 
+@app.route("/api/heartbeat")
+def get_heartbeat():
+    if request.args.get("id") != login.id:
+        return jsonify({
+            "result": "invalid_id",
+            "status_code": 500,
+        })
+
+    start = time.time()
+    while time.time() - start < 30:
+        if login.last_state_check is None:
+            pass
+        elif time.time() - login.last_state_check > login.max_sleep_no_state_check:
+            logger.error("No response from web interface for {} seconds,"
+                         " shutting down.".format(login.max_sleep_no_state_check))
+            exit_sigint()
+        else:
+            logger.debug('{} age {:.2f} max {}'.format(login.state, time.time() - login.last_state_check, login.max_sleep_no_state_check))
+        time.sleep(0.5)
+    return jsonify({
+        "result": "heartbeat_done",
+        "status_code": 200,
+    })
+
+
 @app.route("/api/state")
 def get_state():
     logger.debug('Call received to /api/state with id of {}. Returning state {} and web_state {}'.format(
@@ -123,6 +149,12 @@ def get_state():
             "result": "invalid_id",
             "status_code": 500,
         })
+
+    if login.state in ['role_picker', 'redirecting']:
+        # These states require calls out to external resources that may take longer than 2 seconds to return
+        login.max_sleep_no_state_check = 10
+    else:
+        login.max_sleep_no_state_check = 2
 
     # Update the last time state was checked
     login.last_state_check = time.time()
@@ -162,48 +194,35 @@ def handle_oidc_redirect_callback():
 
     # callback into the login.callback() function in login.py
     logger.debug("redirect_callback : request is {}".format(request.json))
-    login.get_id_token(**request.json)
-    login.validate_id_token()
-    logger.debug("id_token_dict : {}".format(login.id_token_dict))
-    if login.id_token_dict is None:
-        logger.debug('Validation of token failed : {}'.format(login.token))
-        # TODO : What should we do in this case? How should the UI handle this?
+    if not login.get_id_token(**request.json):
+        return jsonify({
+            "result": "error",
+            "status_code": 400,
+        })
+    if login.validate_id_token() is None:
         return jsonify({
             "result": "id_token_validation_failed",
             "status_code": 400,
         })
+    if login.role_arn is None:
+        if login.batch:
+            login.exit('No role_arn provided. Exiting due to batch mode.')
+        else:
+            login.state = "role_picker"
+        return jsonify({
+            "result": login.state,
+            "status_code": 200,
+        })
 
-    login.get_role_map()
-    try:
-        # TODO: Consider whether this needs to loop forever
-        while login.credentials is None:
-            login.exchange_token_for_credentials()
-    except STSWarning as e:
-        if e.args[1] == 'ExpiredTokenException':
-            logger.debug('AWS says that the ID token is expired : {}'.format(e[2]))
-            login.token = None
-            url_parameters = {
-                "scope": login.oidc_scope,
-                "response_type": "code",
-                "redirect_uri": login.redirect_uri,
-                "client_id": login.client_id,
-                "code_challenge": login.code_challenge,
-                "code_challenge_method": "S256",
-                "state": login.oidc_state,
-            }
-            url = "{}?{}".format(login.authorization_endpoint,
-                                 urlencode(url_parameters))
-            logger.debug('Setting state to restart_auth and idpUrl to {}'.format(url))
-            login.state = "restart_auth"
-            login.web_state["idpUrl"] = url
-            return jsonify({
-                "result": "restart_auth",
-                "status_code": 200,
-            })
-    except requests.exceptions.ConnectionError as e:
-        login.exit("Unable to contact AWS : {}".format(e))
-
-    login.print_output()
+    if not login.get_role_map():
+        return jsonify({
+            "result": "error",
+            "status_code": 400,
+        })
+    return jsonify({
+        "result": login.exchange_token_for_credentials(),
+        "status_code": 200,
+    })
 
     # Send the signal to kill the application
     return jsonify({

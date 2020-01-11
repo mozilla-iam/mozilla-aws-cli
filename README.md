@@ -385,3 +385,4 @@ mozilla-aws-cli-yoyodyne/
 * https://github.com/prolane/samltoawsstskeys
 * https://github.com/physera/onelogin-aws-cli
 * https://github.com/kxseven/axe/blob/master/bin/subcommands/axe-token-krb5formauth-create
+* https://github.com/openstandia/aws-cli-oidc
