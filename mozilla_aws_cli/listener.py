@@ -224,12 +224,6 @@ def handle_oidc_redirect_callback():
         "status_code": 200,
     })
 
-    # Send the signal to kill the application
-    return jsonify({
-        "result": "finished",
-        "status_code": 200,
-    })
-
 
 @app.route("/shutdown", methods=["GET"])
 def handle_shutdown():
