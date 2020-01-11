@@ -4,7 +4,7 @@ from xml.etree import ElementTree
 import requests
 
 from .cache import read_sts_credentials, write_sts_credentials
-from .utils import STSWarning
+from .utils import STSWarning, strip_xmlns
 
 
 CREDENTIAL_REQUEST_DURATIONS = (43200, 3600, 9000)  # 12 hours, 1 hour, 15 mins
@@ -50,17 +50,18 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             # Call the STS API
             try:
                 resp = requests.get(url=sts_url, params=parameters)
-                root = ElementTree.fromstring(resp.content)
+                root_xml_element = ElementTree.fromstring(resp.content)
                 logger.debug("The XML response is: {}".format(resp.content))
             except ElementTree.ParseError as e:
                 raise MalformedResponseWarning('Unable to parse XML response to AssumeRoleWithWebIdentity call')
             except requests.exceptions.ConnectionError as e:
                 raise STSWarning("Unable to contact AWS STS for credentials: {}".format(e))
             if resp.status_code != requests.codes.ok:
+                error_children = root_xml_element.find(
+                    './sts:Error',
+                    {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})
                 error = dict(
-                    [(x.tag.split('}', 1)[-1], x.text) for x in root.find(
-                        './sts:Error',
-                        {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})])
+                    [(strip_xmlns(x.tag), x.text) for x in error_children])
                 logger.debug(
                     'AWS STS Call failed {status} {Type} {Code} : {Message}'.format(
                         status=resp.status_code, **error))
@@ -80,9 +81,11 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
 
         # Create a dictionary of the children of
         # AssumeRoleWithWebIdentityResult/Credentials and their values
-        credentials = dict([(x.tag.split('}', 1)[-1], x.text) for x in root.find(
+        credential_children = root_xml_element.find(
             './sts:AssumeRoleWithWebIdentityResult/sts:Credentials',
-            {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})])
+            {'sts': 'https://sts.amazonaws.com/doc/2011-06-15/'})
+        credentials = dict([
+            (strip_xmlns(x.tag), x.text) for x in credential_children])
 
         # Cache the STS credentials to disk
         write_sts_credentials(role_arn, credentials)
