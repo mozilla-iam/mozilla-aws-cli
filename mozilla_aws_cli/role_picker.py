@@ -37,16 +37,18 @@ def get_roles_and_aliases(endpoint, token, key, cache=True):
         ))
 
         try:
-            role_map = requests.post(endpoint, headers=headers, json=body).json()
+            role_map = requests.post(
+                endpoint, headers=headers, json=body).json()
         except requests.exceptions.ConnectionError as e:
             role_map = {"error": str(e)}
-        except json.decoder.JSONDecodeError as e:
+        except json.decoder.JSONDecodeError:
             logging.error("Unable to parse role map.")
             return None
 
         if role_map is None:
             logging.error(
-                "Unable to retrieve role map at: {}. Please check your URL.".format(endpoint))
+                "Unable to retrieve role map at: {}. Please check your "
+                "URL.".format(endpoint))
             return None
         elif "error" in role_map:
             logging.error(

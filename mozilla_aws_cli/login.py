@@ -83,13 +83,15 @@ class Login:
         self.openid_configuration = openid_configuration
         self.output = self.config.get("output", "envvar")
         self.print_role_arn = self.config.get("print_role_arn", True)
+        self.redirect_uri = None
         self.role = None
         self.role_arn = role_arn
         self.role_map = None
 
         # OIDC scopes of claims to request
         self.oidc_scope = scope if scope is not None else "openid"
-        self.oidc_state = self.id + "-" + base64_without_padding(os.urandom(32))
+        self.oidc_state = self.id + "-" + base64_without_padding(
+            os.urandom(32))
 
         # URL of the OIDC token endpoint obtained from the discovery document
         self.batch = batch
@@ -123,14 +125,12 @@ class Login:
         }
         self.cache = cache
 
-
     def exit(self, message):
         print(message, file=sys.stderr)
 
         if self.opened_tab:
             self.state = "error"
             self.web_state["message"] = message
-
 
     def login(self):
         """Follow the PKCE auth flow by spawning a browser for the user to
@@ -145,9 +145,10 @@ class Login:
         self.state = "starting"
         self.redirect_uri = "http://localhost:{}/redirect_uri".format(port)
 
-        self.token = read_id_token(self.openid_configuration.get("issuer"),
-                              self.client_id,
-                              self.jwks)
+        self.token = read_id_token(
+            self.openid_configuration.get("issuer"),
+            self.client_id,
+            self.jwks)
 
         if self.token is not None and self.role_arn is not None:
             logger.debug(
@@ -189,12 +190,13 @@ class Login:
                     urlencode(url_parameters)
                 ))
             self.opened_tab = True
-            logger.debug("About to start listener running on port {}".format(port))
+            logger.debug(
+                "About to start listener running on port {}".format(port))
             listen(self)
         elif self.token is None or self.role_arn is None:
             logger.debug(
-                "Either the cached ID token was invalid or missing and we need "
-                "to get a new one, or the user passed no role_arn on the "
+                "Either the cached ID token was invalid or missing and we "
+                "need to get a new one, or the user passed no role_arn on the "
                 "command line so we need to spawn the role picker")
             self.state = "redirecting"
             url_parameters = {
@@ -207,9 +209,11 @@ class Login:
                 "state": self.oidc_state,
             }
 
-            logger.debug("{} (state), {} (code), {} (id)".format(url_parameters["state"],
-                                                                 url_parameters["code_challenge"],
-                                                                 id(self)))
+            logger.debug(
+                "{} (state), {} (code), {} (id)".format(
+                    url_parameters["state"],
+                    url_parameters["code_challenge"],
+                    id(self)))
 
             # We don't set audience here because Auth0 will set the audience on
             # it's own
@@ -218,23 +222,23 @@ class Login:
 
             # Open the browser window to the login url
 
-            # Previously we needed to call webbrowser.get() passing 'firefox' as an
-            # argument to the get method. This was to work around
-            # webbrowser.BackgroundBrowser[1] sending the browsers stdout/stderr to
-            # the console. That output to the console would then corrupt the
-            # intended script output meant to be eval'd. This issue doesn't appear
-            # to be manifesting anymore and so we've set it back to the default of
-            # whatever browser the OS uses.
+            # Previously we needed to call webbrowser.get() passing 'firefox'
+            # as an argument to the get method. This was to work around
+            # webbrowser.BackgroundBrowser[1] sending the browsers
+            # stdout/stderr to the console. That output to the console would
+            # then corrupt the intended script output meant to be eval'd. This
+            # issue doesn't appear to be manifesting anymore and so we've set
+            # it back to the default of whatever browser the OS uses.
             # [1]: https://github.com/python/cpython/blob/783b794a5e6ea3bbbaba45a18b9e03ac322b3bd4/Lib/webbrowser.py#L177-L181  # noqa
             logger.debug("About to spawn browser window to {}".format(url))
             webbrowser.get().open_new_tab(url)
             self.opened_tab = True
 
             # start up the listener, figuring out which port it ran on
-            logger.debug("About to start listener running on port {}".format(port))
+            logger.debug(
+                "About to start listener running on port {}".format(port))
             listen(self)
         return True
-
 
     def get_id_token(self, code=None, state=None, token=None, **kwargs):
         """
@@ -257,14 +261,16 @@ class Login:
             self.state = "getting_id_token"
 
             if code is None:
-                self.exit("Something wrong happened, could not retrieve session data")
+                self.exit("Something wrong happened, could not retrieve "
+                          "session data")
                 return False
 
             if self.oidc_state != state:
-                logger.error("Mismatched state: {} (state) vs. {} (OIDC state) in {}".format(
-                    state, self.oidc_state, id(self)
-                ))
-                self.exit("Error: State returned from IdP doesn't match state sent")
+                logger.error(
+                    "Mismatched state: {} (state) vs. {} (OIDC state) in "
+                    "{}".format(state, self.oidc_state, id(self)))
+                self.exit(
+                    "Error: State returned from IdP doesn't match state sent")
                 return False
 
             # Exchange the code for a token
@@ -298,10 +304,10 @@ class Login:
             self.token = token
         return self.token
 
-
     def validate_id_token(self):
         # decode the token for logging purposes
-        logger.debug("Validating response from endpoint: {}".format(self.token))
+        logger.debug(
+            "Validating response from endpoint: {}".format(self.token))
         try:
             self.id_token_dict = jwt.decode(
                 token=self.token["id_token"],
@@ -312,7 +318,6 @@ class Login:
             return None
         logger.debug("ID token dict : {}".format(self.id_token_dict))
         return self.id_token_dict
-
 
     def get_role_map(self):
         # get the role map, either from cache or from the endpoint
@@ -332,7 +337,6 @@ class Login:
         logger.debug(
             'Roles and aliases are {}'.format(self.role_map))
         return self.role_map
-
 
     def exchange_token_for_credentials(self):
         # Use the cached credentials or retrieve them from STS
@@ -372,7 +376,8 @@ class Login:
                         "Sorry, no valid roles available. Shutting down.")
                     return 'error'
             elif e.args[1] == 'ExpiredTokenException':
-                logger.debug('AWS says that the ID token is expired : {}'.format(e[2]))
+                logger.debug(
+                    'AWS says that the ID token is expired : {}'.format(e[2]))
                 self.token = None
                 url_parameters = {
                     "scope": self.oidc_scope,
@@ -395,7 +400,6 @@ class Login:
             self.exit("Unable to contact AWS : {}".format(e))
             return 'error'
 
-
     def print_output(self):
         # TODO: Create a global config object?
         if self.credentials is not None:
@@ -404,16 +408,15 @@ class Login:
                     self.role_arn, self.role_map)
             output_map = {}
             if self.output == "envvar":
-                output_map.update({ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
-                              for x in self.credentials
-                              if x in ENV_VARIABLE_NAME_MAP})
+                output_map.update(
+                    {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
+                     for x in self.credentials
+                     if x in ENV_VARIABLE_NAME_MAP})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
                     self.profile_name,
-                    self.credentials,
-                    self.role_arn,
-                    self.role_map)
+                    self.credentials)
                 if path:
                     output_map.update({
                         'AWS_PROFILE': self.profile_name,
@@ -421,15 +424,14 @@ class Login:
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.profile_name,
-                                             self.credentials,
-                                             self.role_arn,
-                                             self.role_map):
+                                             self.credentials):
                     if self.profile_name != "default":
                         output_map.update({'AWS_PROFILE': self.profile_name})
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
             else:
-                raise ValueError('Output setting unknown : {}'.format(self.output))
+                raise ValueError(
+                    'Output setting unknown : {}'.format(self.output))
 
             if output_map:
                 print(output_set_env_vars(output_map))
@@ -442,7 +444,6 @@ class Login:
                 self.aws_federate()
             else:
                 self.state = "finished"
-
 
     def aws_federate(self):
         logger.debug("Attempting to open AWS console.")

@@ -88,7 +88,9 @@ def _readable_by_others(path, fix=True):
     readable_by_others = mode & S_IRWXG or mode & S_IRWXO
 
     if readable_by_others and fix:
-        logger.debug("Cached file at {} has invalid permissions of {}. Attempting to fix.".format(path, mode))
+        logger.debug(
+            "Cached file at {} has invalid permissions of {}. Attempting to "
+            "fix.".format(path, mode))
 
         readable_by_others = not _fix_permissions(path, 0o600)
 
@@ -111,7 +113,9 @@ def _requires_safe_cache_dir(func):
     def wrapper(*args, **kwargs):
         if not safe:
             mode = os.stat(cache_dir).st_mode
-            logger.debug("Cache directory at {} has invalid permissions of {}.".format(cache_dir, mode))
+            logger.debug(
+                "Cache directory at {} has invalid permissions of {}.".format(
+                    cache_dir, mode))
         else:
             return func(*args, **kwargs)
 
@@ -121,18 +125,19 @@ def _requires_safe_cache_dir(func):
 @contextmanager
 def _safe_write(path):
     # Try to open the file as 600
-    f = os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w")
+    f = os.fdopen(
+        os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w")
     yield f
     f.close()
 
 
-def disable_caching(*args, **kwargs):
+def disable_caching():
     logger.debug("Global cache reading disabled.")
     globals()["caching"] = False
 
 
 @_requires_safe_cache_dir
-def write_aws_cli_credentials(profile, credentials, role_arn, role_map):
+def write_aws_cli_credentials(profile, credentials):
     # We call aws a bunch of times, getting all the return values
     retval = 0
 
@@ -192,7 +197,7 @@ def read_aws_shared_credentials():
 
 
 @_requires_safe_cache_dir
-def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
+def write_aws_shared_credentials(profile, credentials):
     path = os.path.join(DOT_DIR, "credentials")
 
     # Try to read in the existing credentials
@@ -217,11 +222,14 @@ def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
         with _safe_write(path) as f:
             config.write(f)
 
-            logger.debug("Successfully wrote AWS shared credentials credentials to: {}".format(path))
+            logger.debug(
+                "Successfully wrote AWS shared credentials credentials to: "
+                "{}".format(path))
 
             return path
     except (IOError, OSError):
-        logger.error("Unable to write AWS shared credentials to: {}".format(path))
+        logger.error(
+            "Unable to write AWS shared credentials to: {}".format(path))
 
         return None
 
@@ -230,7 +238,8 @@ def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
 @_requires_safe_cache_dir
 def read_group_role_map(url):
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
+    path = os.path.join(
+        cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         logger.debug(
@@ -238,7 +247,8 @@ def read_group_role_map(url):
             "by others. We won't use it".format(path))
         return None
 
-    if time.time() - os.path.getmtime(path) > GROUP_ROLE_MAP_CACHE_TIME:  # expired
+    if time.time() - os.path.getmtime(path) > GROUP_ROLE_MAP_CACHE_TIME:
+        # expired
         return None
     else:
         logger.debug("Using cached role map for {} at: {}".format(url, path))
@@ -317,8 +327,9 @@ def write_id_token(issuer, client_id, token):
         return None
 
     # Create a sha256 of the issuer url, so fix length and remove weird chars
-    path = os.path.join(cache_dir,
-                        "id_" + sha256(issuer.encode("utf-8")).hexdigest() + "_" + client_id)
+    path = os.path.join(
+        cache_dir,
+        "id_" + sha256(issuer.encode("utf-8")).hexdigest() + "_" + client_id)
 
     try:
         with _safe_write(path) as f:
@@ -340,7 +351,9 @@ def read_sts_credentials(role_arn):
         return None
     else:
         # Create a sha256 of the role arn, so fix length and remove weird chars
-        path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+        path = os.path.join(
+            cache_dir, "stscreds_" + sha256(
+                role_arn.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         logger.debug(
@@ -355,14 +368,17 @@ def read_sts_credentials(role_arn):
             exp = datetime.datetime.strptime(
                 sts["Expiration"],
                 '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
-            logger.debug("Cached STS credentials expire at {} or {} seconds compared "
-                         "to the current time of {}. expiry - current time = {}".format(
-                             exp,
-                             timestamp(exp),
-                             time.time(),
-                             timestamp(exp) - time.time()))
+            logger.debug(
+                "Cached STS credentials expire at {} or {} seconds compared "
+                "to the current time of {}. expiry - current time = {}".format(
+                    exp,
+                    timestamp(exp),
+                    time.time(),
+                    timestamp(exp) - time.time()))
             if timestamp(exp) - time.time() > CLOCK_SKEW_ALLOWANCE:
-                logger.debug("Using STS credentials at: {} expiring in: {}".format(path, timestamp(exp) - time.time()))
+                logger.debug(
+                    "Using STS credentials at: {} expiring in: {}".format(
+                        path, timestamp(exp) - time.time()))
                 return sts
             else:
                 logger.debug(
@@ -376,14 +392,16 @@ def read_sts_credentials(role_arn):
 @_requires_safe_cache_dir
 def write_sts_credentials(role_arn, sts_creds):
     # Create a sha256 of the role arn, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+    path = os.path.join(
+        cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
 
     try:
         with _safe_write(path) as f:
             json.dump(sts_creds, f, indent=2)
             f.write("\n")
 
-            logger.debug("Successfully wrote STS credentials to: {}".format(path))
+            logger.debug(
+                "Successfully wrote STS credentials to: {}".format(path))
     except (IOError, OSError):
         logger.debug("Unable to write STS credentials to: {}".format(path))
 
@@ -403,7 +421,8 @@ def verify_dir_permissions(path=DOT_DIR):
             # Directory exists and permissions are correct
             return True
     else:
-        # Attempt to create the directory with the right permissions, if it doesn't exist
+        # Attempt to create the directory with the right permissions, if it
+        # doesn't exist
         try:
             os.mkdir(path)
         except (IOError, OSError):

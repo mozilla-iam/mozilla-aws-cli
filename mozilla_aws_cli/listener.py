@@ -23,7 +23,8 @@ except ImportError:
 POSSIBLE_PORTS = [10800, 10801, 20800, 20801, 30800, 30801,
                   40800, 40801, 50800, 50801, 60800, 60801]
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
+STATIC_DIR = os.path.join(os.path.dirname(
+    os.path.realpath(__file__)), "static")
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
 login = {
@@ -40,14 +41,14 @@ def get_available_port():
     :return:
     """
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    for port in POSSIBLE_PORTS:
+    for p in POSSIBLE_PORTS:
         try:
-            s.bind(("127.0.0.1", port))
+            s.bind(("127.0.0.1", p))
             s.close()
-            return port
+            return p
         except socket.error as e:
             if e.errno == errno.EADDRINUSE:
-                logger.debug("Port {} is in use".format(port))
+                logger.debug("Port {} is in use".format(p))
                 pass
             else:
                 raise
@@ -88,7 +89,8 @@ def get_roles():
             return jsonify({})
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
-        alias = login.role_map.get("aliases", {}).get(account_id, [account_id])[0]
+        alias = login.role_map.get(
+            "aliases", {}).get(account_id, [account_id])[0]
 
         role = {
             "alias": alias,
@@ -124,12 +126,18 @@ def get_heartbeat():
     while time.time() - start < 30:
         if login.last_state_check is None:
             pass
-        elif time.time() - login.last_state_check > login.max_sleep_no_state_check:
-            logger.error("No response from web interface for {} seconds,"
-                         " shutting down.".format(login.max_sleep_no_state_check))
+        elif (time.time() - login.last_state_check >
+              login.max_sleep_no_state_check):
+            logger.error(
+                "No response from web interface for {} seconds, shutting "
+                "down.".format(login.max_sleep_no_state_check))
             exit_sigint()
         else:
-            logger.debug('{} age {:.2f} max {}'.format(login.state, time.time() - login.last_state_check, login.max_sleep_no_state_check))
+            logger.debug(
+                '{} age {:.2f} max {}'.format(
+                    login.state,
+                    time.time() - login.last_state_check,
+                    login.max_sleep_no_state_check))
         time.sleep(0.5)
     return jsonify({
         "result": "heartbeat_done",
@@ -139,11 +147,13 @@ def get_heartbeat():
 
 @app.route("/api/state")
 def get_state():
-    logger.debug('Call received to /api/state with id of {}. Returning state {} and web_state {}'.format(
-        request.args.get("id"),
-        login.state,
-        login.web_state
-    ))
+    logger.debug(
+        'Call received to /api/state with id of {}. Returning state {} and '
+        'web_state {}'.format(
+            request.args.get("id"),
+            login.state,
+            login.web_state
+        ))
     if request.args.get("id") != login.id:
         return jsonify({
             "result": "invalid_id",
@@ -151,7 +161,8 @@ def get_state():
         })
 
     if login.state in ['role_picker', 'redirecting']:
-        # These states require calls out to external resources that may take longer than 2 seconds to return
+        # These states require calls out to external resources that may take
+        # longer than 2 seconds to return
         login.max_sleep_no_state_check = 10
     else:
         login.max_sleep_no_state_check = 2
@@ -251,7 +262,3 @@ def listen(login):
     app.run(port=port, debug=debug)
 
     return port
-
-
-if __name__ == "__main__":
-    listen()

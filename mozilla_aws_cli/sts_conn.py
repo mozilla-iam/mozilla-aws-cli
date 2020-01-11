@@ -52,10 +52,13 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
                 resp = requests.get(url=sts_url, params=parameters)
                 root_xml_element = ElementTree.fromstring(resp.content)
                 logger.debug("The XML response is: {}".format(resp.content))
-            except ElementTree.ParseError as e:
-                raise MalformedResponseWarning('Unable to parse XML response to AssumeRoleWithWebIdentity call')
+            except ElementTree.ParseError:
+                raise MalformedResponseWarning(
+                    'Unable to parse XML response to '
+                    'AssumeRoleWithWebIdentity call')
             except requests.exceptions.ConnectionError as e:
-                raise STSWarning("Unable to contact AWS STS for credentials: {}".format(e))
+                raise STSWarning(
+                    "Unable to contact AWS STS for credentials: {}".format(e))
             if resp.status_code != requests.codes.ok:
                 error_children = root_xml_element.find(
                     './sts:Error',
@@ -63,21 +66,29 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
                 error = dict(
                     [(strip_xmlns(x.tag), x.text) for x in error_children])
                 logger.debug(
-                    'AWS STS Call failed {status} {Type} {Code} : {Message}'.format(
-                        status=resp.status_code, **error))
+                    'AWS STS Call failed {status} {Type} {Code} : '
+                    '{Message}'.format(status=resp.status_code, **error))
                 if (error['Code'] == 'ValidationError'
-                        and error['Message'] == 'The requested DurationSeconds exceeds the MaxSessionDuration set for this role.'):
+                        and error['Message'] ==
+                        'The requested DurationSeconds exceeds the '
+                        'MaxSessionDuration set for this role.'):
                     continue
                 else:
-                    raise STSWarning(error['Type'], error['Code'], error['Message'])
+                    raise STSWarning(
+                        error['Type'], error['Code'], error['Message'])
             else:
-                logger.debug('Session established for {} seconds'.format(duration_seconds))
-                logger.debug('STS Call Response headers : {}'.format(resp.headers))
+                logger.debug('Session established for {} seconds'.format(
+                    duration_seconds))
+                logger.debug('STS Call Response headers : {}'.format(
+                    resp.headers))
                 logger.debug('STS Call Response : {}'.format(resp.text))
                 break
         else:
             # No break was encountered so none of the requests returned success
-            raise STSWarning('Sender', 'NoAcceptableDuration', 'No DurationSeconds was found that did not exceed the MaxSessionDuration for the role')
+            raise STSWarning(
+                'Sender',
+                'NoAcceptableDuration',
+                'No DurationSeconds was found that did not exceed the MaxSessionDuration for the role')
 
         # Create a dictionary of the children of
         # AssumeRoleWithWebIdentityResult/Credentials and their values
