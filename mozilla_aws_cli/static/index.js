@@ -4,11 +4,11 @@ const config = {
 };
 
 const state = {
-    getStateCount: 0,
-    lastRole: undefined,
-    roleRetrievalCount: 0,
     backendInProgress: false,
-    heartbeatRunning: false
+    getStateCount: 0,
+    heartbeatRunning: false,
+    lastRole: undefined,
+    roleRetrievalCount: 0
 };
 
 const setMessage = (message) => {
@@ -70,14 +70,14 @@ const shutdown = async () => {
 };
 
 const pollState = setInterval(async () => {
-    if (! state.backendInProgress) {
+    if (!state.backendInProgress) {
         state.backendInProgress = true;
     } else {
         // The previous pollState async has not yet finished, skipping this async execution
         return false;
     }
     const id = new URLSearchParams(window.location.search).get("state").split("-")[0];
-    if (! state.heartbeatRunning) {
+    if (!state.heartbeatRunning) {
         state.heartbeatRunning = true;
         fetch(`/api/heartbeat?id=${id}`, {
             method: "GET"
@@ -151,7 +151,7 @@ const pollState = setInterval(async () => {
         setMessage("Another federation session has been detected. Shutting down.");
         clearInternal(pollState);
     } else if (remoteState.state === "error") {
-        setMessage("Encountered error : " + remoteState.value);
+        setMessage(`Encountered error : ${remoteState.value}`);
         await shutdown();
     } else if (remoteState.state === "finished") {
         // shutdown the web server, the poller, and close the window

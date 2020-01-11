@@ -362,6 +362,7 @@ class Login:
                         "Unable to assume role. Shutting down due to batch "
                         "mode being enabled")
                     return 'error'
+
                 self.state = "role_picker"
                 if self.role_arn in self.role_map.get("roles", []):
                     self.role_map.get("roles", []).remove(self.role_arn)
