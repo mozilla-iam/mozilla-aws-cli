@@ -1,6 +1,6 @@
 const config = {
     maxStateChecks: 2500, // about 15 minutes
-    sleepTime: 350,       // milliseconds
+    sleepTime: 350        // milliseconds
 };
 
 const state = {
@@ -11,7 +11,7 @@ const state = {
     roleRetrievalCount: 0
 };
 
-const setMessage = (message) => {
+const setMessage = function(message) {
     document.getElementById("message").innerText = message;
 };
 
@@ -22,7 +22,7 @@ const selectRole = async (e) => {
     // hide the roles from the page
     $("#role-picker").addClass("hidden");
 
-    r = await fetch("/api/roles", {
+    await fetch("/api/roles", {
         method: "POST",
         body: JSON.stringify({
             arn: e.target.dataset.arn,
@@ -108,7 +108,7 @@ const pollState = setInterval(async () => {
         const url = new URL(document.location);
 
         // make a fetch request
-        r = await fetch("/redirect_callback", {
+        let r = await fetch("/redirect_callback", {
             method: "POST",
             body: JSON.stringify({
                 code: url.searchParams.get("code"),
@@ -130,7 +130,7 @@ const pollState = setInterval(async () => {
         // show the roles
         const roles = await response.json();
         if (state.roleRetrievalCount > 0) {
-            setMessage(`Invalid role ${state.lastRole}. Please pick a different role:`)
+            setMessage(`Invalid role ${state.lastRole}. Please pick a different role:`);
         } else {
             setMessage("Please select a role:");
         }
@@ -149,7 +149,7 @@ const pollState = setInterval(async () => {
         }).attr("src", "https://signin.aws.amazon.com/oauth?Action=logout");
     } else if (remoteState.state === "invalid_id") {
         setMessage("Another federation session has been detected. Shutting down.");
-        clearInternal(pollState);
+        clearInterval(pollState);
     } else if (remoteState.state === "error") {
         setMessage(`Encountered error : ${remoteState.value}`);
         await shutdown();
