@@ -161,8 +161,3 @@ const pollState = setInterval(async () => {
     }
     state.backendInProgress = false;
 }, config.sleepTime);
-
-// sleep for any number of milliseconds
-const sleep = (milliseconds) => {
-    return new Promise(resolve => setTimeout(resolve, milliseconds))
-};
