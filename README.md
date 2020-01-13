@@ -23,10 +23,18 @@ provided by their organization, or they can create a config file by hand.
 ## Create a config file
 
 The default files that configuration is fetched from are
-* `/etc/maws/config`
-* `~/.maws/config`
+* Windows
+  * `C:\Users\<user>\AppData\Roaming\Mozilla AWS CLI\config.ini`
+  * `C:\ProgramData\Mozilla AWS CLI\config.ini`
+* Mac
+  * `/Users/<user>/.config/maws/config.ini`
+  * `/etc/maws/config.ini`
+* Linux
+  * `/etc/xdg/xdg-ubuntu/maws/config.ini` (for Ubuntu)
+  * `/home/<user>/.config/maws/config.ini`
 
-where settings in `/etc/maws/config` are overridden by settings in `~/.maws/config`.
+where settings in `/etc` or `C:\ProgramData` are overridden by settings in 
+`C:\Users\<user>\AppData\Roaming\` or `~/.config/maws/` or `/Users/`.
 
 Users can also assert which config file(s) to read from using the `-c` or `--config`
 command line arguments.
