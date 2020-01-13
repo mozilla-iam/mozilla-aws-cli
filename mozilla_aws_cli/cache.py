@@ -15,7 +15,7 @@ from hashlib import sha256
 from jose import jwt
 from stat import S_IRWXG, S_IRWXO, S_IRWXU
 
-from .config import DOT_DIR, IS_WINDOWS
+from .config import CONFIG_DIR, CACHE_DIR, IS_WINDOWS
 
 if sys.version_info[0] >= 3:
     import configparser
@@ -61,7 +61,6 @@ CREDENTIALS_TO_AWS_MAP = {
 logger = logging.getLogger(__name__)
 
 # the cache directory is the same place we store the config
-cache_dir = os.path.join(DOT_DIR, "cache")
 caching = True
 
 
@@ -101,7 +100,7 @@ def _requires_caching(func):
         if caching:
             return func(*args, **kwargs)
         else:
-            logger.debug("Caching reads disabled on {}.".format(cache_dir))
+            logger.debug("Caching reads disabled on {}.".format(CACHE_DIR))
 
     return wrapper
 
@@ -110,8 +109,8 @@ def _requires_safe_cache_dir(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not safe:
-            mode = os.stat(cache_dir).st_mode
-            logger.debug("Cache directory at {} has invalid permissions of {}.".format(cache_dir, mode))
+            mode = os.stat(CACHE_DIR).st_mode
+            logger.debug("Cache directory at {} has invalid permissions of {}.".format(CACHE_DIR, mode))
         else:
             return func(*args, **kwargs)
 
@@ -162,7 +161,7 @@ def read_aws_shared_credentials():
     :return: A ConfigParser object
     """
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
-    path = os.path.join(DOT_DIR, "credentials")
+    path = os.path.join(CONFIG_DIR, "credentials")
 
     # we can preserve comments with Python 3
     if sys.version_info[0] < 3:
@@ -193,7 +192,7 @@ def read_aws_shared_credentials():
 
 @_requires_safe_cache_dir
 def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
-    path = os.path.join(DOT_DIR, "credentials")
+    path = os.path.join(CONFIG_DIR, "credentials")
 
     # Try to read in the existing credentials
     config = read_aws_shared_credentials()
@@ -230,7 +229,7 @@ def write_aws_shared_credentials(profile, credentials, role_arn, role_map=None):
 @_requires_safe_cache_dir
 def read_group_role_map(url):
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
+    path = os.path.join(CACHE_DIR, "rolemap_" + sha256(url.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         logger.debug(
@@ -256,7 +255,7 @@ def write_group_role_map(url, role_map):
     # Create a sha256 of the endpoint url, so fix length and remove weird chars
     url = sha256(url.encode("utf-8")).hexdigest()
 
-    path = os.path.join(cache_dir, "rolemap_" + url)
+    path = os.path.join(CACHE_DIR, "rolemap_" + url)
 
     try:
         with _safe_write(path) as f:
@@ -277,7 +276,7 @@ def read_id_token(issuer, client_id, key=None):
     # Create a sha256 of the issuer url, so fix length and remove weird chars
     issuer = sha256(issuer.encode("utf-8")).hexdigest()
 
-    path = os.path.join(cache_dir, "id_" + issuer + "_" + client_id)
+    path = os.path.join(CACHE_DIR, "id_" + issuer + "_" + client_id)
 
     if not os.path.exists(path) or _readable_by_others(path):
         logger.debug(
@@ -317,7 +316,7 @@ def write_id_token(issuer, client_id, token):
         return None
 
     # Create a sha256 of the issuer url, so fix length and remove weird chars
-    path = os.path.join(cache_dir,
+    path = os.path.join(CACHE_DIR,
                         "id_" + sha256(issuer.encode("utf-8")).hexdigest() + "_" + client_id)
 
     try:
@@ -340,7 +339,7 @@ def read_sts_credentials(role_arn):
         return None
     else:
         # Create a sha256 of the role arn, so fix length and remove weird chars
-        path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+        path = os.path.join(CACHE_DIR, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
 
     if not os.path.exists(path) or _readable_by_others(path):
         logger.debug(
@@ -376,7 +375,7 @@ def read_sts_credentials(role_arn):
 @_requires_safe_cache_dir
 def write_sts_credentials(role_arn, sts_creds):
     # Create a sha256 of the role arn, so fix length and remove weird chars
-    path = os.path.join(cache_dir, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
+    path = os.path.join(CACHE_DIR, "stscreds_" + sha256(role_arn.encode("utf-8")).hexdigest())
 
     try:
         with _safe_write(path) as f:
@@ -388,7 +387,7 @@ def write_sts_credentials(role_arn, sts_creds):
         logger.debug("Unable to write STS credentials to: {}".format(path))
 
 
-def verify_dir_permissions(path=DOT_DIR):
+def verify_dir_permissions(path=CONFIG_DIR):
     # Windows uses %APPDATA%, which is presumed to be secure
     if os.path.exists(path) and IS_WINDOWS:
         return True
@@ -414,4 +413,4 @@ def verify_dir_permissions(path=DOT_DIR):
 
 
 # First let's see if the directories have the right permissions
-safe = verify_dir_permissions(DOT_DIR) and verify_dir_permissions(cache_dir)
+safe = verify_dir_permissions(CONFIG_DIR) and verify_dir_permissions(CACHE_DIR)
