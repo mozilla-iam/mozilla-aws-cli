@@ -45,3 +45,10 @@ def role_arn_to_profile_name(role_arn, role_map):
 
     # such as infosec-somerole
     return "-".join([account_id, role])
+
+
+def strip_xmlns(tag):
+    # Turn tag like
+    # "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken" into
+    # "SessionToken"
+    return tag.split('}', maxsplit=1)[-1]

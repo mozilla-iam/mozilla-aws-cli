@@ -15,7 +15,8 @@ try:
     import mozilla_aws_cli_config
 except ImportError:
     # There is no overriding configuration package that implements the
-    # "mozilla_aws_cli_config" module. Use the normal config acquisition methods
+    # "mozilla_aws_cli_config" module. Use the normal config acquisition
+    # methods
     mozilla_aws_cli_config = None
 
 if sys.version_info[0] >= 3:
@@ -38,6 +39,7 @@ VALID_OUTPUT_OPTIONS = ("envvar", "shared", "awscli")
 
 
 def validate_arn(ctx, param, value):
+    del ctx, param  # we don't use these arguments
     # arn:aws:iam::account-id:role/role-name
     if value is None:
         return None
@@ -51,6 +53,7 @@ def validate_arn(ctx, param, value):
 
 
 def validate_output(ctx, param, value):
+    del ctx, param  # we don't use these arguments
     if value is None:
         pass
     elif value.lower() == 'awscli' and not find_executable('aws'):
@@ -60,6 +63,7 @@ def validate_output(ctx, param, value):
 
 
 def validate_config_file(ctx, param, filenames):
+    del ctx, param  # we don't use these arguments
     if isinstance(filenames, basestring):
         filenames = [filenames]
 
@@ -79,7 +83,7 @@ def validate_config_file(ctx, param, filenames):
                     config.readfp(f)
         except FileNotFoundError:
             pass
-        except (configparser.Error):
+        except configparser.Error:
             raise click.BadParameter(
                 'Config file {} is not a valid INI file.'.format(filename))
     if not config.has_section('maws'):
@@ -105,16 +109,21 @@ def validate_config_file(ctx, param, filenames):
 
             result[key] = mozilla_aws_cli_config.config[key]
     missing_settings = (
-        {'client_id', 'idtoken_for_roles_url', 'well_known_url'} - set(result.keys()))
+        {'client_id',
+         'idtoken_for_roles_url',
+         'well_known_url'} - set(result.keys()))
 
     if missing_settings:
-        missing_setting_list = ', '.join(["`{}`".format(setting) for setting in missing_settings])
+        missing_setting_list = ', '.join(
+            ["`{}`".format(setting) for setting in missing_settings])
         plural = 's are' if len(missing_settings) > 1 else ' is'
         filename_list = " ".join(filenames)
-        message = '{missing_setting_list} setting{plural} missing from config files: {filename_list}'.format(
-            missing_setting_list=missing_setting_list,
-            plural=plural,
-            filename_list=filename_list)
+        message = (
+            '{missing_setting_list} setting{plural} missing from config '
+            'files: {filename_list}'.format(
+                missing_setting_list=missing_setting_list,
+                plural=plural,
+                filename_list=filename_list))
         raise click.BadOptionUsage(None, message)
 
     if result.get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
@@ -124,6 +133,7 @@ def validate_config_file(ctx, param, filenames):
 
 
 def validate_cache(ctx, param, cache):
+    del ctx, param  # we don't use these arguments
     if not cache:
         disable_caching()
     return cache
@@ -154,7 +164,8 @@ def validate_cache(ctx, param, cache):
 )
 @click.option("--profile",
               metavar="<profile>",
-              help="Override profile name used with `awscli` or `shared` output")
+              help="Override profile name used with `awscli` or `shared` "
+                   "output")
 @click.option(
     "-r",
     "--role-arn",
@@ -171,16 +182,20 @@ def main(batch, config, cache, output,
 
     # Order of precedence : output, config["output"], "envvar"
     profile = config.get("profile") if profile is None else profile
-    config["output"] = output if output is not None else config.get("output", "envvar")
+    config["output"] = output if output is not None else config.get(
+        "output", "envvar")
     try:
-        config["openid-configuration"] = requests.get(config["well_known_url"]).json()
-        config["jwks"] = requests.get(config["openid-configuration"]["jwks_uri"]).json()
+        config["openid-configuration"] = requests.get(
+            config["well_known_url"]).json()
+        config["jwks"] = requests.get(
+            config["openid-configuration"]["jwks_uri"]).json()
     except requests.exceptions.ConnectionError as e:
         print("Unable to contact identity provider {} : {}".format(
             config["well_known_url"], e), file=sys.stderr)
         return False
     if batch and role_arn is None:
-        raise click.exceptions.UsageError('You must pass a role_arn in batch mode')
+        raise click.exceptions.UsageError(
+            'You must pass a role_arn in batch mode')
 
     logger.debug("Config : {}".format(config))
 
