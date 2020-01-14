@@ -413,6 +413,10 @@ class Login:
                     {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
                      for x in self.credentials
                      if x in ENV_VARIABLE_NAME_MAP})
+                output_map.update({
+                    'AWS_PROFILE': None,
+                    'AWS_SHARED_CREDENTIALS_FILE': None,
+                    'MAWS_AWS_PROFILE_NAME': self.profile_name})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -421,13 +425,22 @@ class Login:
                 if path:
                     output_map.update({
                         'AWS_PROFILE': self.profile_name,
-                        'AWS_SHARED_CREDENTIALS_FILE': path})
+                        'AWS_SHARED_CREDENTIALS_FILE': path,
+                        'MAWS_AWS_PROFILE_NAME': None})
+                    output_map.update({
+                        x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.profile_name,
                                              self.credentials):
                     if self.profile_name != "default":
-                        output_map.update({'AWS_PROFILE': self.profile_name})
+                        output_map.update({
+                            'AWS_PROFILE': self.profile_name,
+                            'AWS_SHARED_CREDENTIALS_FILE': None,
+                            'MAWS_AWS_PROFILE_NAME': None
+                        })
+                        output_map.update({
+                            x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
             else:

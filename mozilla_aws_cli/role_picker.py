@@ -1,12 +1,40 @@
+import os
+import stat
 import json.decoder
 import logging
 import platform
 import requests
+import tempfile
 
 from .cache import read_group_role_map, write_group_role_map
 
 
 logger = logging.getLogger(__name__)
+
+PROMPT_BASH_CODE = r'''function maws_profile {
+    if [ -n "${AWS_ACCESS_KEY_ID}" ] &&
+       [ -n "${AWS_SECRET_ACCESS_KEY}" ] &&
+       [ -n "${AWS_SESSION_TOKEN}" ] &&
+       [ -z "${AWS_PROFILE}" ] &&
+       [ -n "${MAWS_AWS_PROFILE_NAME}" ]; then
+        echo " (${MAWS_AWS_PROFILE_NAME})"
+    elif [ -z "${AWS_ACCESS_KEY_ID}" ] &&
+       [ -z "${AWS_SECRET_ACCESS_KEY}" ] &&
+       [ -z "${AWS_SESSION_TOKEN}" ] &&
+       [ -n "${AWS_PROFILE}" ] &&
+       [ -z "${MAWS_AWS_PROFILE_NAME}" ]; then
+        echo " (${AWS_PROFILE})"
+    fi
+}
+
+if [ -n "${PS1##*\$(maws_profile)*}" ]; then
+    # maws_profile is missing from PS1
+    if [ "${PS1%\$ }" != "${PS1}" ]; then
+        PS1="${PS1%\$ }\$(maws_profile)\$ "
+    else
+        PS1="${PS1}\$(maws_profile) "
+    fi
+fi'''
 
 
 def output_set_env_vars(var_map):
@@ -14,9 +42,22 @@ def output_set_env_vars(var_map):
         result = "\n".join(
             ["set {}={}".format(x, var_map[x]) for x in var_map])
     else:
-        result = "export"
-        for key in var_map:
-            result += " {}={}".format(key, var_map[key])
+        name = tempfile.mkstemp(suffix='.sh', prefix='maws-')[1]
+        with open(name, 'w') as f:
+            vars_to_set = [
+                "=".join((x, var_map[x]))
+                for x in var_map if var_map[x] is not None]
+            if vars_to_set:
+                f.write("export {}\n".format(" ".join(vars_to_set)))
+            vars_to_unset = [x for x in var_map if var_map[x] is None]
+            if vars_to_unset:
+                f.write("unset {}\n".format(" ".join(vars_to_unset)))
+            f.write("{}\n".format(PROMPT_BASH_CODE))
+            f.write("rm -f {}\n".format(name))
+            result = "source {}".format(name)
+        st = os.stat(name)
+        os.chmod(name, st.st_mode | stat.S_IEXEC)
+
     return result
 
 
