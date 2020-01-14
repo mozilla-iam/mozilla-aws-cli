@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 import webbrowser
 
 import requests
@@ -396,8 +397,8 @@ class Login:
             else:
                 self.exit("Unable to contact AWS : {}".format(e))
                 return 'error'
-        except Exception as e:
-            self.exit("Unable to contact AWS : {}".format(e))
+        except Exception:
+            self.exit("Unable to contact AWS : {}".format("".join(traceback.format_exception(*sys.exc_info()))))
             return 'error'
 
     def print_output(self):
