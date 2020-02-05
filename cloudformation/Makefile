@@ -32,7 +32,9 @@ deploy-group-role-map-builder:
 		 $(PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "S3BucketName=$(PROD_S3_BUCKET_NAME) ProviderUrls=$(PROD_PROVIDER_URLS) AmrClaims=$(PROD_AMR_CLAIMS)"
+		 "S3BucketName=$(PROD_S3_BUCKET_NAME) \
+		  ProviderUrls=$(PROD_PROVIDER_URLS) \
+		  AmrClaims=$(PROD_AMR_CLAIMS)"
 
 .PHONE: deploy-group-role-map-builder-dev
 deploy-group-role-map-builder-dev:
@@ -42,7 +44,9 @@ deploy-group-role-map-builder-dev:
 		 $(DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_STACK_NAME) \
 		 $(GROUP_ROLE_MAP_BUILDER_CODE_STORAGE_S3_PREFIX) \
-		 "S3BucketName=$(DEV_S3_BUCKET_NAME) ProviderUrls=$(DEV_PROVIDER_URLS) AmrClaims=$(DEV_AMR_CLAIMS)"
+		 "S3BucketName=$(DEV_S3_BUCKET_NAME) \
+		  ProviderUrls=$(DEV_PROVIDER_URLS) \
+		  AmrClaims=$(DEV_AMR_CLAIMS)"
 
 .PHONE: deploy-idtoken-for-roles-dev
 deploy-idtoken-for-roles-dev:
@@ -52,7 +56,13 @@ deploy-idtoken-for-roles-dev:
 		 $(DEV_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(IDTOKEN_FOR_ROLES_STACK_NAME) \
 		 $(IDTOKEN_FOR_ROLES_CODE_STORAGE_S3_PREFIX) \
-		 "S3BucketName=$(DEV_S3_BUCKET_NAME) CustomDomainName=$(DEV_DOMAIN_NAME) DomainNameZone=$(DEV_DOMAIN_ZONE) CertificateArn=$(DEV_CERT_ARN) AllowedIssuer=$(PROD_ISSUER) AllowedAudience=$(PROD_CLIENT_ID) AllowedMapBuilderSubPrefix=ad|Mozilla-LDAP|" \
+		 "S3BucketName=$(DEV_S3_BUCKET_NAME) \
+		  CustomDomainName=$(DEV_DOMAIN_NAME) \
+		  DomainNameZone=$(DEV_DOMAIN_ZONE) \
+		  CertificateArn=$(DEV_CERT_ARN) \
+		  AllowedIssuer=$(DEV_ISSUER) \
+		  AllowedAudience=$(DEV_CLIENT_ID) \
+		  AllowedMapBuilderSubPrefix=ad|Mozilla-LDAP-Dev|" \
 		 AliasesEndpointUrl
 
 .PHONE: deploy-idtoken-for-roles
@@ -63,7 +73,13 @@ deploy-idtoken-for-roles:
 		 $(PROD_LAMBDA_CODE_STORAGE_S3_BUCKET_NAME) \
 		 $(IDTOKEN_FOR_ROLES_STACK_NAME) \
 		 $(IDTOKEN_FOR_ROLES_CODE_STORAGE_S3_PREFIX) \
-		 "S3BucketName=$(PROD_S3_BUCKET_NAME) CustomDomainName=$(PROD_DOMAIN_NAME) DomainNameZone=$(PROD_DOMAIN_ZONE) CertificateArn=$(PROD_CERT_ARN) AllowedIssuer=$(PROD_ISSUER) AllowedAudience=$(PROD_CLIENT_ID) AllowedMapBuilderSubPrefix=ad|Mozilla-LDAP|" \
+		 "S3BucketName=$(PROD_S3_BUCKET_NAME) \
+		  CustomDomainName=$(PROD_DOMAIN_NAME) \
+		  DomainNameZone=$(PROD_DOMAIN_ZONE) \
+		  CertificateArn=$(PROD_CERT_ARN) \
+		  AllowedIssuer=$(PROD_ISSUER) \
+		  AllowedAudience=$(PROD_CLIENT_ID) \
+		  AllowedMapBuilderSubPrefix=ad|Mozilla-LDAP|" \
 		 AliasesEndpointUrl
 
 .PHONE: test-idtoken-for-roles

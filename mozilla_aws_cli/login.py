@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 import webbrowser
 
 import requests
@@ -396,8 +397,8 @@ class Login:
             else:
                 self.exit("Unable to contact AWS : {}".format(e))
                 return 'error'
-        except Exception as e:
-            self.exit("Unable to contact AWS : {}".format(e))
+        except Exception:
+            self.exit("Unable to contact AWS : {}".format("".join(traceback.format_exception(*sys.exc_info()))))
             return 'error'
 
     def print_output(self):
@@ -412,6 +413,10 @@ class Login:
                     {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
                      for x in self.credentials
                      if x in ENV_VARIABLE_NAME_MAP})
+                output_map.update({
+                    'AWS_PROFILE': None,
+                    'AWS_SHARED_CREDENTIALS_FILE': None,
+                    'MAWS_PROMPT': self.profile_name})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -420,25 +425,33 @@ class Login:
                 if path:
                     output_map.update({
                         'AWS_PROFILE': self.profile_name,
-                        'AWS_SHARED_CREDENTIALS_FILE': path})
+                        'AWS_SHARED_CREDENTIALS_FILE': path,
+                        'MAWS_PROMPT': self.profile_name})
+                    output_map.update({
+                        x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.profile_name,
                                              self.credentials):
                     if self.profile_name != "default":
-                        output_map.update({'AWS_PROFILE': self.profile_name})
+                        output_map.update({
+                            'AWS_PROFILE': self.profile_name,
+                            'AWS_SHARED_CREDENTIALS_FILE': None,
+                            'MAWS_PROMPT': self.profile_name
+                        })
+                        output_map.update({
+                            x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
                     logger.error('Unable to write credentials with aws-cli.')
             else:
                 raise ValueError(
                     'Output setting unknown : {}'.format(self.output))
 
-            if output_map:
-                print(output_set_env_vars(output_map))
+            message = "Environment variables set for role {}".format(
+                self.role_arn) if self.print_role_arn else None
 
-            if self.print_role_arn:
-                print("Environment variables set for role {}".format(
-                    self.role_arn), file=sys.stderr)
+            if output_map:
+                print(output_set_env_vars(output_map, message))
 
             if self.web_console:
                 self.aws_federate()
