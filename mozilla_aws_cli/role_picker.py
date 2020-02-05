@@ -19,6 +19,8 @@ if [ -n "${PS1##*\$(maws_profile)*}" ]; then
     # maws_profile is missing from PS1
     if [ "${PS1%\$ }" != "${PS1}" ]; then
         PS1="${PS1%\$ }\$(maws_profile)\$ "
+    elif [ "${PS1% }" != "${PS1}" ]; then
+        PS1="${PS1% }\$(maws_profile) "
     else
         PS1="${PS1}\$(maws_profile) "
     fi
