@@ -12,19 +12,7 @@ from .cache import read_group_role_map, write_group_role_map
 logger = logging.getLogger(__name__)
 
 PROMPT_BASH_CODE = r'''function maws_profile {
-    if [ -n "${AWS_ACCESS_KEY_ID}" ] &&
-       [ -n "${AWS_SECRET_ACCESS_KEY}" ] &&
-       [ -n "${AWS_SESSION_TOKEN}" ] &&
-       [ -z "${AWS_PROFILE}" ] &&
-       [ -n "${MAWS_AWS_PROFILE_NAME}" ]; then
-        echo " (${MAWS_AWS_PROFILE_NAME})"
-    elif [ -z "${AWS_ACCESS_KEY_ID}" ] &&
-       [ -z "${AWS_SECRET_ACCESS_KEY}" ] &&
-       [ -z "${AWS_SESSION_TOKEN}" ] &&
-       [ -n "${AWS_PROFILE}" ] &&
-       [ -z "${MAWS_AWS_PROFILE_NAME}" ]; then
-        echo " (${AWS_PROFILE})"
-    fi
+    test -n "${MAWS_PROMPT}" && echo " (${MAWS_PROMPT})"
 }
 
 if [ -n "${PS1##*\$(maws_profile)*}" ]; then

@@ -416,7 +416,7 @@ class Login:
                 output_map.update({
                     'AWS_PROFILE': None,
                     'AWS_SHARED_CREDENTIALS_FILE': None,
-                    'MAWS_AWS_PROFILE_NAME': self.profile_name})
+                    'MAWS_PROMPT': self.profile_name})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -426,7 +426,7 @@ class Login:
                     output_map.update({
                         'AWS_PROFILE': self.profile_name,
                         'AWS_SHARED_CREDENTIALS_FILE': path,
-                        'MAWS_AWS_PROFILE_NAME': None})
+                        'MAWS_PROMPT': self.profile_name})
                     output_map.update({
                         x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
@@ -437,7 +437,7 @@ class Login:
                         output_map.update({
                             'AWS_PROFILE': self.profile_name,
                             'AWS_SHARED_CREDENTIALS_FILE': None,
-                            'MAWS_AWS_PROFILE_NAME': None
+                            'MAWS_PROMPT': self.profile_name
                         })
                         output_map.update({
                             x: None for x in ENV_VARIABLE_NAME_MAP.values()})
