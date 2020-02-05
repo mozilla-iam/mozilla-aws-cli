@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+* Issuer URL which is used when an AWS web console session expires to enable the
+  user to refresh their session by visiting the federated-aws-rp. Previously the
+  URL shown to the user contained the AWS account ID. Now it contains the more
+  human readable account alias.
 
 ## [0.2.0] - 2019-12-06
 ### Added

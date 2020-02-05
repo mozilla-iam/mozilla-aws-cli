@@ -483,8 +483,10 @@ class Login:
             return None
 
         account_id = self.role_arn.split(":")[4]
+        account_alias = self.role_map.get("aliases", {}).get(
+            account_id, [account_id])[0]
         role = self.role_arn.split(':')[5].split('/')[-1]
-        issuer_url_query = urlencode({"account": account_id, "role": role})
+        issuer_url_query = urlencode({"account": account_alias, "role": role})
         issuer_url = urlunparse(
             ('https', self.issuer_domain, '/', '', issuer_url_query, ''))
 
