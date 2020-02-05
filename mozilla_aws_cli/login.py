@@ -447,12 +447,11 @@ class Login:
                 raise ValueError(
                     'Output setting unknown : {}'.format(self.output))
 
-            if output_map:
-                print(output_set_env_vars(output_map))
+            message = "Environment variables set for role {}".format(
+                self.role_arn) if self.print_role_arn else None
 
-            if self.print_role_arn:
-                print("Environment variables set for role {}".format(
-                    self.role_arn), file=sys.stderr)
+            if output_map:
+                print(output_set_env_vars(output_map, message))
 
             if self.web_console:
                 self.aws_federate()

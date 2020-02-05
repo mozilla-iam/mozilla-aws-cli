@@ -27,7 +27,7 @@ if [ -n "${PS1##*\$(maws_profile)*}" ]; then
 fi'''
 
 
-def output_set_env_vars(var_map):
+def output_set_env_vars(var_map, message=None):
     if platform.system() == "Windows":
         result = "\n".join(
             ["set {}={}".format(x, var_map[x]) for x in var_map])
@@ -42,6 +42,10 @@ def output_set_env_vars(var_map):
             vars_to_unset = [x for x in var_map if var_map[x] is None]
             if vars_to_unset:
                 f.write("unset {}\n".format(" ".join(vars_to_unset)))
+
+            if message is not None:
+                f.write('>&2 echo "{}"\n'.format(message))
+
             f.write("{}\n".format(PROMPT_BASH_CODE))
             f.write("rm -f {}\n".format(name))
             result = "source {}".format(name)
