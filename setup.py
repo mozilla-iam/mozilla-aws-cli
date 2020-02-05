@@ -33,7 +33,7 @@ setup(
     author="Mozilla Enterprise Information Security",
     author_email="iam@discourse.mozilla.org",
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Natural Language :: English",
         "Programming Language :: Python :: 2",
@@ -57,6 +57,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="0.2.0",
+    version="1.0.0",
     zip_safe=False,
 )
