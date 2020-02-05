@@ -72,7 +72,7 @@ def catch_all(filename):
 @app.route("/api/roles", methods=["POST"])
 def set_role():
     login.role_arn = request.json.get("arn")
-    logger.debug('IAM Role ARN selected from role picker : {}'.format(
+    logger.debug("IAM Role ARN selected from role picker : {}".format(
         login.role_arn))
 
     return jsonify({
@@ -96,7 +96,7 @@ def get_roles():
             "alias": alias,
             "arn": arn,
             "id": account_id,
-            "role": arn.split(':')[5].split('/')[-1],
+            "role": arn.split(":")[5].split("/")[-1],
         }
 
         if alias in roles:
@@ -134,7 +134,7 @@ def get_heartbeat():
             exit_sigint()
         else:
             logger.debug(
-                '{} age {:.2f} max {}'.format(
+                "{} age {:.2f} max {}".format(
                     login.state,
                     time.time() - login.last_state_check,
                     login.max_sleep_no_state_check))
@@ -148,8 +148,8 @@ def get_heartbeat():
 @app.route("/api/state")
 def get_state():
     logger.debug(
-        'Call received to /api/state with id of {}. Returning state {} and '
-        'web_state {}'.format(
+        "Call received to /api/state with id of {}. Returning state {} and "
+        "web_state {}".format(
             request.args.get("id"),
             login.state,
             login.web_state
@@ -160,7 +160,7 @@ def get_state():
             "status_code": 500,
         })
 
-    if login.state in ['role_picker', 'redirecting']:
+    if login.state in ["role_picker", "redirecting"]:
         # These states require calls out to external resources that may take
         # longer than 2 seconds to return
         login.max_sleep_no_state_check = 10
@@ -194,8 +194,8 @@ def handle_oidc_redirect():
 @app.route("/redirect_callback", methods=["POST"])
 def handle_oidc_redirect_callback():
     logger.debug(
-        'Listener received a POST to /redirect_callback with a payload of '
-        '{}'.format(request.json))
+        "Listener received a POST to /redirect_callback with a payload of "
+        "{}".format(request.json))
 
     if request.json.get("state", "").split("-")[0] != login.id:
         return jsonify({
@@ -217,7 +217,7 @@ def handle_oidc_redirect_callback():
         })
     if login.role_arn is None:
         if login.batch:
-            login.exit('No role_arn provided. Exiting due to batch mode.')
+            login.exit("No role_arn provided. Exiting due to batch mode.")
         else:
             login.state = "role_picker"
         return jsonify({
@@ -257,7 +257,7 @@ def listen(login):
     # Disable flask logging unless we're at DEBUG
     if not debug:
         os.environ["WERKZEUG_RUN_MAIN"] = "true"
-        logging.getLogger('werkzeug').setLevel(logging.ERROR)
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
     app.run(port=port, debug=debug)
 

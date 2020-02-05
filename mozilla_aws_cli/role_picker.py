@@ -32,8 +32,8 @@ def output_set_env_vars(var_map, message=None):
         result = "\n".join(
             ["set {}={}".format(x, var_map[x]) for x in var_map])
     else:
-        name = tempfile.mkstemp(suffix='.sh', prefix='maws-')[1]
-        with open(name, 'w') as f:
+        name = tempfile.mkstemp(suffix=".sh", prefix="maws-")[1]
+        with open(name, "w") as f:
             vars_to_set = [
                 "=".join((x, var_map[x]))
                 for x in var_map if var_map[x] is not None]

@@ -28,12 +28,12 @@ else:
 
 
 logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] '
-           '%(message)s',
-    datefmt='%Y-%m-%d:%H:%M:%S')
+    format="%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] "
+           "%(message)s",
+    datefmt="%Y-%m-%d:%H:%M:%S")
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
-logging.getLogger('urllib3').propagate = False
+logging.getLogger("urllib3").propagate = False
 
 VALID_OUTPUT_OPTIONS = ("envvar", "shared", "awscli")
 
@@ -43,10 +43,10 @@ def validate_arn(ctx, param, value):
     # arn:aws:iam::account-id:role/role-name
     if value is None:
         return None
-    elements = value.split(':')
-    if (len(elements) != 6 or elements[0] != 'arn' or elements[2] != 'iam'
-            or not elements[5].startswith('role/')):
-        raise click.BadParameter('Role ARN {} is not a valid ARN'.format(
+    elements = value.split(":")
+    if (len(elements) != 6 or elements[0] != "arn" or elements[2] != "iam"
+            or not elements[5].startswith("role/")):
+        raise click.BadParameter("Role ARN {} is not a valid ARN".format(
             value))
     else:
         return value
@@ -56,8 +56,8 @@ def validate_output(ctx, param, value):
     del ctx, param  # we don't use these arguments
     if value is None:
         pass
-    elif value.lower() == 'awscli' and not find_executable('aws'):
-        raise click.BadParameter('AWS CLI is not detected on local system.')
+    elif value.lower() == "awscli" and not find_executable("aws"):
+        raise click.BadParameter("AWS CLI is not detected on local system.")
 
     return value
 
@@ -70,7 +70,7 @@ def validate_config_file(ctx, param, filenames):
     if (not any([os.path.exists(path) for path in filenames]) and
             mozilla_aws_cli_config is None):
         raise click.BadParameter(
-            'Config files {} not found'.format(" ".join(filenames)))
+            "Config files {} not found".format(" ".join(filenames)))
 
     config = configparser.ConfigParser()
     for filename in filenames:
@@ -85,14 +85,14 @@ def validate_config_file(ctx, param, filenames):
             pass
         except configparser.Error:
             raise click.BadParameter(
-                'Config file {} is not a valid INI file.'.format(filename))
-    if not config.has_section('maws'):
-        config.add_section('maws')
+                "Config file {} is not a valid INI file.".format(filename))
+    if not config.has_section("maws"):
+        config.add_section("maws")
 
-    result = dict(config.items('maws'))
-    for boolean_field in ['print_role_arn']:
+    result = dict(config.items("maws"))
+    for boolean_field in ["print_role_arn"]:
         if boolean_field in result:
-            result[boolean_field] = config.getboolean('maws', boolean_field)
+            result[boolean_field] = config.getboolean("maws", boolean_field)
 
     if mozilla_aws_cli_config is not None:
         # Override the --config file contents with the mozilla_aws_cli_config
@@ -109,25 +109,25 @@ def validate_config_file(ctx, param, filenames):
 
             result[key] = mozilla_aws_cli_config.config[key]
     missing_settings = (
-        {'client_id',
-         'idtoken_for_roles_url',
-         'well_known_url'} - set(result.keys()))
+        {"client_id",
+         "idtoken_for_roles_url",
+         "well_known_url"} - set(result.keys()))
 
     if missing_settings:
-        missing_setting_list = ', '.join(
+        missing_setting_list = ", ".join(
             ["`{}`".format(setting) for setting in missing_settings])
-        plural = 's are' if len(missing_settings) > 1 else ' is'
+        plural = "s are" if len(missing_settings) > 1 else " is"
         filename_list = " ".join(filenames)
         message = (
-            '{missing_setting_list} setting{plural} missing from config '
-            'files: {filename_list}'.format(
+            "{missing_setting_list} setting{plural} missing from config "
+            "files: {filename_list}".format(
                 missing_setting_list=missing_setting_list,
                 plural=plural,
                 filename_list=filename_list))
         raise click.BadOptionUsage(None, message)
 
     if result.get("output", "envvar") not in VALID_OUTPUT_OPTIONS:
-        raise click.BadParameter('{}'.format(result["output"]),
+        raise click.BadParameter("{}".format(result["output"]),
                                  param_hint="`output` in config file")
     return result
 
@@ -195,7 +195,7 @@ def main(batch, config, cache, output,
         return False
     if batch and role_arn is None:
         raise click.exceptions.UsageError(
-            'You must pass a role_arn in batch mode')
+            "You must pass a role_arn in batch mode")
 
     logger.debug("Config : {}".format(config))
 
