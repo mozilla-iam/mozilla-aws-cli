@@ -5,11 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Changed
-* Issuer URL which is used when an AWS web console session expires to enable the
-  user to refresh their session by visiting the federated-aws-rp. Previously the
-  URL shown to the user contained the AWS account ID. Now it contains the more
-  human readable account alias.
 
 ## [1.0.0] - 2020-02-05
 ### Added
@@ -35,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       are async and the frontends movement through the workflow
       is entirely governed by the changes to the login.state value
 * Config file and cache directory locations to standard XDG locations [#178](https://github.com/mozilla-iam/mozilla-aws-cli/issues/178)
+* Issuer URL which is used when an AWS web console session expires to enable the
+  user to refresh their session by visiting the federated-aws-rp. Previously the
+  URL shown to the user contained the AWS account ID. Now it contains the more
+  human readable account alias. [#190](https://github.com/mozilla-iam/mozilla-aws-cli/issues/190)
 
 ### Removed
 * **Support for `/etc/maws/config` and `~/.maws/config` config files** [#178](https://github.com/mozilla-iam/mozilla-aws-cli/issues/178)
