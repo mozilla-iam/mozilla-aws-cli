@@ -16,6 +16,8 @@ script: tox
 # following command to finish PyPI deployment setup:
 # $ travis encrypt --add deploy.password
 deploy:
+  skip_cleanup: true
+  skip_existing: true
   provider: pypi
   distributions: sdist bdist_wheel
   user: __token__
