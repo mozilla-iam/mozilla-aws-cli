@@ -310,8 +310,8 @@ def read_id_token(issuer, client_id, key=None):
     except jose.exceptions.JOSEError:
         return None
 
-    if (id_token_dict.get('exp') - time.time() > CLOCK_SKEW_ALLOWANCE
-            and time.time() - id_token_dict.get('iat') < UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE):
+    if (id_token_dict.get("exp") - time.time() > CLOCK_SKEW_ALLOWANCE
+            and time.time() - id_token_dict.get("iat") < UNDOCUMENTED_AWS_LIMIT_MAX_ID_TOKEN_AGE):
         logger.debug("Successfully read cached id token at: {}".format(path))
         return token
     else:
@@ -365,7 +365,7 @@ def read_sts_credentials(role_arn):
 
             exp = datetime.datetime.strptime(
                 sts["Expiration"],
-                '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
+                "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=utc)
             logger.debug(
                 "Cached STS credentials expire at {} or {} seconds compared "
                 "to the current time of {}. expiry - current time = {}".format(

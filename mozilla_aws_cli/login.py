@@ -165,22 +165,22 @@ class Login:
                 if self.role_arn is None:
                     if self.batch:
                         self.exit(
-                            'Unable to fetch AWS STS credentials with ID '
-                            'token. Exiting due to batch mode.')
+                            "Unable to fetch AWS STS credentials with ID "
+                            "token. Exiting due to batch mode.")
                         return False
                     else:
                         print(
-                            'Unable to assume IAM role. Spawning web role '
-                            'picker to pick a different role.',
+                            "Unable to assume IAM role. Spawning web role "
+                            "picker to pick a different role.",
                             file=sys.stderr)
-                if result == 'finished':
+                if result == "finished":
                     return True
 
         if self.token is not None and self.role_arn is None:
             logger.debug(
                 "We have a cached ID token but either no role was passed on "
                 "the command line or it wasn't valid. Show the role picker")
-            self.state = 'redirecting'
+            self.state = "redirecting"
             url_parameters = {
                 "state": self.oidc_state,
                 "code": "this value is unused"
@@ -250,11 +250,11 @@ class Login:
                        URI. For example 'error' and 'error_description'
         :return:
         """
-        if kwargs.get('error'):
+        if kwargs.get("error"):
             self.exit((
                 "Received an error response from the identity provider in "
                 "response to the /authorize request : {}".format(
-                    kwargs.get('error_description'))
+                    kwargs.get("error_description"))
             ))
             return False
 
@@ -315,7 +315,7 @@ class Login:
                 key=self.jwks,
                 audience=self.client_id)
         except JWTError as e:
-            logger.error('ID Token failed validation : {}'.format(e))
+            logger.error("ID Token failed validation : {}".format(e))
             return None
         logger.debug("ID token dict : {}".format(self.id_token_dict))
         return self.id_token_dict
@@ -336,7 +336,7 @@ class Login:
             return False
 
         logger.debug(
-            'Roles and aliases are {}'.format(self.role_map))
+            "Roles and aliases are {}".format(self.role_map))
         return self.role_map
 
     def exchange_token_for_credentials(self):
@@ -353,20 +353,20 @@ class Login:
             self.print_output()
             return self.state
         except STSWarning as e:
-            if e.args[1] == 'AccessDenied':
+            if e.args[1] == "AccessDenied":
                 # Not authorized to perform sts:AssumeRoleWithWebIdentity
                 # Either that role doesn't exist or it exists but doesn't
                 # permit the user because of the conditions
                 # Either way, lets refresh the group role map in case it's out
                 # of date
-                logger.debug('Unable to assume role {}'.format(self.role_arn))
+                logger.debug("Unable to assume role {}".format(self.role_arn))
                 self.cache = False
                 self.get_role_map()
                 if self.batch:
                     self.exit(
                         "Unable to assume role. Shutting down due to batch "
                         "mode being enabled")
-                    return 'error'
+                    return "error"
 
                 self.state = "role_picker"
                 if self.role_arn in self.role_map.get("roles", []):
@@ -375,10 +375,10 @@ class Login:
                 if len(self.role_map.get("roles", [])) <= 1:
                     self.exit(
                         "Sorry, no valid roles available. Shutting down.")
-                    return 'error'
-            elif e.args[1] == 'ExpiredTokenException':
+                    return "error"
+            elif e.args[1] == "ExpiredTokenException":
                 logger.debug(
-                    'AWS says that the ID token is expired : {}'.format(e[2]))
+                    "AWS says that the ID token is expired : {}".format(e[2]))
                 self.token = None
                 url_parameters = {
                     "scope": self.oidc_scope,
@@ -392,14 +392,14 @@ class Login:
                 url = "{}?{}".format(self.authorization_endpoint,
                                      urlencode(url_parameters))
                 self.state = "restart_auth"
-                self.web_state['idpUrl'] = url
-                return 'restart_auth'
+                self.web_state["idpUrl"] = url
+                return "restart_auth"
             else:
                 self.exit("Unable to contact AWS : {}".format(e))
-                return 'error'
+                return "error"
         except Exception:
             self.exit("Unable to contact AWS : {}".format("".join(traceback.format_exception(*sys.exc_info()))))
-            return 'error'
+            return "error"
 
     def print_output(self):
         # TODO: Create a global config object?
@@ -414,9 +414,9 @@ class Login:
                      for x in self.credentials
                      if x in ENV_VARIABLE_NAME_MAP})
                 output_map.update({
-                    'AWS_PROFILE': None,
-                    'AWS_SHARED_CREDENTIALS_FILE': None,
-                    'MAWS_PROMPT': self.profile_name})
+                    "AWS_PROFILE": None,
+                    "AWS_SHARED_CREDENTIALS_FILE": None,
+                    "MAWS_PROMPT": self.profile_name})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -424,9 +424,9 @@ class Login:
                     self.credentials)
                 if path:
                     output_map.update({
-                        'AWS_PROFILE': self.profile_name,
-                        'AWS_SHARED_CREDENTIALS_FILE': path,
-                        'MAWS_PROMPT': self.profile_name})
+                        "AWS_PROFILE": self.profile_name,
+                        "AWS_SHARED_CREDENTIALS_FILE": path,
+                        "MAWS_PROMPT": self.profile_name})
                     output_map.update({
                         x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
@@ -435,17 +435,17 @@ class Login:
                                              self.credentials):
                     if self.profile_name != "default":
                         output_map.update({
-                            'AWS_PROFILE': self.profile_name,
-                            'AWS_SHARED_CREDENTIALS_FILE': None,
-                            'MAWS_PROMPT': self.profile_name
+                            "AWS_PROFILE": self.profile_name,
+                            "AWS_SHARED_CREDENTIALS_FILE": None,
+                            "MAWS_PROMPT": self.profile_name
                         })
                         output_map.update({
                             x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
-                    logger.error('Unable to write credentials with aws-cli.')
+                    logger.error("Unable to write credentials with aws-cli.")
             else:
                 raise ValueError(
-                    'Output setting unknown : {}'.format(self.output))
+                    "Output setting unknown : {}".format(self.output))
 
             message = "Environment variables set for role {}".format(
                 self.role_arn) if self.print_role_arn else None
@@ -473,7 +473,7 @@ class Login:
         })
         logger.debug("Web Console params: {}".format(query))
 
-        url_tuple = urlparse('https://signin.aws.amazon.com/federation')
+        url_tuple = urlparse("https://signin.aws.amazon.com/federation")
         url = urlunparse(url_tuple._replace(query=query))
         try:
             token = requests.get(url).json()
@@ -485,10 +485,10 @@ class Login:
         account_id = self.role_arn.split(":")[4]
         account_alias = self.role_map.get("aliases", {}).get(
             account_id, [account_id])[0]
-        role = self.role_arn.split(':')[5].split('/')[-1]
+        role = self.role_arn.split(":")[5].split("/")[-1]
         issuer_url_query = urlencode({"account": account_alias, "role": role})
         issuer_url = urlunparse(
-            ('https', self.issuer_domain, '/', '', issuer_url_query, ''))
+            ("https", self.issuer_domain, "/", "", issuer_url_query, ""))
 
         query = urlencode({
             "Action": "login",

@@ -7,7 +7,7 @@ import sys
 
 
 logger = logging.getLogger(__name__)
-STSWarning = type('STSWarning', (Warning,), dict())
+STSWarning = type("STSWarning", (Warning,), dict())
 
 
 def base64_without_padding(data):
@@ -51,4 +51,4 @@ def strip_xmlns(tag):
     # Turn tag like
     # "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken" into
     # "SessionToken"
-    return tag.split('}', maxsplit=1)[-1]
+    return tag.split("}", maxsplit=1)[-1]
