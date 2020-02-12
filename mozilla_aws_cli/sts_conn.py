@@ -1,3 +1,4 @@
+import datetime
 import logging
 from xml.etree import ElementTree
 
@@ -97,6 +98,13 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
             {"sts": "https://sts.amazonaws.com/doc/2011-06-15/"})
         credentials = dict([
             (strip_xmlns(x.tag), x.text) for x in credential_children])
+        if 'Expiration' in credentials:
+            utc_time = datetime.datetime.strptime(
+                credentials['Expiration'], "%Y-%m-%dT%H:%M:%SZ")
+            epoch_time = int(
+                (utc_time -
+                 datetime.datetime.utcfromtimestamp(0)).total_seconds())
+            credentials['ExpirationSeconds'] = epoch_time
 
         # Cache the STS credentials to disk
         write_sts_credentials(role_arn, credentials)

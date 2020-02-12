@@ -447,6 +447,9 @@ class Login:
                 raise ValueError(
                     "Output setting unknown : {}".format(self.output))
 
+            if 'ExpirationSeconds' in self.credentials:
+                output_map['AWS_SESSION_EXPIRATION'] = self.credentials['ExpirationSeconds']
+
             message = "Environment variables set for role {}".format(
                 self.role_arn) if self.print_role_arn else None
 

@@ -12,7 +12,13 @@ from .cache import read_group_role_map, write_group_role_map
 logger = logging.getLogger(__name__)
 
 PROMPT_BASH_CODE = r'''function maws_profile {
-    test -n "${MAWS_PROMPT}" && echo " (${MAWS_PROMPT})"
+    if [ -n "${MAWS_PROMPT}" ]; then
+        if [ -n "${AWS_SESSION_EXPIRATION}" ] && [ $(date +%s) -gt ${AWS_SESSION_EXPIRATION} ]; then
+            echo " (maws keys expired)"
+        else
+            echo " (${MAWS_PROMPT})"
+        fi
+    fi
 }
 
 if [ -n "${PS1##*\$(maws_profile)*}" ]; then
@@ -35,10 +41,12 @@ def output_set_env_vars(var_map, message=None):
         name = tempfile.mkstemp(suffix=".sh", prefix="maws-")[1]
         with open(name, "w") as f:
             vars_to_set = [
-                "=".join((x, var_map[x]))
+                "=".join((x, str(var_map[x])))
                 for x in var_map if var_map[x] is not None]
             if vars_to_set:
                 f.write("export {}\n".format(" ".join(vars_to_set)))
+                f.write('alias maws-logout="unset {}"\n'.format(
+                    " ".join([x for x in var_map if var_map[x] is not None])))
             vars_to_unset = [x for x in var_map if var_map[x] is None]
             if vars_to_unset:
                 f.write("unset {}\n".format(" ".join(vars_to_unset)))
