@@ -101,7 +101,9 @@ def get_credentials(bearer_token, id_token_dict, role_arn):
         if 'Expiration' in credentials:
             utc_time = datetime.datetime.strptime(
                 credentials['Expiration'], "%Y-%m-%dT%H:%M:%SZ")
-            epoch_time = int((utc_time - datetime.datetime(1970, 1, 1)).total_seconds())
+            epoch_time = int(
+                (utc_time -
+                 datetime.datetime.utcfromtimestamp(0)).total_seconds())
             credentials['ExpirationSeconds'] = epoch_time
 
         # Cache the STS credentials to disk
