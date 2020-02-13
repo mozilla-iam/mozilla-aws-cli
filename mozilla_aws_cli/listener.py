@@ -132,12 +132,6 @@ def get_heartbeat():
                 "No response from web interface for {} seconds, shutting "
                 "down.".format(login.max_sleep_no_state_check))
             exit_sigint()
-        else:
-            logger.debug(
-                "{} age {:.2f} max {}".format(
-                    login.state,
-                    time.time() - login.last_state_check,
-                    login.max_sleep_no_state_check))
         time.sleep(0.5)
     return jsonify({
         "result": "heartbeat_done",
@@ -147,13 +141,6 @@ def get_heartbeat():
 
 @app.route("/api/state")
 def get_state():
-    logger.debug(
-        "Call received to /api/state with id of {}. Returning state {} and "
-        "web_state {}".format(
-            request.args.get("id"),
-            login.state,
-            login.web_state
-        ))
     if request.args.get("id") != login.id:
         return jsonify({
             "result": "invalid_id",
