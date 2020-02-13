@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2020-02-13
+### Changed
+* Revert the change in [#160](https://github.com/mozilla-iam/mozilla-aws-cli/issues/160)
+  in which the URL format for idtoken_for_roles_url was changed from 
+  https://example.com/roles to https://example.com/. Now with this reversion, 
+  the idtoken_for_roles_url should again be the full URL ending in `/roles`.
+  This change is not backwards compatible and will require that a config file
+  or config module be changed to use the new full URL.
+
 ## [1.0.0] - 2020-02-05
 ### Added
 * Feature to pass the "cache" argument that the user asserts on the command line
@@ -90,7 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.1.0...v0.1.1
