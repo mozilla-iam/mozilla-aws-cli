@@ -422,7 +422,7 @@ def verify_dir_permissions(path=CONFIG_DIR):
         # Attempt to create the directory with the right permissions, if it
         # doesn't exist
         try:
-            os.mkdir(path)
+            os.makedirs(path)
         except (IOError, OSError):
             logger.debug("Unable to create directory: {}".format(path))
             return False
