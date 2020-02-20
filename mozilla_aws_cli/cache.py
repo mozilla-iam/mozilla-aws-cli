@@ -111,9 +111,13 @@ def _requires_safe_cache_dir(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not safe:
-            mode = os.stat(CACHE_DIR).st_mode
-            logger.debug(
-                "Cache directory at {} has invalid permissions of {}.".format(CACHE_DIR, mode))
+            if os.path.exists(CACHE_DIR):
+                mode = os.stat(CACHE_DIR).st_mode
+                logger.debug("Cache directory at {} has invalid permissions "
+                             "of {}.".format(CACHE_DIR, mode))
+            else:
+                logger.debug(
+                    "Cache directory {} doesn't exist".format(CACHE_DIR))
         else:
             return func(*args, **kwargs)
 
