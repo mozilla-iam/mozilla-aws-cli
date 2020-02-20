@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2020-02-20
+
+### Fixed
+* Case where a user has no `~/.cache/` directory and `maws` fails to create it [#199](https://github.com/mozilla-iam/mozilla-aws-cli/issues/199)
+
 ## [1.1.0] - 2020-02-13
 ### Changed
 * Revert the change in [#160](https://github.com/mozilla-iam/mozilla-aws-cli/issues/160)
@@ -99,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.1.1...v0.2.0
