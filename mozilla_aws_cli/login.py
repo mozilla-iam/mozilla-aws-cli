@@ -353,7 +353,7 @@ class Login:
             self.print_output()
             return self.state
         except STSWarning as e:
-            if e.args[1] == "AccessDenied":
+            if len(e.args) > 1 and e.args[1] == "AccessDenied":
                 # Not authorized to perform sts:AssumeRoleWithWebIdentity
                 # Either that role doesn't exist or it exists but doesn't
                 # permit the user because of the conditions
@@ -376,7 +376,7 @@ class Login:
                     self.exit(
                         "Sorry, no valid roles available. Shutting down.")
                     return "error"
-            elif e.args[1] == "ExpiredTokenException":
+            elif len(e.args) > 1 and e.args[1] == "ExpiredTokenException":
                 logger.debug(
                     "AWS says that the ID token is expired : {}".format(e[2]))
                 self.token = None

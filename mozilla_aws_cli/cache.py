@@ -111,9 +111,13 @@ def _requires_safe_cache_dir(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not safe:
-            mode = os.stat(CACHE_DIR).st_mode
-            logger.debug(
-                "Cache directory at {} has invalid permissions of {}.".format(CACHE_DIR, mode))
+            if os.path.exists(CACHE_DIR):
+                mode = os.stat(CACHE_DIR).st_mode
+                logger.debug("Cache directory at {} has invalid permissions "
+                             "of {}.".format(CACHE_DIR, mode))
+            else:
+                logger.debug(
+                    "Cache directory {} doesn't exist".format(CACHE_DIR))
         else:
             return func(*args, **kwargs)
 
@@ -422,7 +426,7 @@ def verify_dir_permissions(path=CONFIG_DIR):
         # Attempt to create the directory with the right permissions, if it
         # doesn't exist
         try:
-            os.mkdir(path)
+            os.makedirs(path)
         except (IOError, OSError):
             logger.debug("Unable to create directory: {}".format(path))
             return False
