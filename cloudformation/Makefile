@@ -82,6 +82,18 @@ deploy-idtoken-for-roles:
 		  AllowedMapBuilderSubPrefix=ad|Mozilla-LDAP|" \
 		 AliasesEndpointUrl
 
+.PHONE: create-federated-role-dev
+create-federated-role-dev:
+	aws iam create-role \
+	  --role-name MAWS-test \
+	  --description "Maws Test Role https://github.com/mozilla-iam/mozilla-aws-cli/blob/master/cloudformation/Makefile" \
+	  --max-session-duration 43200 \
+	  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::656532927350:oidc-provider/auth-dev.mozilla.auth0.com/"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"auth-dev.mozilla.auth0.com/:aud":"xRFzU2bj7Lrbo3875aXwyxIArdkq1AOT"},"ForAnyValue:StringEquals":{"auth-dev.mozilla.auth0.com/:amr":"team_opsec"}}}]}'
+	aws iam put-role-policy \
+	  --role-name MAWS-test \
+	  --policy-name AllowSTSGetCallerIdentity \
+	  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:GetCallerIdentity","Resource":"*"}]}'
+
 .PHONE: test-idtoken-for-roles
 test-idtoken-for-roles:
 	URL=`aws cloudformation describe-stacks --stack-name $(IDTOKEN_FOR_ROLES_STACK_NAME) --query "Stacks[0].Outputs[?OutputKey=='AliasesEndpointUrl'].OutputValue" --output text` && \
