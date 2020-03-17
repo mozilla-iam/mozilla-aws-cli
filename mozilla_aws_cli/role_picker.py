@@ -93,7 +93,10 @@ def get_roles_and_aliases(endpoint, token, key, cache=True):
                 "Unable to retrieve role map at: {}. Please check your "
                 "URL.".format(endpoint))
             return None
-        elif "error" in role_map:
+        elif "error" in role_map or "roles" not in role_map:
+            if "message" in role_map and "error" not in role_map:
+                role_map["error"] = role_map["message"]
+
             logging.error(
                 "Unable to retrieve role map: {}".format(role_map["error"]))
             return None
