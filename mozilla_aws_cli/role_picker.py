@@ -21,7 +21,7 @@ PROMPT_BASH_CODE = r'''function maws_profile {
     fi
 }
 
-if [ -n "${PS1##*\$(maws_profile)*}" ]; then
+if test "${PS1#*\$\(maws_profile\)}" = "$PS1"; then
     # maws_profile is missing from PS1
     if [ "${PS1%\$ }" != "${PS1}" ]; then
         PS1="${PS1%\$ }\$(maws_profile)\$ "
