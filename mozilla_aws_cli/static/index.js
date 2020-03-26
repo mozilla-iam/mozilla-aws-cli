@@ -151,7 +151,7 @@ const pollState = setInterval(async () => {
         setMessage("Another federation session has been detected. Shutting down.");
         clearInterval(pollState);
     } else if (remoteState.state === "error") {
-        setMessage(`Encountered error : ${remoteState.value}`);
+        setMessage(`Encountered error : ${remoteState.value.message}`);
         await shutdown();
     } else if (remoteState.state === "finished") {
         // shutdown the web server, the poller, and close the window
