@@ -119,6 +119,10 @@ class Login:
         # If we're using the AWS CLI output, what profile should we use
         self.profile_name = profile_name
 
+        # Whether we should print the output map, which isn't used by
+        # output that is meant to be consumed programmatically
+        self.print_output_map = True
+
         # This used by the web application to poll the login state
         self.state = "pending"
         self.web_state = {
@@ -443,6 +447,22 @@ class Login:
                             x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
                     logger.error("Unable to write credentials with aws-cli.")
+            elif self.output == "boto":
+                # this output can be used directly by boto3
+                print(json.dumps({
+                        "aws_access_key_id": self.credentials["AccessKeyId"],
+                        "aws_secret_access_key": self.credentials["SecretAccessKey"],
+                        "aws_session_token": self.credentials["SessionToken"]},
+                    indent=2))
+                self.print_output_map = False
+            elif self.output == "js":
+                # this output can be used directly by the AWS Javascript SDK
+                print(json.dumps({
+                        "accessKeyId": self.credentials["AccessKeyId"],
+                        "secretAccessKey": self.credentials["SecretAccessKey"],
+                        "sessionToken": self.credentials["SessionToken"]},
+                    indent=2))
+                self.print_output_map = False
             else:
                 raise ValueError(
                     "Output setting unknown : {}".format(self.output))
@@ -453,7 +473,7 @@ class Login:
             message = "Environment variables set for role {}".format(
                 self.role_arn) if self.print_role_arn else None
 
-            if output_map:
+            if output_map and self.print_output_map:
                 print(output_set_env_vars(output_map, message))
 
             if self.web_console:

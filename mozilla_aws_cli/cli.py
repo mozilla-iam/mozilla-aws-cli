@@ -35,7 +35,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 logging.getLogger("urllib3").propagate = False
 
-VALID_OUTPUT_OPTIONS = ("envvar", "shared", "awscli")
+VALID_OUTPUT_OPTIONS = ("awscli", "boto", "envvar", "js", "shared")
 
 
 def validate_arn(ctx, param, value):
