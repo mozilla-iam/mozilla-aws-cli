@@ -71,12 +71,16 @@ Additional optional settings that can be configured in the config file are
   ID Token when the `https://sso.mozilla.com/claim/groups` scope is requested.
 * `output` : The output format for the tool to use. This must be one of the
   following values
+  * `awscli` : `maws` calls into the `aws` application, configuring it directly
+  * `boto` : Outputs JSON to stdout to be directly consumed by the
+    [boto3](https://github.com/boto/boto3) library
   * `envvar` : A set of environment variables that load the temporary
     credentials directly in to the environment without writing them to a file
+  * `js` : Outputs JSON to stdout to be directly consumed by the
+    [AWS JavaScript SDK](https://github.com/aws/aws-sdk-js)
   * `shared` : A set of environment variables that reference a dedicated maws
     AWS config file which is created
-  * `awscli` : A set of environment variables that reference the default AWS
-    CLI / AWS SDK config file which is written to
+
 * `print_role_arn` : Whether or not `maws` should display the AWS IAM Role ARN
   on the command line. This can values like `yes`, `no`, `true`, `false`
 
@@ -128,6 +132,41 @@ You could eval the results
 Take the output of the command and copy paste it into your terminal
 
 `maws`
+
+### Using programmatically
+
+`maws` can be used programmatically with libraries such as
+[boto3](https://github.com/boto/boto3) from Amazon, if you'd rather
+not have your command line configured. This can be especially useful when
+`maws`  doesn't have a command-line environment, such as when running
+code directly inside an IDE.
+
+Simply capture the output from `maws` and use it directly in your program:
+
+```python
+import boto3
+import json
+from subprocess import Popen, PIPE
+
+if __name__ == "__main__":
+    with Popen(["maws", "-o", "boto"], stdout=PIPE) as proc:
+        boto_args = json.loads(proc.stdout.read())
+
+    s3_client = boto3.client('s3', **boto_args)
+
+    print(s3_client.list_buckets())
+```
+
+```javascript
+const AWS = require("aws-sdk");
+const child_process = require("child_process");
+
+const botoArgs = JSON.parse(child_process.spawnSync("maws", ["-o", "js"]).stdout);
+
+new AWS.S3(botoArgs).listBuckets({}, (err, data) => {
+  console.log(data);
+});
+```
 
 ## Sequence diagram
 
