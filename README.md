@@ -135,13 +135,15 @@ Take the output of the command and copy paste it into your terminal
 
 ### Using programmatically
 
-`maws` can be used programmatically with libraries such as
-[boto3](https://github.com/boto/boto3) from Amazon, if you'd rather
-not have your command line configured. This can be especially useful when
-`maws`  doesn't have a command-line environment, such as when running
-code directly inside an IDE.
+In general, it is recommended to keep your code independent of `maws` by
+using environmental variables such as `AWS_PROFILE` and letting the
+underlying libraries read from your local AWS configuration. However,
+there are situations (such as needing to connect to multiple accounts)
+where this may not be an option.
 
-Simply capture the output from `maws` and use it directly in your program:
+In these cases, `maws` can be used directly with libraries such as
+[boto3](https://github.com/boto/boto3). To do this, capture the output
+from  `maws` and use it directly in your program:
 
 ```python
 import boto3
