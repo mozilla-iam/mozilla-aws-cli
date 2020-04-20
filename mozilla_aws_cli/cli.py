@@ -162,6 +162,7 @@ def validate_cache(ctx, param, cache):
     help="How to output the AWS API keys",
     callback=validate_output
 )
+@click.option("--print-url", is_flag=True, help="Print the federation URL to stdout")
 @click.option("--profile",
               metavar="<profile>",
               help="Override profile name used with `awscli` or `shared` "
@@ -174,7 +175,7 @@ def validate_cache(ctx, param, cache):
     callback=validate_arn)
 @click.option("-v", "--verbose", is_flag=True, help="Print debugging messages")
 @click.option("-w", "--web-console", is_flag=True, help="Open AWS web console")
-def main(batch, config, cache, output,
+def main(batch, config, cache, output, print_url,
          profile, role_arn, verbose, web_console):
     """Fetch AWS API Keys using SSO web login"""
     if verbose:
@@ -196,6 +197,9 @@ def main(batch, config, cache, output,
     if batch and role_arn is None:
         raise click.exceptions.UsageError(
             "You must pass a role_arn in batch mode")
+    if web_console and print_url:
+        raise click.exceptions.UsageError(
+            "Cannot print URL to output and redirect to web console")
 
     logger.debug("Config : {}".format(config))
 
@@ -215,7 +219,8 @@ def main(batch, config, cache, output,
         token_endpoint=config["openid-configuration"]["token_endpoint"],
         web_console=web_console,
         issuer_domain=config.get("issuer_domain", "aws.sso.mozilla.com"),
-        cache=cache
+        cache=cache,
+        print_url=print_url
     )
 
     login.login()
