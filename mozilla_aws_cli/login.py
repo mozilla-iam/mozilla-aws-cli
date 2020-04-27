@@ -64,7 +64,8 @@ class Login:
         token_endpoint="https://auth.mozilla.auth0.com/oauth/token",
         web_console=False,
         issuer_domain=None,
-        cache=True
+        cache=True,
+        print_url=False,
     ):
 
         # We use this for tracking various bits
@@ -113,7 +114,9 @@ class Login:
         self.last_state_check = None
         self.max_sleep_no_state_check = 2  # seconds
 
-        # Whether we should open the AWS web console or not
+        # Whether we should open the AWS web console or not and whether we
+        # should print the URL to stdout
+        self.print_url = print_url
         self.web_console = web_console
 
         # If we're using the AWS CLI output, what profile should we use
@@ -476,7 +479,7 @@ class Login:
             if output_map and self.print_output_map:
                 print(output_set_env_vars(output_map, message))
 
-            if self.web_console:
+            if self.web_console or self.print_url:
                 self.aws_federate()
             else:
                 self.state = "finished"
@@ -523,13 +526,17 @@ class Login:
 
         logger.debug("Web browser console URL: {}".format(url))
 
-        if self.opened_tab:
+        if self.print_url:
+            print(url)
+            self.state = "finished"
+        elif self.opened_tab:
             self.state = "aws_federate"
             self.web_state["awsFederationUrl"] = url
         else:
             self.opened_tab = True
             webbrowser.open_new_tab(url)
             self.state = "finished"
+
         return url
 
 
