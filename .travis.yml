@@ -11,23 +11,6 @@ install: pip install -U tox-travis
 # Command to run tests, e.g. python setup.py test
 script: tox
 
-# Assuming you have installed the travis-ci CLI tool, after you
-# create the Github repo and add it to Travis, run the
-# following command to finish PyPI deployment setup:
-# $ travis encrypt --add deploy.password
-deploy:
-  skip_cleanup: true
-  skip_existing: true
-  provider: pypi
-  distributions: sdist bdist_wheel
-  user: __token__
-  password:
-    secure: "jxSja/sBU4RMZs7I171EE0d6T/O5PYzYbNHAzeFdH1bACL2jcEXyR8qGMifNZmy0TnHtMxzRWibrDRznW9kw/2NtKwjpYlqiZDkyEQG6L14OT1gUuW03vO48uXLn0EtWbon5zbOfqjlkrdhshNPyrYeU5Mj53QedrvI2AHIoU5s/IZebg+C/twt3KgBUSt16NThae6V7RIae+XX49y3xgPpxizdVBC4ZrNns+WQY+4jZFGLDJmBUZrQVcZYgRH1vydMomvhbRFc/YDrrm4hC2nLTA8uMbKTAXyOEHPcfwYbgtNL/ixArhlGVA7zGn55QUoC2Pd+mx0tzJSJPNLt8Uvy4gX9XMdwKZgZNmJ4AVfZBII2Nr1TwbOgNeQEHrDWPhdDxR0RT48U7vi/Bo+TBYIyJGJMPohfND4qVPO7cvmrKNTNQyytz6j6WTBFs7+3hvs711DgEIjLsBdVWz79GqzuRatg3Ph7+QqA301PC0h2dUDCEoQFE9NQ9kp/Gi5+l7hfMYPCm0k+hjqjRKj81Dg01w1rUBVpKie+8OhJGMrthJscbvy7JyocCIXY4KZC0rz9f1bffz84F3MCucZ5qqprWb7r5uWa7m0ZbradHnhwz8vLzjfrP4KJFMxOLu+3bhGv8XiaELGmc1CXPa0n19z0TV3qLDUAt7z7z8ZImC1s="
-  on:
-    tags: true
-    repo: mozilla-iam/mozilla-aws-cli
-    python: 3.6
-
 jobs:
   include:
     - stage: lambda
