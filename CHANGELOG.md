@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2020-02-27
+
+### Fixed
+*  Fix case where zsh prompt has duplicated maws profile names added [#207](https://github.com/mozilla-iam/mozilla-aws-cli/issues/207)
+
+### Added
+* Output format `boto` which outputs JSON that can be consumed in Python boto3 
+  code and `js` which works in Javascript with the AWS Javascript SDK [#208](https://github.com/mozilla-iam/mozilla-aws-cli/issues/208)
+* Documentation on the new `boto` and `js` output formats [#209](https://github.com/mozilla-iam/mozilla-aws-cli/issues/209) [#210](https://github.com/mozilla-iam/mozilla-aws-cli/issues/210)
+* `--print-url` argument which prints out the federation URL [#212](https://github.com/mozilla-iam/mozilla-aws-cli/issues/212)
+
 ## [1.1.1] - 2020-02-20
 
 ### Fixed
@@ -104,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v0.2.0...v1.0.0
