@@ -200,6 +200,9 @@ def main(batch, config, cache, output, print_url,
     if web_console and print_url:
         raise click.exceptions.UsageError(
             "Cannot print URL to output and redirect to web console")
+    if output in ("awscli", "shared") and profile is None:
+        raise click.exceptions.UsageError(
+            "You must specify a profile name with `awscli` or `shared` output")
 
     logger.debug("Config : {}".format(config))
 

@@ -30,7 +30,7 @@ def generate_challenge(code_verifier):
         hashlib.sha256(code_verifier.encode()).digest())
 
 
-def role_arn_to_profile_name(role_arn, role_map):
+def role_arn_to_role_name(role_arn, role_map):
     if not role_map:
         role_map = {}
 

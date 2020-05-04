@@ -26,7 +26,7 @@ from .utils import (
     base64_without_padding,
     exit_sigint,
     generate_challenge,
-    role_arn_to_profile_name,
+    role_arn_to_role_name,
     STSWarning
 )
 
@@ -411,10 +411,9 @@ class Login:
     def print_output(self):
         # TODO: Create a global config object?
         if self.credentials is not None:
-            if self.profile_name is None:
-                self.profile_name = role_arn_to_profile_name(
-                    self.role_arn, self.role_map)
             output_map = {}
+            self.role = role_arn_to_role_name(self.role_arn, self.role_map)
+
             if self.output == "envvar":
                 output_map.update(
                     {ENV_VARIABLE_NAME_MAP[x]: self.credentials[x]
@@ -423,7 +422,7 @@ class Login:
                 output_map.update({
                     "AWS_PROFILE": None,
                     "AWS_SHARED_CREDENTIALS_FILE": None,
-                    "MAWS_PROMPT": self.profile_name})
+                    "MAWS_PROMPT": self.role})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -433,21 +432,19 @@ class Login:
                     output_map.update({
                         "AWS_PROFILE": self.profile_name,
                         "AWS_SHARED_CREDENTIALS_FILE": path,
-                        "MAWS_PROMPT": self.profile_name})
+                        "MAWS_PROMPT": self.role})
                     output_map.update({
                         x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.profile_name,
                                              self.credentials):
-                    if self.profile_name != "default":
-                        output_map.update({
-                            "AWS_PROFILE": self.profile_name,
-                            "AWS_SHARED_CREDENTIALS_FILE": None,
-                            "MAWS_PROMPT": self.profile_name
-                        })
-                        output_map.update({
-                            x: None for x in ENV_VARIABLE_NAME_MAP.values()})
+                    output_map.update({
+                        "AWS_PROFILE": self.profile_name,
+                        "AWS_SHARED_CREDENTIALS_FILE": None,
+                        "MAWS_PROMPT": self.role})
+                    output_map.update({
+                        x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
                     logger.error("Unable to write credentials with aws-cli.")
             elif self.output == "boto":
