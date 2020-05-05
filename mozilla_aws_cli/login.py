@@ -26,7 +26,7 @@ from .utils import (
     base64_without_padding,
     exit_sigint,
     generate_challenge,
-    role_arn_to_role_name,
+    role_arn_to_display_name,
     STSWarning
 )
 
@@ -412,7 +412,7 @@ class Login:
         # TODO: Create a global config object?
         if self.credentials is not None:
             output_map = {}
-            self.role = role_arn_to_role_name(self.role_arn, self.role_map)
+            self.role = role_arn_to_display_name(self.role_arn, self.role_map)
 
             if self.output == "envvar":
                 output_map.update(
