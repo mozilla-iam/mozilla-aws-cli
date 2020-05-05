@@ -412,7 +412,12 @@ class Login:
         # TODO: Create a global config object?
         if self.credentials is not None:
             output_map = {}
+
+            # get a role name (for the command line), and use it for the profile
+            # name if it wasn't manually overridden
             self.role = role_arn_to_display_name(self.role_arn, self.role_map)
+            if self.profile_name is None:
+                self.profile_name = self.role
 
             if self.output == "envvar":
                 output_map.update(
