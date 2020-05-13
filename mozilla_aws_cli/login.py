@@ -86,7 +86,7 @@ class Login:
         self.output = self.config.get("output", "envvar")
         self.print_role_arn = self.config.get("print_role_arn", True)
         self.redirect_uri = None
-        self.role = None
+        self.display_name = None
         self.role_arn = role_arn
         self.role_map = None
 
@@ -415,9 +415,9 @@ class Login:
 
             # get a role name (for the command line), and use it for the profile
             # name if it wasn't manually overridden
-            self.role = role_arn_to_display_name(self.role_arn, self.role_map)
+            self.display_name = role_arn_to_display_name(self.role_arn, self.role_map)
             if self.profile_name is None:
-                self.profile_name = self.role
+                self.profile_name = self.display_name
 
             if self.output == "envvar":
                 output_map.update(
@@ -427,7 +427,7 @@ class Login:
                 output_map.update({
                     "AWS_PROFILE": None,
                     "AWS_SHARED_CREDENTIALS_FILE": None,
-                    "MAWS_PROMPT": self.role})
+                    "MAWS_PROMPT": self.display_name})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -437,7 +437,7 @@ class Login:
                     output_map.update({
                         "AWS_PROFILE": self.profile_name,
                         "AWS_SHARED_CREDENTIALS_FILE": path,
-                        "MAWS_PROMPT": self.role})
+                        "MAWS_PROMPT": self.display_name})
                     output_map.update({
                         x: None for x in ENV_VARIABLE_NAME_MAP.values()})
             elif self.output == "awscli":
@@ -447,25 +447,29 @@ class Login:
                     output_map.update({
                         "AWS_PROFILE": self.profile_name,
                         "AWS_SHARED_CREDENTIALS_FILE": None,
-                        "MAWS_PROMPT": self.role})
+                        "MAWS_PROMPT": self.display_name})
                     output_map.update({
                         x: None for x in ENV_VARIABLE_NAME_MAP.values()})
                 else:
                     logger.error("Unable to write credentials with aws-cli.")
             elif self.output == "boto":
                 # this output can be used directly by boto3
-                print(json.dumps({
+                print(json.dumps(
+                    {
                         "aws_access_key_id": self.credentials["AccessKeyId"],
                         "aws_secret_access_key": self.credentials["SecretAccessKey"],
-                        "aws_session_token": self.credentials["SessionToken"]},
+                        "aws_session_token": self.credentials["SessionToken"]
+                    },
                     indent=2))
                 self.print_output_map = False
             elif self.output == "js":
                 # this output can be used directly by the AWS Javascript SDK
-                print(json.dumps({
+                print(json.dumps(
+                    {
                         "accessKeyId": self.credentials["AccessKeyId"],
                         "secretAccessKey": self.credentials["SecretAccessKey"],
-                        "sessionToken": self.credentials["SessionToken"]},
+                        "sessionToken": self.credentials["SessionToken"]
+                    },
                     indent=2))
                 self.print_output_map = False
             else:
