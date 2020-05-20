@@ -7,6 +7,7 @@ jobs:
   release:
     name: Build and Publish
     runs-on: ubuntu-latest
+    if: github.repository == 'mozilla-iam/mozilla-aws-cli'  # Only deploy from mozilla-iam not from forks
     steps:
       - name: Install build dependencies
         run: python3 -m pip install --upgrade wheel setuptools
