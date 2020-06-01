@@ -92,12 +92,25 @@ def get_setting(name):
         return value
 
 
-def is_valid_identity_provider(arn):
+def is_valid_identity_provider(arn: str, aws_account_id: str) -> bool:
+    """Return whether or not the identity provider ARN is valid
+
+    Check that
+    * The ARN is well formatted
+    * The AWS Account ID in the ARN is the local Account ID
+    * The suffix of the ARN matches one of the VALID_FEDERATED_PRINCIPLE_URLS with the URL scheme stripped
+    :param arn: The ARN of the AWS IAM Identity Provider
+    :param aws_account_id: The AWS account ID
+    :return: True if the ARN is valid otherwise False
+    """
+    elements = arn.split(':')
     return (
-        arn[:13] == 'arn:aws:iam::'
-        and arn[25:40] == ':oidc-provider/'
-        and arn[40:] in
-        [x[8:] for x in get_setting('VALID_FEDERATED_PRINCIPAL_URLS')])
+        len(elements) == 6
+        and elements[:4] == ['arn', 'aws', 'iam', '']
+        and elements[4] == aws_account_id
+        and elements[5].split('/', 1)[0] == 'oidc-provider'
+        and elements[5].split('/', 1)[1] in [x[8:] for x in get_setting('VALID_FEDERATED_PRINCIPAL_URLS')]
+    )
 
 
 def get_paginated_results(
@@ -217,7 +230,7 @@ def emit_event_to_mozdef(
         # to emit an event to MozDef with this data
 
 
-def get_groups_from_policy(policy) -> list:
+def get_groups_from_policy(policy, aws_account_id) -> list:
     # groups will be stored as a set to prevent duplicates and then return
     # a list when everything is finished
     policy_groups = set()
@@ -254,7 +267,8 @@ def get_groups_from_policy(policy) -> list:
             continue
 
         if not is_valid_identity_provider(
-                statement.get('Principal', {}).get('Federated')):
+                statement.get('Principal', {}).get('Federated'),
+                aws_account_id):
             logger.debug(
                 'Skipping policy statement with Federated Principal {} which '
                 'is not valid'.format(
@@ -311,7 +325,9 @@ def get_groups_from_policy(policy) -> list:
                             "wildcards. Operator {} and groups {}".format(
                                 operator, groups))
                         raise InvalidPolicyError
-
+                    logger.debug(
+                        'Valid groups {} found in a policy in {}'.format(
+                            groups, aws_account_id))
                     policy_groups.update(groups)
 
     return list(policy_groups)
@@ -469,7 +485,8 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
                     'Checking assume role policy document for role {} in AWS '
                     'account {}'.format(role['RoleName'], aws_account_id))
                 groups = get_groups_from_policy(
-                    role['AssumeRolePolicyDocument'])
+                    role['AssumeRolePolicyDocument'],
+                    aws_account_id)
             except UnsupportedPolicyError:
                 # a policy intended to work with the right IdP but with
                 #   conditions beyond what we can handle
