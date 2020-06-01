@@ -25,7 +25,9 @@ const selectRole = async (e) => {
     await fetch("/api/roles", {
         method: "POST",
         body: JSON.stringify({
+            alias: e.target.dataset.alias,
             arn: e.target.dataset.arn,
+            role: e.target.dataset.role,
         }),
         headers: {
             "Content-Type": "application/json",
@@ -152,6 +154,9 @@ const pollState = setInterval(async () => {
         clearInterval(pollState);
     } else if (remoteState.state === "error") {
         setMessage(`Encountered error : ${remoteState.value.message}`);
+        await shutdown();
+    } else if (remoteState.state === "info") {
+        setMessage(remoteState.value.message);
         await shutdown();
     } else if (remoteState.state === "finished") {
         // shutdown the web server, the poller, and close the window
