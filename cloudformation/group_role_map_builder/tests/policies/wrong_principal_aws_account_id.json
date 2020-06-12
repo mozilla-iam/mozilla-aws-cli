@@ -5,7 +5,7 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/auth.thisisadifferentidp.auth0.com/"
+        "Federated": "arn:aws:iam::111111111111:oidc-provider/auth.example.auth0.com/"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {

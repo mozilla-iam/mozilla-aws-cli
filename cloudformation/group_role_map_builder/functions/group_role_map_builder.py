@@ -271,11 +271,11 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
         if not is_valid_identity_provider(
                 statement.get('Principal', {}).get('Federated'),
                 aws_account_id):
-            logger.debug(
+            logger.error(
                 'Skipping policy statement with Federated Principal {} which '
                 'is not valid'.format(
                     statement.get('Principal', {}).get('Federated')))
-            continue
+            raise InvalidPolicyError
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():
             # StringNotLike, etc. are not supported

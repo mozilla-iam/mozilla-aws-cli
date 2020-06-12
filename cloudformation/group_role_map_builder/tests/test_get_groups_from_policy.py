@@ -47,7 +47,7 @@ def test_all_policies(monkeypatch):
         parsed = policy["parsed"]
 
         if "Returns" in parsed:
-            result = get_groups_from_policy(raw)
+            result = get_groups_from_policy(raw, '123456789012')
             assert (sorted(result) == sorted(parsed["Returns"])), (
                 "Expected {} to return {}. Instead it returned {} where "
                 "VALID_AMRS is {} and VALID_FEDERATED_PRINCIPAL_KEYS is "
@@ -73,7 +73,7 @@ def test_all_policies(monkeypatch):
 
             try:
                 with raises(exception):
-                    get_groups_from_policy(raw)
+                    get_groups_from_policy(raw, '123456789012')
                     pytest.fail(
                         'Expected {} to raise exception {} but it did '
                         'not'.format(policy["filename"], exception))
@@ -86,4 +86,4 @@ def test_all_policies(monkeypatch):
         # These should be things that aren't JSON
         else:
             with raises(InvalidPolicyError):
-                get_groups_from_policy(raw)
+                get_groups_from_policy(raw, '123456789012')
