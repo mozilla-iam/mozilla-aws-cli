@@ -98,7 +98,8 @@ def is_valid_identity_provider(arn: str, aws_account_id: str) -> bool:
     Check that
     * The ARN is well formatted
     * The AWS Account ID in the ARN is the local Account ID
-    * The suffix of the ARN matches one of the VALID_FEDERATED_PRINCIPLE_URLS with the URL scheme stripped
+    * The suffix of the ARN matches one of the VALID_FEDERATED_PRINCIPLE_URLS
+      with the URL scheme stripped
     :param arn: The ARN of the AWS IAM Identity Provider
     :param aws_account_id: The AWS account ID
     :return: True if the ARN is valid otherwise False
@@ -109,7 +110,8 @@ def is_valid_identity_provider(arn: str, aws_account_id: str) -> bool:
         and elements[:4] == ['arn', 'aws', 'iam', '']
         and elements[4] == aws_account_id
         and elements[5].split('/', 1)[0] == 'oidc-provider'
-        and elements[5].split('/', 1)[1] in [x[8:] for x in get_setting('VALID_FEDERATED_PRINCIPAL_URLS')]
+        and elements[5].split('/', 1)[1] in [
+            x[8:] for x in get_setting('VALID_FEDERATED_PRINCIPAL_URLS')]
     )
 
 

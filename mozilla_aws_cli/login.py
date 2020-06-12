@@ -4,9 +4,10 @@ import json
 import logging
 import os
 import sys
-import time
 import traceback
 import webbrowser
+
+from future.moves.urllib.parse import urlparse, urlencode, urlunparse
 
 import requests
 
@@ -24,19 +25,10 @@ from .role_picker import (
 )
 from .utils import (
     base64_without_padding,
-    exit_sigint,
     generate_challenge,
     role_arn_to_display_name,
     STSWarning
 )
-
-try:
-    # P3
-    from urllib.parse import urlencode, urlunparse, urlparse
-except ImportError:
-    # P2 Compat
-    from urllib import urlencode
-    from urlparse import urlunparse, urlparse
 
 
 logger = logging.getLogger(__name__)
