@@ -10,6 +10,7 @@ from moto import mock_s3
 S3_BUCKET_NAME = 'test'
 S3_FILE_NAME = 'test.json'
 
+
 # https://stackoverflow.com/a/23844656/168874
 @mock_s3
 @patch.object(group_role_map_builder, 'emit_event_to_mozdef')

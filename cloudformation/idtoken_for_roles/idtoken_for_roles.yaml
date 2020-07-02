@@ -145,7 +145,7 @@ Resources:
           ALLOWED_MAP_BUILDER_SUB_PREFIX: !Ref AllowedMapBuilderSubPrefix
           GROUP_ROLE_MAP_BUILDER_FUNCTION_NAME: !ImportValue GroupRoleMapBuilderFunctionName
       Handler: idtoken_for_roles.lambda_handler
-      Runtime: python3.7
+      Runtime: python3.8
       Role: !GetAtt IdtokenForRolesFunctionRole.Arn
       Tags:
         - Key: application

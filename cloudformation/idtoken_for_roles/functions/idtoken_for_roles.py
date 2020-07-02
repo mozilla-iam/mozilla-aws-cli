@@ -35,10 +35,13 @@ ZERO = timedelta(0)
 class UTC(tzinfo):
     def utcoffset(self, dt):
         return ZERO
+
     def tzname(self, dt):
         return "UTC"
+
     def dst(self, dt):
         return ZERO
+
 
 utc = UTC()
 
@@ -67,7 +70,10 @@ def validate_token(token, key):
         logger.error('Expired JWT signature : {}'.format(e))
         raise TokenValidationError('Expired JWT signature')
     except exceptions.JWTClaimsError as e:
-        logger.error('Invalid claims in ID Token (allowed audience {} allowed issuer {}) : {}'.format(os.getenv('ALLOWED_AUDIENCE'), os.getenv('ALLOWED_ISSUER'), e))
+        logger.error(
+            'Invalid claims in ID Token (allowed audience {} allowed issuer '
+            '{}) : {}'.format(
+                os.getenv('ALLOWED_AUDIENCE'), os.getenv('ALLOWED_ISSUER'), e))
         raise TokenValidationError('Invalid claims in ID Token')
     except exceptions.JWTError as e:
         logger.error('Invalid JWT signature : {}'.format(e))
@@ -128,6 +134,13 @@ def get_roles_and_aliases(token, key, cache):
                 aws_account_id = role.split(':')[4]
                 if (aws_account_id in account_alias_map
                         and aws_account_id not in aliases):
+                    logger.debug(
+                        'Group {} found in AMR {} adding AWS Account alias {} '
+                        'for account {}'.format(
+                            group,
+                            id_token['amr'],
+                            account_alias_map[aws_account_id],
+                            aws_account_id))
                     aliases[aws_account_id] = account_alias_map[aws_account_id]
             roles.update(mapped_roles)
         else:
@@ -159,14 +172,16 @@ def initiate_group_role_map_rebuild(token, key):
         return {'error': 'GROUP_ROLE_MAP_BUILDER_FUNCTION_NAME is unset'}
     group_role_map_last_modified, group_role_map = get_s3_file(
         S3_BUCKET_NAME, S3_FILE_PATH_GROUP_ROLE_MAP)
-    logger.debug('datetime.now(utc) is {} and group_role_map_last_modified is {}'.format(datetime.now(utc), group_role_map_last_modified))
+    logger.debug(
+        'datetime.now(utc) is {} and group_role_map_last_modified is '
+        '{}'.format(datetime.now(utc), group_role_map_last_modified))
     group_role_map_age = datetime.now(utc) - group_role_map_last_modified
-    # TODO : Here's the problem. This comparison is between the last time the file changed and now
-    # and the file isn't updated if nothing changed
+    # TODO : Here's the problem. This comparison is between the last time the
+    # file changed and now and the file isn't updated if nothing changed
     # so this doesn't stop someone from invoking over and over again
-    # we need make group role map buider touch a file or something indicating that a scan has been done
-    # despite the fact that the json map hasn't changed
-    # or persist this state here in idtokenforroles some other way
+    # we need make group role map buider touch a file or something indicating
+    # that a scan has been done despite the fact that the json map hasn't
+    # changed or persist this state here in idtokenforroles some other way
     seconds_until_next_allowed_rebuild = max(
         0, (60 * 5) - int(group_role_map_age.total_seconds()))
     if seconds_until_next_allowed_rebuild > 0:

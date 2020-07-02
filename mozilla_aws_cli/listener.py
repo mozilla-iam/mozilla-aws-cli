@@ -6,17 +6,10 @@ import socket
 import time
 
 from flask import Flask, jsonify, request, send_from_directory
-import requests.exceptions
 from operator import itemgetter
 
-from .utils import exit_sigint, STSWarning
+from .utils import exit_sigint
 
-try:
-    # P3
-    from urllib.parse import urlencode
-except ImportError:
-    # P2 Compat
-    from urllib import urlencode
 
 # These ports must be configured in the IdP's allowed callback URL list
 # TODO: Move this to the CLI / config section

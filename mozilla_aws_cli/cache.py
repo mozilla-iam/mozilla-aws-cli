@@ -384,7 +384,7 @@ def read_sts_credentials(role_arn):
                 return sts
             else:
                 logger.debug(
-                    "Cached STS credentials have expired.".format(path))
+                    "Cached STS credentials in {} have expired.".format(path))
                 return None
     except (IOError, OSError):
         logger.debug("Unable to read STS credentials from: {}".format(path))
