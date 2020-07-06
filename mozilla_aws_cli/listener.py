@@ -8,7 +8,7 @@ import time
 from flask import Flask, jsonify, request, send_from_directory
 from operator import itemgetter
 
-from .utils import exit_sigint
+from .utils import exit_sigint, get_alias
 
 
 # These ports must be configured in the IdP's allowed callback URL list
@@ -82,9 +82,7 @@ def get_roles():
             return jsonify({})
     for arn in login.role_map["roles"]:
         account_id = arn.split(":")[4]
-        alias = login.role_map.get(
-            "aliases", {}).get(account_id, [account_id])[0]
-
+        alias = get_alias(login.role_map, account_id)
         role = {
             "alias": alias,
             "arn": arn,

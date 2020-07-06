@@ -26,6 +26,7 @@ from .role_picker import (
 from .utils import (
     base64_without_padding,
     generate_challenge,
+    get_alias,
     role_arn_to_display_name,
     STSWarning
 )
@@ -507,8 +508,7 @@ class Login:
             return None
 
         account_id = self.role_arn.split(":")[4]
-        account_alias = self.role_map.get("aliases", {}).get(
-            account_id, [account_id])[0]
+        account_alias = get_alias(self.role_map, account_id)
         role = self.role_arn.split(":")[5].split("/")[-1]
         issuer_url_query = urlencode({"account": account_alias, "role": role})
         issuer_url = urlunparse(

@@ -133,15 +133,18 @@ def get_roles_and_aliases(token, key, cache):
             for role in mapped_roles:
                 aws_account_id = role.split(':')[4]
                 if (aws_account_id in account_alias_map
-                        and aws_account_id not in aliases):
-                    logger.debug(
-                        'Group {} found in AMR {} adding AWS Account alias {} '
-                        'for account {}'.format(
-                            group,
-                            id_token['amr'],
-                            account_alias_map[aws_account_id],
-                            aws_account_id))
-                    aliases[aws_account_id] = account_alias_map[aws_account_id]
+                        and len(account_alias_map[aws_account_id]) > 0):
+                    if aws_account_id not in aliases:
+                        logger.debug(
+                            'Group {} found in AMR {} adding AWS Account alias {} '
+                            'for account {}'.format(
+                                group,
+                                id_token['amr'],
+                                account_alias_map[aws_account_id],
+                                aws_account_id))
+                        aliases[aws_account_id] = account_alias_map[aws_account_id]
+                else:
+                    aliases[aws_account_id] = [aws_account_id]
             roles.update(mapped_roles)
         else:
             logger.debug('Group {} not in amr {}'.format(
