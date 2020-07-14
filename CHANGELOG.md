@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2020-07-14
+
+### Fixed
+* Bug when an AWS Account has no alias. Previously, if a user used 
+  mozilla-aws-cli with an AWS account that had no account alias defined, 
+  it would respond with errors described in #220. Now it gracefully handles AWS
+  accounts without aliases. This fixes the bug in mozilla-aws-cli and changes
+  the ID Token for Roles API to prevent the bug in deployed versions of
+  mozilla-aws-cli prior to v1.2.2 [#221](https://github.com/mozilla-iam/mozilla-aws-cli/issues/221)
+
+### Added
+* A check to the Group Role Map Builder that the federated principal in an 
+  IAM policy has the same AWS account ID as the account containing the policy.
+  This will prevent malformed IAM Role policies from being included in the group
+  role map. [#218](https://github.com/mozilla-iam/mozilla-aws-cli/issues/218)
+* Support for sending informational messages from the backend to the frontend.
+  Previously only error messages could be passed. [#219](https://github.com/mozilla-iam/mozilla-aws-cli/issues/219)
+
 ## [1.2.1] - 2020-05-20
 
 ### Fixed
@@ -121,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.0...v1.1.1
