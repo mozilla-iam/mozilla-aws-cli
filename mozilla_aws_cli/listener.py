@@ -245,7 +245,7 @@ class ServerThread(threading.Thread):
         try:
             self.srv.shutdown()
         except Exception:
-            ...
+            pass
 
 
 def listen(login_):
