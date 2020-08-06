@@ -22,6 +22,11 @@ if sys.version_info[0] >= 3:
 else:
     import ConfigParser as configparser
 
+try:
+    from shlex import quote
+except ImportError:
+    from pipes import quote
+
 ZERO = datetime.timedelta(0)
 
 
@@ -147,12 +152,14 @@ def write_aws_cli_credentials(profile, credentials):
     for cred_key, aws_key in viewitems(CREDENTIALS_TO_AWS_MAP):
         if cred_key in credentials:
             process = ["aws", "configure", "set",
-                       aws_key, credentials[cred_key]]
+                       quote(aws_key), quote(credentials[cred_key])]
 
             if profile != "default":
-                process += ["--profile", profile]
+                process += ["--profile", quote(profile)]
 
-            _retval = subprocess.call(process)
+            # We have to use shell=True to function on Windows, as `aws` is
+            # aws.CMD there
+            _retval = subprocess.call(" ".join(process), shell=True)
             retval = retval | _retval
 
             logger.debug("`{}` executed with return code: {}".format(

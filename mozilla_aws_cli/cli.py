@@ -1,5 +1,5 @@
 from __future__ import absolute_import, print_function
-from distutils.spawn import find_executable
+from shutil import which
 import os
 import logging
 
@@ -56,7 +56,7 @@ def validate_output(ctx, param, value):
     del ctx, param  # we don't use these arguments
     if value is None:
         pass
-    elif value.lower() == "awscli" and not find_executable("aws"):
+    elif value.lower() == "awscli" and which("aws") is None:
         raise click.BadParameter("AWS CLI is not detected on local system.")
 
     return value
