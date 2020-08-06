@@ -1,5 +1,4 @@
 from __future__ import absolute_import, print_function
-from shutil import which
 import os
 import logging
 
@@ -18,6 +17,11 @@ except ImportError:
     # "mozilla_aws_cli_config" module. Use the normal config acquisition
     # methods
     mozilla_aws_cli_config = None
+
+try:
+    from shutil import which
+except:
+    from whichcraft import which
 
 if sys.version_info[0] >= 3:
     import configparser

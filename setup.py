@@ -15,6 +15,7 @@ requirements = [
     "future",
     "requests>=2.20.1",
     "python-jose",
+    "whichcraft==0.6.1"
 ]
 setup_requirements = ["pytest-runner"]
 test_requirements = [
