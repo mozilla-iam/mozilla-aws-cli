@@ -170,6 +170,12 @@ new AWS.S3(botoArgs).listBuckets({}, (err, data) => {
 });
 ```
 
+### Troubleshooting
+
+If you run into errors with decrypting the ID token, it is likely that you are using an out-of-date version of Python or cryptographic libraries. This can usually be fixed by running a more Python-native cryptographic library, installed via:
+
+`pip install --upgrade cryptography python-jose[cryptography]`
+
 ## Sequence diagram
 
 [<img src="https://raw.githubusercontent.com/mozilla-iam/mozilla-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
