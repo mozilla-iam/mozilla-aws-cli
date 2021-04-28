@@ -3,10 +3,16 @@
 
 """The setup script."""
 
+import sys
 from setuptools import setup, find_packages
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
+
+# https://github.com/sybrenstuvel/python-rsa/blob/main/CHANGELOG.md#version-43--45---released-2020-06-12
+rsa_version = "<=4.5" if sys.version_info[0] == 2 else ""
+# https://github.com/pytest-dev/pytest-runner/blob/main/CHANGES.rst#v530
+pytest_runner_version = "<5.3" if sys.version_info[0] == 2 else ""
 
 requirements = [
     "appdirs",
@@ -15,9 +21,10 @@ requirements = [
     "future",
     "requests>=2.20.1",
     "python-jose",
+    "rsa{}".format(rsa_version),
     "whichcraft==0.6.1"
 ]
-setup_requirements = ["pytest-runner"]
+setup_requirements = ["pytest-runner{}".format(pytest_runner_version)]
 test_requirements = [
     "pytest",
     "pytest-cov",
@@ -58,6 +65,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="1.2.2",
+    version="1.2.3",
     zip_safe=False,
 )
