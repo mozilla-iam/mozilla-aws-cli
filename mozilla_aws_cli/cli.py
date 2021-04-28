@@ -20,7 +20,7 @@ except ImportError:
 
 try:
     from shutil import which
-except:
+except ImportError:
     from whichcraft import which
 
 if sys.version_info[0] >= 3:
