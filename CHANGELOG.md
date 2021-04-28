@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2021-04-27
+
+### Fixed
+* `--output awscli` on Windows clients running Python 2.7 which weren't able to 
+  find the `aws` executable [#235](https://github.com/mozilla-iam/mozilla-aws-cli/issues/235)
+
 ## [1.2.2] - 2020-07-14
 
 ### Fixed
@@ -139,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.1.1...v1.2.0
