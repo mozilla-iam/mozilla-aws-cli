@@ -3,10 +3,14 @@
 
 """The setup script."""
 
+import sys
 from setuptools import setup, find_packages
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
+
+# https://github.com/sybrenstuvel/python-rsa/blob/main/CHANGELOG.md#version-43--45---released-2020-06-12
+rsa_version = "<=4.5" if sys.version_info[0] == 2 else ""
 
 requirements = [
     "appdirs",
@@ -15,6 +19,7 @@ requirements = [
     "future",
     "requests>=2.20.1",
     "python-jose",
+    "rsa{}".format(rsa_version),
     "whichcraft==0.6.1"
 ]
 setup_requirements = ["pytest-runner"]
