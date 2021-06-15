@@ -11,7 +11,8 @@ from .cache import read_group_role_map, write_group_role_map
 
 logger = logging.getLogger(__name__)
 
-PROMPT_BASH_CODE = r'''function maws_profile {
+PROMPT_BASH_CODE = r'''
+function maws_profile {
     if [ -n "${MAWS_PROMPT}" ]; then
         if [ -n "${AWS_SESSION_EXPIRATION}" ] && [ $(date +%s) -gt ${AWS_SESSION_EXPIRATION} ]; then
             echo " (maws keys expired)"
@@ -30,7 +31,8 @@ if test "${PS1#*\$\(maws_profile\)}" = "$PS1"; then
     else
         PS1="${PS1}\$(maws_profile) "
     fi
-fi'''
+fi
+'''
 
 
 def output_set_env_vars(var_map, message=None):
