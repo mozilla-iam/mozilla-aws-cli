@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * Enable zsh dynamic prompts for users who don't already have them enabled.
+* Fix issues with double-whitespace when injecting into space-separated prompts
 
 ### Changed
 * Convert conditionals to bash-native to simplify maintenance and readability
