@@ -34,68 +34,36 @@ function maws_profile {
 # if the user hasn't disabled prompt injection,
 # and we aren't already injecting maws_profile:
 if [[ -z $MAWS_PROMPT_DISABLE && $PS1 != *'$(maws_profile)' ]]; then
-    # the original behavior is to always prefix and never suffix,
-    # so we default to that before overriding it in specific cases.
-    MAWS_PROMPT_PREFIX=" "
-    MAWS_PROMPT_SUFFIX=""
+    # by default, we prefix but not suffix; good for example '\w\$',
+    # but has to be overridden below for various whitespace cases.
+    MAWS_PROMPT_PREFIX=" " MAWS_PROMPT_SUFFIX=""
     # maws_profile is missing from PS1
     if [[ $PS1 == *'\$ ' ]]; then
         # prompt ends with dynamic '\$ '
-        if [[ $PS1 == *' \$ ' ]]; then
-            # the original prompt surrounds the final '\$' with whitespace,
-            # so we surround the substitution with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=""
-            MAWS_PROMPT_SUFFIX=" "
-        else
-            # the original prompt doesn't have whitespace before the final '\$',
-            # so we only prefix but not suffix with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=" "
-            MAWS_PROMPT_SUFFIX=""
-        fi
+        # if the original prompt surrounds the final '\$' with whitespace,
+        # we surround the substitution with whitespace to maintain that.
+        [[ $PS1 == *' \$ ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
         # inject our substitution before the original '$ '
         PS1="${PS1%\\$ }\$(maws_profile)\\$ "
     elif [[ $PS1 == *'$ ' ]]; then
         # prompt ends with hard-coded '$ '
-        if [[ $PS1 == *' $ ' ]]; then
-            # the original prompt surrounds the final '$' with whitespace,
-            # so we surround the substitution with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=""
-            MAWS_PROMPT_SUFFIX=" "
-        else
-            # the original prompt doesn't have whitespace before the final '$ ',
-            # so we only prefix but not suffix with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=" "
-            MAWS_PROMPT_SUFFIX=""
-        fi
+        # if the original prompt surrounds the final '$' with whitespace,
+        # we surround the substitution with whitespace to maintain that.
+        [[ $PS1 == *' $ ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
         # inject our substitution before the original '$ '
         PS1="${PS1%\$ }\$(maws_profile)\$ "
     elif [[ $PS1 == *'%# ' ]]; then
         # prompt ends with dynamic '%# '
-        if [[ $PS1 == *' %# ' ]]; then
-            # the original prompt surrounds the final '$' with whitespace,
-            # so we only suffix bot not prefix with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=""
-            MAWS_PROMPT_SUFFIX=" "
-        else
-            # the original prompt doesn't have whitespace before the final '$ ',
-            # so we only prefix but not suffix with whitespace to maintain that.
-            MAWS_PROMPT_PREFIX=" "
-            MAWS_PROMPT_SUFFIX=""
-        fi
+        # if the original prompt surrounds the final '$' with whitespace,
+        # we only suffix bot not prefix with whitespace to maintain that.
+        [[ $PS1 == *' %# ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
         # inject our substitution before the original '%# '
         PS1="${PS1%\%# }\$(maws_profile)%# "
     else
         # we're the last entry in the prompt, so we don't need extra whitespace.
-        MAWS_PROMPT_SUFFIX=""
-        if [[ $PS1 == *' ' ]]; then
-            # the original prompt ends with whitespace,
-            # so we don't need to prefix whitespace ourselves.
-            MAWS_PROMPT_PREFIX=""
-        else
-            # the original prompt doesn't end with whitespace,
-            # so we prefix whitespace ourselves.
-            MAWS_PROMPT_PREFIX=" "
-        fi
+        # if the original prompt ends with whitespace,
+        # we don't need to prefix whitespace ourselves.
+        [[ $PS1 == *' ' ]] && MAWS_PROMPT_PREFIX=""
         # inject our substitution before the original '%# '
         PS1="${PS1}\$(maws_profile) "
     fi
