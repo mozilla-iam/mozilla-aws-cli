@@ -11,26 +11,64 @@ from .cache import read_group_role_map, write_group_role_map
 
 logger = logging.getLogger(__name__)
 
-PROMPT_BASH_CODE = r'''function maws_profile {
-    if [ -n "${MAWS_PROMPT}" ]; then
-        if [ -n "${AWS_SESSION_EXPIRATION}" ] && [ $(date +%s) -gt ${AWS_SESSION_EXPIRATION} ]; then
-            echo " (maws keys expired)"
+PROMPT_BASH_CODE = r'''
+function maws_profile {
+    if [[ -n $MAWS_PROMPT ]]; then
+        # either a whitespace character or blank, depending on what
+        # was selected by the prompt injection routine below.
+        echo -n "$MAWS_PROMPT_PREFIX"
+        if [[ -n $AWS_SESSION_EXPIRATION && "$(date +%s)" -gt $AWS_SESSION_EXPIRATION ]]; then
+            echo -n "(maws keys expired)"
         else
-            echo " (${MAWS_PROMPT})"
+            echo -n "(${MAWS_PROMPT})"
         fi
+        # either a whitespace character or blank, depending on what
+        # followed the maws substitution point in the original prompt
+        echo -n "$MAWS_PROMPT_SUFFIX"
     fi
 }
 
-if test "${PS1#*\$\(maws_profile\)}" = "$PS1"; then
+# zsh requires this in order to evaluate the prompt dynamically like bash
+[[ -n "$ZSH_VERSION" ]] && setopt prompt_subst
+
+# if the user hasn't disabled prompt injection,
+# and we aren't already injecting maws_profile:
+if [[ -z $MAWS_PROMPT_DISABLE && $PS1 != *'$(maws_profile)' ]]; then
+    # by default, we prefix but not suffix; good for example '\w\$',
+    # but has to be overridden below for various whitespace cases.
+    MAWS_PROMPT_PREFIX=" " MAWS_PROMPT_SUFFIX=""
     # maws_profile is missing from PS1
-    if [ "${PS1%\$ }" != "${PS1}" ]; then
+    if [[ $PS1 == *'\$ ' ]]; then
+        # prompt ends with dynamic '\$ '
+        # if the original prompt surrounds the final '\$' with whitespace,
+        # we surround the substitution with whitespace to maintain that.
+        [[ $PS1 == *' \$ ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
+        # inject our substitution before the original '$ '
+        PS1="${PS1%\\$ }\$(maws_profile)\\$ "
+    elif [[ $PS1 == *'$ ' ]]; then
+        # prompt ends with hard-coded '$ '
+        # if the original prompt surrounds the final '$' with whitespace,
+        # we surround the substitution with whitespace to maintain that.
+        [[ $PS1 == *' $ ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
+        # inject our substitution before the original '$ '
         PS1="${PS1%\$ }\$(maws_profile)\$ "
-    elif [ "${PS1% }" != "${PS1}" ]; then
-        PS1="${PS1% }\$(maws_profile) "
+    elif [[ $PS1 == *'%# ' ]]; then
+        # prompt ends with dynamic '%# '
+        # if the original prompt surrounds the final '$' with whitespace,
+        # we only suffix bot not prefix with whitespace to maintain that.
+        [[ $PS1 == *' %# ' ]] && MAWS_PROMPT_PREFIX="" MAWS_PROMPT_SUFFIX=" "
+        # inject our substitution before the original '%# '
+        PS1="${PS1%\%# }\$(maws_profile)%# "
     else
+        # we're the last entry in the prompt, so we don't need extra whitespace.
+        # if the original prompt ends with whitespace,
+        # we don't need to prefix whitespace ourselves.
+        [[ $PS1 == *' ' ]] && MAWS_PROMPT_PREFIX=""
+        # inject our substitution before the original '%# '
         PS1="${PS1}\$(maws_profile) "
     fi
-fi'''
+fi
+'''
 
 
 def output_set_env_vars(var_map, message=None):
