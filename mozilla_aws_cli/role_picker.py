@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 PROMPT_BASH_CODE = r'''
 function maws_profile {
-    if [ -n "${MAWS_PROMPT}" ]; then
-        if [ -n "${AWS_SESSION_EXPIRATION}" ] && [ $(date +%s) -gt ${AWS_SESSION_EXPIRATION} ]; then
+    if [[ -n $MAWS_PROMPT ]]; then
+        if [[ -n $AWS_SESSION_EXPIRATION && "$(date +%s)" -gt $AWS_SESSION_EXPIRATION ]]; then
             echo " (maws keys expired)"
         else
             echo " (${MAWS_PROMPT})"
@@ -22,11 +22,11 @@ function maws_profile {
     fi
 }
 
-if test "${PS1#*\$\(maws_profile\)}" = "$PS1"; then
+if [[ $PS1 != *'$(maws_profile)' ]]; then
     # maws_profile is missing from PS1
-    if [ "${PS1%\$ }" != "${PS1}" ]; then
+    if [[ $PS1 == *'\$ ' ]]; then
         PS1="${PS1%\$ }\$(maws_profile)\$ "
-    elif [ "${PS1% }" != "${PS1}" ]; then
+    elif [[ $PS1 == *' ' ]]; then
         PS1="${PS1% }\$(maws_profile) "
     else
         PS1="${PS1}\$(maws_profile) "

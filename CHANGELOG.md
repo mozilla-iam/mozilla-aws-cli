@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+* Convert conditionals to bash-native to simplify maintenance and readability
+
 ## [1.2.3] - 2021-04-27
 
 ### Fixed
