@@ -31,7 +31,9 @@ function maws_profile {
 # zsh requires this in order to evaluate the prompt dynamically like bash
 [[ -n "$ZSH_VERSION" ]] && setopt prompt_subst
 
-if [[ $PS1 != *'$(maws_profile)' ]]; then
+# if the user hasn't disabled prompt injection,
+# and we aren't already injecting maws_profile:
+if [[ -z $MAWS_PROMPT_DISABLE && $PS1 != *'$(maws_profile)' ]]; then
     # the original behavior is to always prefix and never suffix,
     # so we maintain that here for now while expanding capability.
     MAWS_PROMPT_PREFIX=" "

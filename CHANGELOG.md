@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Convert conditionals to bash-native to simplify maintenance and readability
 * Add internal logic to allow more complex prefix/suffix whitespace logic
 
+### Added
+* Allow users to disable prompt modification with `MAWS_PROMPT_DISABLE=1`.
+  (This also lets users implement their own custom prompts without forking,
+  as long as they define `function maws_profile () { }` in bashrc/zshrc.)
+
 ## [1.2.3] - 2021-04-27
 
 ### Fixed
