@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 * Convert conditionals to bash-native to simplify maintenance and readability
+* Add internal logic to allow more complex prefix/suffix whitespace logic
 
 ## [1.2.3] - 2021-04-27
 

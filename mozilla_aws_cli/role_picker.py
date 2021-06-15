@@ -14,15 +14,25 @@ logger = logging.getLogger(__name__)
 PROMPT_BASH_CODE = r'''
 function maws_profile {
     if [[ -n $MAWS_PROMPT ]]; then
+        # either a whitespace character or blank, depending on what
+        # was selected by the prompt injection routine below.
+        echo -n "$MAWS_PROMPT_PREFIX"
         if [[ -n $AWS_SESSION_EXPIRATION && "$(date +%s)" -gt $AWS_SESSION_EXPIRATION ]]; then
-            echo " (maws keys expired)"
+            echo -n "(maws keys expired)"
         else
-            echo " (${MAWS_PROMPT})"
+            echo -n "(${MAWS_PROMPT})"
         fi
+        # either a whitespace character or blank, depending on what
+        # followed the maws substitution point in the original prompt
+        echo -n "$MAWS_PROMPT_SUFFIX"
     fi
 }
 
 if [[ $PS1 != *'$(maws_profile)' ]]; then
+    # the original behavior is to always prefix and never suffix,
+    # so we maintain that here for now while expanding capability.
+    MAWS_PROMPT_PREFIX=" "
+    MAWS_PROMPT_SUFFIX=""
     # maws_profile is missing from PS1
     if [[ $PS1 == *'\$ ' ]]; then
         PS1="${PS1%\$ }\$(maws_profile)\$ "
