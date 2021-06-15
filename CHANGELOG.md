@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+* Enable zsh dynamic prompts for users who don't already have them enabled.
+
 ### Changed
 * Convert conditionals to bash-native to simplify maintenance and readability
 * Add internal logic to allow more complex prefix/suffix whitespace logic

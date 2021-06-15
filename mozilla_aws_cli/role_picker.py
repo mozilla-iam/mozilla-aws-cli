@@ -28,6 +28,9 @@ function maws_profile {
     fi
 }
 
+# zsh requires this in order to evaluate the prompt dynamically like bash
+[[ -n "$ZSH_VERSION" ]] && setopt prompt_subst
+
 if [[ $PS1 != *'$(maws_profile)' ]]; then
     # the original behavior is to always prefix and never suffix,
     # so we maintain that here for now while expanding capability.
@@ -35,7 +38,15 @@ if [[ $PS1 != *'$(maws_profile)' ]]; then
     MAWS_PROMPT_SUFFIX=""
     # maws_profile is missing from PS1
     if [[ $PS1 == *'\$ ' ]]; then
+        # prompt ends with hard-coded '$ '
         PS1="${PS1%\$ }\$(maws_profile)\$ "
+    elif [[ $PS1 == *' %# ' ]]; then
+        # prompt ends with dynamic ' %# '; remove one space character prior
+        # to the substitution to prevent double-whitespace issues
+        PS1="${PS1% \%# }\$(maws_profile)%# "
+    elif [[ $PS1 == *'%# ' ]]; then
+        # prompt ends with dynamic '%# '
+        PS1="${PS1%\%# }\$(maws_profile)%# "
     elif [[ $PS1 == *' ' ]]; then
         PS1="${PS1% }\$(maws_profile) "
     else
