@@ -425,8 +425,7 @@ class Login:
             if self.output == "envvar":
                 output_map.update(
                     {var: self.credentials.get(key)
-                     for key, var in ENV_VARIABLE_NAME_MAP.item()})
-                output_map["MAWS_PROMPT"] = self.display_name
+                     for key, var in ENV_VARIABLE_NAME_MAP.items()})
             elif self.output == "shared":
                 # Write the credentials
                 path = write_aws_shared_credentials(
@@ -435,15 +434,12 @@ class Login:
                 if path:
                     output_map.update({
                         "AWS_PROFILE": self.profile_name,
-                        "AWS_SHARED_CREDENTIALS_FILE": path,
-                        "MAWS_PROMPT": self.display_name})
+                        "AWS_SHARED_CREDENTIALS_FILE": path})
             elif self.output == "awscli":
                 # Call into aws a bunch of times
                 if write_aws_cli_credentials(self.profile_name,
                                              self.credentials):
-                    output_map.update({
-                        "AWS_PROFILE": self.profile_name,
-                        "MAWS_PROMPT": self.display_name})
+                    output_map["AWS_PROFILE"] = self.profile_name
                 else:
                     logger.error("Unable to write credentials with aws-cli.")
             elif self.output == "boto":
@@ -470,15 +466,13 @@ class Login:
                 raise ValueError(
                     "Output setting unknown : {}".format(self.output))
 
-            if 'ExpirationSeconds' in self.credentials:
-                output_map['AWS_SESSION_EXPIRATION'] = self.credentials['ExpirationSeconds']
-
-            message = "Environment variables set for role {}".format(
-                self.role_arn) if self.print_role_arn else None
-
-            if output_map and self.print_output_map:
+            if self.print_output_map:
+                output_map['AWS_SESSION_EXPIRATION'] = self.credentials.get('ExpirationSeconds')
+                output_map["MAWS_PROMPT"] = self.display_name
                 for name in ENV_VARIABLE_NAMES:
                     output_map.setdefault(name, None)
+                message = "Environment variables set for role {}".format(
+                    self.role_arn) if self.print_role_arn else None
                 print(output_set_env_vars(output_map, message))
 
             if self.web_console or self.print_url:
