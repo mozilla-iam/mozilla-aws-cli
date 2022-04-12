@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `KeyError: 'WERKZEUG_SERVER_FD'` error reported in [#243](https://github.com/mozilla-iam/mozilla-aws-cli/issues/243).
   This fix limits the max version of Werkzeug. A more permanent fix will be to
   move away from using the Flask development server to another WSGI listener.
+* Dependent packages that no longer support Python 2.7. For Python 2.7 users
+  older versions of dependent packages are now selected that work with Python
+  2.7.
 
 ## [1.2.4] - 2021-08-12
 
