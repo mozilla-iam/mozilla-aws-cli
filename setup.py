@@ -18,6 +18,7 @@ requirements = [
     "appdirs",
     "Click>=6.0",
     "flask>=1.0.2",
+    "Werkzeug<2.1.0",
     "future",
     "requests>=2.20.1",
     "python-jose",
@@ -66,6 +67,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="1.2.4",
+    version="1.2.5",
     zip_safe=False,
 )
