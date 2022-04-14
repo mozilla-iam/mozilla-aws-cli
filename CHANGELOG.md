@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2022-04-12
+
+### Fixed
+* Conflict with Werkzeug version 2.1.0 and newer which caused a 
+  `KeyError: 'WERKZEUG_SERVER_FD'` error reported in [#243](https://github.com/mozilla-iam/mozilla-aws-cli/issues/243).
+  This fix limits the max version of Werkzeug. A more permanent fix will be to
+  move away from using the Flask development server to another WSGI listener.
+* Dependent packages that no longer support Python 2.7. For Python 2.7 users
+  older versions of dependent packages are now selected that work with Python
+  2.7.
+
 ## [1.2.4] - 2021-08-12
 
 ### Added
@@ -152,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Initial release of the mozilla-aws-cli tool
 
-[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.4...HEAD
+[Unreleased]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/mozilla-iam/mozilla-aws-cli/compare/v1.2.1...v1.2.2
