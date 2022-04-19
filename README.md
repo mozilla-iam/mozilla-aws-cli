@@ -42,7 +42,8 @@ following settings
 
 * Application Type : `Native`
 * Allowed Callback URLs : A list of the localhost URLs created from the
-  [`POSSIBLE_PORTS` list of ports](https://github.com/mozilla-iam/mozilla-aws-cli/blob/6de1d9223f14d2ad5cae85856e2c7036ab8237eb/mozilla_aws_cli/listener.py#L16-L17)   * http://localhost:10800/redirect_uri
+  [`POSSIBLE_PORTS` list of ports](https://github.com/mozilla-iam/mozilla-aws-cli/blob/6de1d9223f14d2ad5cae85856e2c7036ab8237eb/mozilla_aws_cli/listener.py#L16-L17)   
+  * http://localhost:10800/redirect_uri
   * http://localhost:10801/redirect_uri
   * http://localhost:20800/redirect_uri
   * http://localhost:20801/redirect_uri
