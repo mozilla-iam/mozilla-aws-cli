@@ -136,7 +136,7 @@ Resources:
           VALID_FEDERATED_PRINCIPAL_URLS: !Ref ProviderUrls
           VALID_AMRS: !Ref AmrClaims
       Handler: group_role_map_builder.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       ReservedConcurrentExecutions: 1
       Role: !GetAtt GroupRoleMapBuilderRole.Arn
       Tags:
