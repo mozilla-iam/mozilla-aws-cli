@@ -22,6 +22,7 @@ DEFAULTS = {
     'S3_BUCKET_NAME': None,
     'S3_FILE_PATH_GROUP_ROLE_MAP': 'access-group-iam-role-map.json',
     'S3_FILE_PATH_ALIAS_MAP': 'account-aliases.json',
+    'S3_FILE_PATH_MANUAL_ALIAS_MAP': 'manual-account-aliases.json',
     'VALID_AMRS': '',
     'VALID_FEDERATED_PRINCIPAL_URLS': '',
 }
@@ -552,7 +553,12 @@ def lambda_handler(event, context):
             security_audit_role_arns
         )
     )
-    group_role_map, alias_map = build_group_role_map(security_audit_role_arns)
+    group_role_map, generated_alias_map = build_group_role_map(
+        security_audit_role_arns)
+    manual_alias_map = manual_alias_map = get_s3_file(
+        get_setting('S3_BUCKET_NAME'),
+        get_setting('S3_FILE_PATH_MANUAL_ALIAS_MAP'))
+    alias_map = manual_alias_map | generated_alias_map
     group_role_map_changed = store_s3_file(
         get_setting('S3_BUCKET_NAME'),
         get_setting('S3_FILE_PATH_GROUP_ROLE_MAP'),
