@@ -1,5 +1,5 @@
 import boto3
-from moto import mock_dynamodb2
+from moto import mock_dynamodb
 from ..functions.group_role_map_builder import get_security_audit_role_arns
 from ..functions.group_role_map_builder import get_setting
 
@@ -90,7 +90,7 @@ def add_records_to_table():
     table.put_item(Item=item)
 
 
-@mock_dynamodb2
+@mock_dynamodb
 def test_get_security_audit_role_arns():
     """Create a table, populate it then fetch IAM Role ARNs"""
     create_dynamodb_table()
