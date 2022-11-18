@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Lambda function which builds the OIDC claim group to role map file and uploads it to S3. Function is triggered hourly
 Metadata:
   Source: https://github.com/mozilla-iam/mozilla-aws-cli/blob/master/cloudformation/group_role_map_builder/group_role_map_builder.yaml
+  Version: "1.1.0"
   'AWS::CloudFormation::Interface':
     ParameterGroups:
     - Label:
@@ -15,6 +16,7 @@ Metadata:
       - S3BucketName
       - GroupRoleMapS3FilePath
       - AccountAliasesS3FilePath
+      - ManualAccountAliasesS3FilePath
     - Label:
         default: OIDC Configuration
       Parameters:
@@ -31,6 +33,8 @@ Metadata:
         default: Group Role Map S3 File Path
       AccountAliasesS3FilePath:
         default: AWS Account Alias Map S3 File Path
+      ManualAccountAliasesS3FilePath:
+        default: Manual AWS Account Alias Map S3 File Path
 Parameters:
   StackEmissionDynamoDBTableName:
     Type: String
@@ -51,6 +55,10 @@ Parameters:
     Type: String
     Description: The path to the account aliases map file
     Default: account-aliases.json
+  ManualAccountAliasesS3FilePath:
+    Type: String
+    Description: The path to the account aliases map file
+    Default: manual-account-aliases.json
   ProviderUrls:
     Type: String
     Description: A comma delimited list of AWS IAM OIDC Provider URLs
@@ -108,6 +116,7 @@ Resources:
                 Resource:
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'ManualAccountAliasesS3FilePath']]
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -133,10 +142,11 @@ Resources:
           S3_BUCKET_NAME: !Ref S3BucketName
           S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
           S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
+          S3_FILE_PATH_MANUAL_ALIAS_MAP: !Ref ManualAccountAliasesS3FilePath
           VALID_FEDERATED_PRINCIPAL_URLS: !Ref ProviderUrls
           VALID_AMRS: !Ref AmrClaims
       Handler: group_role_map_builder.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       ReservedConcurrentExecutions: 1
       Role: !GetAtt GroupRoleMapBuilderRole.Arn
       Tags:
