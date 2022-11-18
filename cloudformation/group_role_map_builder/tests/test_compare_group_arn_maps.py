@@ -1,9 +1,7 @@
-from unittest.mock import patch
 from ..functions.group_role_map_builder import (
     store_s3_file,
     get_s3_file
 )
-from ..functions import group_role_map_builder
 import boto3
 from moto import mock_s3
 
@@ -13,8 +11,7 @@ S3_FILE_NAME = 'test.json'
 
 # https://stackoverflow.com/a/23844656/168874
 @mock_s3
-@patch.object(group_role_map_builder, 'emit_event_to_mozdef')
-def test_store_file(emit_event_to_mozdef):
+def test_store_file():
     client = boto3.client('s3')
     client.create_bucket(Bucket=S3_BUCKET_NAME)
     beginning_group_arn_map = get_s3_file(S3_BUCKET_NAME, S3_FILE_NAME)
@@ -33,10 +30,6 @@ def test_store_file(emit_event_to_mozdef):
     new_map_updated = store_s3_file(
         S3_BUCKET_NAME, S3_FILE_NAME, first_group_arn_map_to_send, True)
     assert new_map_updated is True
-    emit_event_to_mozdef.assert_called_with(
-        first_group_arn_map_to_send,
-        dict(),
-    )
 
     first_group_arn_map_fetched = get_s3_file(S3_BUCKET_NAME, S3_FILE_NAME)
     assert 'team_foo' in first_group_arn_map_fetched
@@ -87,10 +80,6 @@ def test_store_file(emit_event_to_mozdef):
         second_group_arn_map_to_send,
         True)
     assert changed_map_updated is True
-    emit_event_to_mozdef.assert_called_with(
-        second_group_arn_map_to_send,
-        first_group_arn_map_to_send
-    )
 
     second_group_arn_map_fetched = get_s3_file(
         S3_BUCKET_NAME,
