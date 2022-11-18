@@ -259,31 +259,28 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
     for statement in policy["Statement"]:
         if statement.get("Effect", '').lower() != "Allow".lower():
             logger.debug(
-                'Skipping policy statement with Effect {}'.format(
-                    statement.get("Effect")))
+                'Skipping policy statement with Effect '
+                f'{statement.get("Effect")}')
             continue
         if (statement.get("Action", '').lower()
                 != "sts:AssumeRoleWithWebIdentity".lower()):
-            # logger.debug(
-            #     'Skipping policy statement with Action {}'.format(
-            #         statement.get("Action")))
             continue
 
         if not is_valid_identity_provider(
                 statement.get('Principal', {}).get('Federated'),
                 aws_account_id):
-            logger.error(
-                'Skipping policy statement with Federated Principal {} which '
-                'is not valid'.format(
-                    statement.get('Principal', {}).get('Federated')))
+            logger.debug(
+                'Skipping policy statement with Federated Principal '
+                f'{statement.get("Principal", {}).get("Federated")} which '
+                'is not valid')
             raise InvalidPolicyError
         operator_count = 0
         for operator in statement.get("Condition", {}).keys():
             # StringNotLike, etc. are not supported
             if operator in UNSUPPORTED_OPERATORS:
                 logger.error(
-                    'UnsupportedPolicyError'
-                    ': Condition uses operator {}'.format(operator))
+                    f'UnsupportedPolicyError : {aws_account_id} '
+                    f': Condition uses operator {operator}')
                 raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
             elif operator in VALID_OPERATORS and any(
@@ -295,17 +292,17 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
         # Multiple operators are not supported
         if operator_count > 1:
             logger.error(
-                'UnsupportedPolicyError : Too many ({}) operators used'.format(
-                    operator_count))
+                f'UnsupportedPolicyError : {aws_account_id} : Too many '
+                f'({operator_count}) operators used')
             raise UnsupportedPolicyError
 
-        # An absence of operators means all users are permitted which isn't
+        # An absence of operators may mean all users are permitted which isn't
         # supported
         if operator_count == 0:
             logger.error(
-                'UnsupportedPolicyError : Statement has no amr conditions, '
-                'all users permitted access. At least one amr condition is '
-                'required')
+                f'UnsupportedPolicyError : {aws_account_id} : Statement has '
+                'no supported amr conditions, all users permitted access. At '
+                f'least one supported amr condition is required : {statement}')
             raise UnsupportedPolicyError
 
         # For clarity:
@@ -325,12 +322,12 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
                             and set('*?') & set(''.join(groups))):
                         logger.error(
                             "InvalidPolicyError : Mismatched operator and "
-                            "wildcards. Operator {} and groups {}".format(
-                                operator, groups))
+                            f"wildcards. Operator {operator} and groups "
+                            f"{groups}")
                         raise InvalidPolicyError
                     logger.debug(
-                        'Valid groups {} found in a policy in {}'.format(
-                            groups, aws_account_id))
+                        f'Valid groups {groups} found in a policy in '
+                        f'{aws_account_id}')
                     policy_groups.update(groups)
 
     return list(policy_groups)
@@ -355,7 +352,7 @@ def get_s3_file(
         new_map_serialized = serialize_map(new_map)
         kwargs['IfNoneMatch'] = hashlib.md5(new_map_serialized).hexdigest()
     try:
-        logger.debug('Fetching S3 file with args {}'.format(kwargs))
+        logger.debug(f'Fetching S3 file with args {kwargs}')
         response = client.get_object(**kwargs)
     except client.exceptions.ClientError as e:
         if e.response['Error']['Code'] == '304':
@@ -441,7 +438,7 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
     alias_map = {}
     for assumed_role_arn in assumed_role_arns:
         aws_account_id = assumed_role_arn.split(':')[4]
-        logger.debug('Fetching policies from {}'.format(aws_account_id))
+        logger.debug(f'Fetching policies from {aws_account_id}')
         client_sts = boto3.client('sts')
         limiting_policy = {
             'Version': '2012-10-17',
@@ -460,8 +457,8 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
         except client_sts.exceptions.ClientError as e:
             if e.response['Error']['Code'] == 'AccessDenied':
                 logger.error(
-                    'AWS Account {} IAM role {} is not assumable : {}'.format(
-                        aws_account_id, assumed_role_arn, e))
+                    f'AWS Account {aws_account_id} IAM role '
+                    f'{assumed_role_arn} is not assumable : {e}')
             continue
         assumed_role_credentials[aws_account_id] = {
             'aws_access_key_id': response['Credentials']['AccessKeyId'],
@@ -485,8 +482,8 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
         for role in roles:
             try:
                 logger.debug(
-                    'Checking assume role policy document for role {} in AWS '
-                    'account {}'.format(role['RoleName'], aws_account_id))
+                    f'Checking assume role policy document for role '
+                    f'{role["RoleName"]} in AWS account {aws_account_id}')
                 groups = get_groups_from_policy(
                     role['AssumeRolePolicyDocument'],
                     aws_account_id)
@@ -549,10 +546,7 @@ def get_security_audit_role_arns() -> List[str]:
 def lambda_handler(event, context):
     security_audit_role_arns = get_security_audit_role_arns()
     logger.debug(
-        'IAM Role ARNs fetched from table : {}'.format(
-            security_audit_role_arns
-        )
-    )
+        f'IAM Role ARNs fetched from table : {security_audit_role_arns}')
     group_role_map, generated_alias_map = build_group_role_map(
         security_audit_role_arns)
     manual_alias_map = manual_alias_map = get_s3_file(
@@ -570,10 +564,10 @@ def lambda_handler(event, context):
         alias_map,
         False)
     if group_role_map_changed:
-        logger.info('Group role map in S3 updated : {}'.format(
-            serialize_map(group_role_map)))
+        logger.info(
+            f'Group role map in S3 updated : {serialize_map(group_role_map)}')
     if alias_map_changed:
-        logger.info('Account alias map in S3 updated : {}'.format(
-            serialize_map(alias_map)))
+        logger.info(
+            f'Account alias map in S3 updated : {serialize_map(alias_map)}')
 
     return group_role_map
