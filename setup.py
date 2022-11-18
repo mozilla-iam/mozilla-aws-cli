@@ -8,16 +8,26 @@ from setuptools import setup, find_packages
 with open("README.md") as readme_file:
     readme = readme_file.read()
 
+# https://github.com/mpdavis/python-jose/blob/master/CHANGELOG.md#330----2021-06-04
+# https://github.com/sybrenstuvel/python-rsa/blob/main/CHANGELOG.md#version-43--45---released-2020-06-12
 requirements = [
     "appdirs",
     "Click>=6.0",
     "flask>=1.0.2",
+    "Werkzeug<2.1.0",
     "future",
     "requests>=2.20.1",
-    "python-jose",
+    "python-jose<3.3.0 ; python_version < '3.0'",
+    "python-jose ; python_version >= '3.0'",
+    "rsa==4.5 ; python_version < '3.0'",
+    "rsa ; python_version >= '3.0'",
     "whichcraft==0.6.1"
 ]
-setup_requirements = ["pytest-runner"]
+# https://github.com/pytest-dev/pytest-runner/blob/main/CHANGES.rst#v530
+setup_requirements = [
+    "pytest-runner<5.3 ; python_version <'3.0'",
+    "pytest-runner ; python_version >= '3.0'",
+]
 test_requirements = [
     "pytest",
     "pytest-cov",
@@ -36,6 +46,7 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
         "Natural Language :: English",
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
@@ -44,6 +55,8 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     entry_points={"console_scripts": ["maws=mozilla_aws_cli.cli:main"]},
     include_package_data=True,
@@ -58,6 +71,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras,
     url="https://github.com/mozilla-iam/mozilla-aws-cli",
-    version="1.2.2",
+    version="1.2.5",
     zip_safe=False,
 )

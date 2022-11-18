@@ -1,26 +1,84 @@
-# mozilla-aws-cli
+# Mozilla AWS CLI
 
-Command line tool to enable accessing AWS using federated single sign on
+The Mozilla AWS CLI is a command line tool to allow users to log into AWS with their federated
+identity using Single Sign On and obtain ephemeral API keys. This does not use [AWS SSO](https://aws.amazon.com/single-sign-on/)
+which only works with Active Directory or SAML identity providers, and instead
+uses [AWS identity providers](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers.html)
+with OpenID Connect (OIDC).
+
+Mozilla AWS CLI is the sister project to [Federated AWS RP](https://github.com/mozilla-iam/federated-aws-rp).
+Mozilla AWS CLI enables command line and API access to AWS, where Federated AWS 
+RP enables login to the AWS Management Console over the web.
+
+* [Prerequisites](#prerequisites)
+* [Setup](#setup)
+* [Usage](#usage)
+* [Output Formats](#output-formats)
+* [Sequence diagram](#sequence-diagram)
+* [Details](#details)
+* [Troubleshooting](#troubleshooting)
+* [Development](#development)
+* [Creating enterprise / organization configuration](#creating-enterprise---organization-configuration)
+* [Other projects in this space](#other-projects-in-this-space)
 
 ## Prerequisites
 
-* An OIDC provider like Auth0
-* A well-known `openid-configuration` URL
-* An Auth0 [application](https://auth0.com/docs/applications) created
-  * Type : Native
-  * Allowed Callback URLs : A list of the localhost URLs created from the
-    POSSIBLE_PORTS list of ports
-  * The `client_id` for this application will be used in the CLI config file
-* An AWS Identity provider
-  * with an audience value of the Auth0 application client_id
-  * with a [valid thumbprint](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc_verify-thumbprint.html)
+* An OIDC identity provider like [Auth0](https://auth0.com/)
+  * The [OpenID Provider Configuration Document URL](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig)
+    for your OIDC identity provider
+* A provisioned Auth0 [application](https://auth0.com/docs/applications) with a `client_id`
+* An [AWS OpenID Connect Identity provider](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
+* A deployed instance of the [Group Role Map Builder](cloudformation/README.md)
+* A deployed instance of the [ID Token For Roles API](cloudformation/README.md)
+* An [Auth0 rule](https://auth0.com/docs/rules) which 
+  [sets the `amr` field of the ID Token to the user's group list](https://github.com/mozilla-iam/auth0-deploy/blob/master/rules/AWS-Federated-AMR.js)
 
-## Instructions
+## Setup
+
+### Provision an Auth0 Application
+
+Create an Auth0 [application](https://auth0.com/docs/applications) with the
+following settings
+
+* Application Type : `Native`
+* Allowed Callback URLs : A list of the localhost URLs created from the
+  [`POSSIBLE_PORTS` list of ports](https://github.com/mozilla-iam/mozilla-aws-cli/blob/6de1d9223f14d2ad5cae85856e2c7036ab8237eb/mozilla_aws_cli/listener.py#L16-L17)   
+  * http://localhost:10800/redirect_uri
+  * http://localhost:10801/redirect_uri
+  * http://localhost:20800/redirect_uri
+  * http://localhost:20801/redirect_uri
+  * http://localhost:30800/redirect_uri
+  * http://localhost:30801/redirect_uri
+  * http://localhost:40800/redirect_uri
+  * http://localhost:40801/redirect_uri
+  * http://localhost:50800/redirect_uri
+  * http://localhost:50801/redirect_uri
+  * http://localhost:60800/redirect_uri
+  * http://localhost:60801/redirect_uri
+* JsonWebToken Signature Algorithm of `RS256`
+* Grants of `Implicit`  and `Authorization Code`
+
+The `client_id` for this application will be used in the CLI config file
+
+### Create an AWS OIDC Identity Provider
+
+You can create an identity provider
+
+* [manually through the web console, on the command line or via the API](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
+* with a [custom CloudFormation resource](https://github.com/mozilla/security/tree/master/operations/cloudformation-templates/oidc_identity_provider) (how we do this at Mozilla)
+  * This custom resource is no longer needed as CloudFormation now supports [OIDCProvider](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-oidcprovider.html#cfn-iam-oidcprovider-clientidlist)
+    and this `AWS::IAM::OIDCProvider` can be used
+
+The Identity provider needs to have
+* an audience value of the Auth0 application `client_id`
+* a [valid thumbprint](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc_verify-thumbprint.html)
+* the URL of the Auth0 identity provider
+
+### Create a config file
 
 Users can either configure Mozilla AWS CLI with a [python package](#creating-enterprise--organization-configuration)
-provided by their organization, or they can create a config file by hand.
-
-## Create a config file
+provided by their organization (this is how we do it at Mozilla), or they can 
+create a config file by hand.
 
 The default files that configuration is fetched from are
 * Windows
@@ -44,47 +102,40 @@ These config files use the standard [INI file format](https://en.wikipedia.org/w
 The `config` file should contain a single section called `[maws]` and can
 contain the following settings.
 
+#### Config file settings
+
 There are three *required* settings which must either be set in a [python package](#creating-enterprise--organization-configuration)
 provided by the organization or in the user's config file. Those required
 settings are
 
-* `well_known_url`: The
+* `well_known_url` : The
   [OpenID Connect Discovery Endpoint URL](https://openid.net/specs/openid-connect-discovery-1_0.html).
   ([Auth0](https://auth0.com/docs/protocols/oidc/openid-connect-discovery))
-* `client_id`: The Auth0 `client_id` generated when the Auth0
+* `client_id` : The Auth0 `client_id` generated when the Auth0
   [application](https://auth0.com/docs/applications) was created in the
   prerequisites
 * `idtoken_for_roles_url` : The URL of the ID Token For Roles API. This URL
   comes from the location that the user's organization has deployed the
-  [idtoken_for_roles](https://github.com/mozilla-iam/mozilla-aws-cli/tree/master/cloudformation)
-  API. This API lets a user exchange an ID token for a list of groups and roles
-  that they have rights to. This URL should be the base URL of the API, ending
-  in `/`
+  [idtoken_for_roles](/cloudformation) API. This API lets a user exchange an ID 
+  token for a list of groups and roles that they have rights to. This URL should
+  be the base URL of the API, ending in `/`
 
 Additional optional settings that can be configured in the config file are
  
-* `scope`: A space delimited list of
+* `scope` : A space delimited list of
   [OpenID Connect Scopes](https://auth0.com/docs/scopes/current/oidc-scopes).
   For example `openid`. Avoid including a scope which passes too much data which
   will exceed the maximum AWS allowed size of the ID Token (for example at
   Mozilla we neglect to include the raw full group list which is included in the
   ID Token when the `https://sso.mozilla.com/claim/groups` scope is requested.
 * `output` : The output format for the tool to use. This must be one of the
-  following values
-  * `awscli` : `maws` calls into the `aws` application, configuring it directly
-  * `boto` : Outputs JSON to stdout to be directly consumed by the
-    [boto3](https://github.com/boto/boto3) library
-  * `envvar` : A set of environment variables that load the temporary
-    credentials directly in to the environment without writing them to a file
-  * `js` : Outputs JSON to stdout to be directly consumed by the
-    [AWS JavaScript SDK](https://github.com/aws/aws-sdk-js)
-  * `shared` : A set of environment variables that reference a dedicated maws
-    AWS config file which is created
-
+  following values : `envvar`, `awscli`, `shared`, `boto`, `js`. Full details on
+  these formats can be found in the [Output Formats](#output-formats) section
+  below
 * `print_role_arn` : Whether or not `maws` should display the AWS IAM Role ARN
-  on the command line. This can values like `yes`, `no`, `true`, `false`
+  on the command line. This can have values like `yes`, `no`, `true`, `false`
 
-The resulting config would looks something like this
+The resulting config would look something like this
 ```ini
 [maws]
 client_id = abcdefg
@@ -92,13 +143,13 @@ idtoken_for_roles_url = https://roles-and-aliases.example/roles
 well_known_url = http://auth.example.com/.well-known/openid-configuration
 ```
 
-## Run the tool
+## Usage
 
 There are various ways you can run `maws`. The tool can output environment
 variable setting text to activate your AWS session inside your terminal. Here
 are some methods to use the tool.
 
-### Subcommand
+### Subcommand : `$(maws)`
 
 You could run `maws` within a `$()` sub-shell and execute the results
 
@@ -114,20 +165,20 @@ You could run `maws` within a `$()` sub-shell and execute the results
 > recommended that you use either process substitution or `eval`, as described
 > below.
 
-### Process substitution
+### Process substitution : `source <(maws)`
 
 This uses [process substitution](http://tldp.org/LDP/abs/html/process-sub.html).
 Here are some examples of how you could run it
 
 `source <(maws -w)`
 
-### Eval
+### Eval : `eval $(maws)`
 
 You could eval the results
 
 `eval $(maws --role-arn arn:aws:iam::123456789012:role/example-role)`
 
-### Copy paste
+### Copy paste : `maws`
 
 Take the output of the command and copy paste it into your terminal
 
@@ -137,13 +188,16 @@ Take the output of the command and copy paste it into your terminal
 
 In general, it is recommended to keep your code independent of `maws` by
 using environmental variables such as `AWS_PROFILE` and letting the
-underlying libraries read from your local AWS configuration. However,
-there are situations (such as needing to connect to multiple accounts)
-where this may not be an option.
+underlying libraries read from your local AWS configuration. 
 
-In these cases, `maws` can be used directly with libraries such as
-[boto3](https://github.com/boto/boto3). To do this, capture the output
-from  `maws` and use it directly in your program:
+All AWS SDKs automatically look for API keys in environment variables and AWS
+CLI config files that `maws` works well with.
+
+However, if you need to you can call maws and export the resulting credentials 
+for use in code, though it is discouraged.
+
+To make `maws` output JSON credentials consumable by
+[boto3](https://github.com/boto/boto3) :
 
 ```python
 import boto3
@@ -159,6 +213,8 @@ if __name__ == "__main__":
     print(s3_client.list_buckets())
 ```
 
+or as arguments in Javascript
+
 ```javascript
 const AWS = require("aws-sdk");
 const child_process = require("child_process");
@@ -170,6 +226,42 @@ new AWS.S3(botoArgs).listBuckets({}, (err, data) => {
 });
 ```
 
+## Output Formats
+
+The Mozilla AWS CLI can use various methods to make the ephemeral API keys
+available for use by AWS SDKs and the AWS CLI. These methods are set via either
+the `-o / --output` command line argument or the `output` config file setting
+
+* `envvar` (default) : This output format sets environment variables with the
+  credentials. This sets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. No
+  files are written to with this output format. This is the default output
+  format.
+* `awscli` : This output format stores credentials in the [`~/.aws/credentials`](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+  file using a profile name based on the AWS account alias and IAM Role name.
+  For example, with the `yoyodyne-accounting` AWS account and the `TeamAP`
+  IAM Role, it would create a profile called `yoyodyne-accounting-TeamAP`. It
+  then sets the `AWS_PROFILE` environment variable to use this profile.
+* `shared` : This output format creates a dedicated `maws` credentials file,
+  for example in Linux `/home/username/.config/maws/credentials`. In this
+  credential file it creates a profile named as is described above in the
+  `awscli` output format. It then sets the AWS CLI/SDK environment variable
+  `AWS_SHARED_CREDENTIALS_FILE` to point to this dedicated credentials file
+  and `AWS_PROFILE` to the created profile name. The benefit of this output
+  format is that the native AWS CLI/SDK credentials file is untouched. If you
+  use a mix of ephemeral API keys using `maws` and long lived API keys that
+  map to IAM users, using the `shared` output ensures that any hand created
+  profiles in the `~/.aws/credentials` aren't potentially overwritten if they
+  have the same profile name as one used by `maws`
+* `boto` : Outputs JSON credentials in a format expected by [boto3](https://github.com/boto/boto3)
+  to stdout. This mode of integration with boto3 is discouraged, and the native
+  environment variable based or `~/.aws/credentials` based output formats are
+  preferred.
+* `js` : Outputs JSON credentials in a format expected by the
+  [AWS JavaScript SDK](https://github.com/aws/aws-sdk-js) to stdout. This mode
+  of integration with the AWS JavaScript SDK is discouraged, and the native
+  environment variable based or `~/.aws/credentials` based output formats are
+  preferred.
+
 ### Troubleshooting
 
 If you run into errors with decrypting the ID token, it is likely that you are using an out-of-date version of Python or cryptographic libraries. This can usually be fixed by running a more Python-native cryptographic library, installed via:
@@ -179,14 +271,6 @@ If you run into errors with decrypting the ID token, it is likely that you are u
 ## Sequence diagram
 
 [<img src="https://raw.githubusercontent.com/mozilla-iam/mozilla-aws-cli/master/docs/img/sequence.png" width="100%">](docs/img/sequence.md)
-
-## Notes
-
-
-```
-# https://community.auth0.com/t/custom-claims-without-namespace/10999
-# https://community.auth0.com/t/how-to-set-audience-for-aws-iam-identity-provider-configuration/12951
-```
 
 ## Details
 
@@ -277,7 +361,6 @@ The Auth0 rule which finds the intersection in the groups a user is a member of
 with the union of all groups used in all AWS accounts IAM policies won't
 support [all IAM policy operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html#Conditions_String).
 Here are the various use cases and whether they are supported or not
-
 
 #### Supported
 An AWS account holder wants to
@@ -383,7 +466,7 @@ If you want to deploy the Mozilla AWS CLI across your organization and establish
 default configuration values without requiring users to create config files you
 can do so by implementing a standard `mozilla_aws_cli_config` module.
 
-Here are the steps assuming an example organization called Yoyodyne
+Here are the steps assuming an example organization called `Yoyodyne`
 
 1. Create a new code repo. A good name would be `mozilla-aws-cli-yoyodyne`
 2. In that repo create a `setup.py`
