@@ -65,7 +65,7 @@ This Account ID Alias map also includes manually defined entries of Account ID
 to Alias mappings. These manually defined entries are intended to capture the
 names of AWS Accounts that don't use SSO. Though not needed by the IAM Role
 Picker (since the accounts don't use SSO), it does make the alias map more
-complete fore use by other tools.
+complete for use by other tools.
 
 These manually defined entries are stored in the S3 file defined in the
 `ManualAccountAliasesS3FilePath` CloudFormation stack parameter, which by
