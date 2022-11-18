@@ -61,30 +61,6 @@ class UnsupportedPolicyError(Exception):
     pass
 
 
-class MozDefMessageStub:
-    """This is a placeholder stub class which goes away when we switch to
-    libmozdef"""
-
-    def __init__(
-        self,
-        summary,
-        source,
-        hostname='',
-        severity='INFO',
-        category='event',
-        processid=1,
-        processname='',
-        tags=None,
-        details=None,
-        timestamp=None,
-        utctimestamp=None,
-    ):
-        pass
-
-    def send(self, pathway=None, validator=None):
-        return True
-
-
 def get_setting(name):
     value = os.getenv(name, DEFAULTS.get(name))
     if name in COMMA_DELIMITED_VARIABLES:
@@ -169,68 +145,6 @@ def flip_map(dict_of_lists: DictOfLists) -> DictOfLists:
         for group in dict_of_lists[arn]:
             group_arn_map[group].append(arn)
     return group_arn_map
-
-
-def emit_event_to_mozdef(
-    new_map: DictOfLists,
-    existing_map: DictOfLists
-):
-    """Build and emit an event to MozDef about changes to IAM roles
-
-    :param dict new_map: The new map file
-    :param dict existing_map: The existing map file
-    :return:
-    """
-    new_groups = set(new_map) - set(existing_map)
-    deleted_groups = set(existing_map) - set(new_map)
-    new_arn_group_map = flip_map(new_map)
-    existing_arn_group_map = flip_map(existing_map)
-    new_roles = set(new_arn_group_map) - set(existing_arn_group_map)
-    deleted_roles = set(existing_arn_group_map) - set(new_arn_group_map)
-    changed_roles = {}
-    for role, groups in new_arn_group_map.items():
-        if role in existing_arn_group_map:
-            if len(set(groups) ^ set(existing_arn_group_map[role])) > 0:
-                changed_roles[role] = {
-                    'new_groups': set(groups),
-                    'old_groups': set(existing_arn_group_map[role]),
-                }
-    if (
-        new_groups
-        or deleted_groups
-        or new_roles
-        or deleted_roles
-        or changed_roles
-    ):
-        accounts_affected = set(
-            map(
-                lambda x: x.split(':')[4],
-                set(new_roles) | set(deleted_roles) | set(changed_roles),
-            )
-        )
-        summary = (
-            'Changes detected with AWS IAM roles used for federated access in '
-            'AWS accounts {}'.format(', '.join(accounts_affected))
-        )
-        source = 'federated-aws'
-        category = 'aws-auth'
-        details = dict()
-        if new_groups:
-            details['new-groups'] = new_groups
-        if deleted_groups:
-            details['deleted-groups'] = deleted_groups
-        if new_roles:
-            details['new-roles'] = new_roles
-        if deleted_roles:
-            details['deleted-roles'] = deleted_roles
-        if changed_roles:
-            details['changed-roles'] = changed_roles
-        message = MozDefMessageStub(
-            summary=summary, source=source, category=category, details=details
-        )
-        message.send()
-        # TODO : Add call to libmozdef once it's published in pypi
-        # to emit an event to MozDef with this data
 
 
 def get_groups_from_policy(policy, aws_account_id) -> list:
@@ -379,22 +293,18 @@ def store_s3_file(s3_bucket: str,
                   emit_diff: bool = False) -> bool:
     """Compare the new file with the file stored in S3
 
-    Store the new file and emit an event to MozDef if they differ. Return True
-    if there was a change and False if not.
+    Store the new file. Return True if there was a change and False if not.
 
     :param str s3_bucket: The name of the S3 bucket to store the file in
     :param str s3_key: The path and filename in the S3 bucket to store the file
                        in
     :param dict new_map: A dictionary mapping
-    :param bool emit_diff: Whether or not to emit an event to MozDef if the
-                           new_map differs from what's stored in S3 already
+    :param bool emit_diff: Argument is no longer used
     :return: True if the new map differs from the one stored, otherwise False
     """
     existing_map = get_s3_file(s3_bucket, s3_key, new_map)
     new_map_serialized = serialize_map(new_map)
     if serialize_map(existing_map) != new_map_serialized:
-        if emit_diff:
-            emit_event_to_mozdef(new_map, existing_map)
         client = boto3.client('s3')
         # Link : https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
         client.put_object(
