@@ -278,7 +278,7 @@ def get_s3_file(
     return json.load(response['Body'])
 
 
-def serialize_map(input_map: DictOfLists) -> str:
+def serialize_map(input_map: DictOfLists) -> bytes:
     """Serialize a dictionary of lists in a consistent hashable format
 
     :param dict input_map: A dictionary mapping
