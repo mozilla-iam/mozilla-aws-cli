@@ -23,6 +23,8 @@ ALLOWED_MAP_BUILDER_SUB_PREFIX = os.getenv(
     'ALLOWED_MAP_BUILDER_SUB_PREFIX', False)
 GROUP_ROLE_MAP_BUILDER_FUNCTION_NAME = os.getenv(
     'GROUP_ROLE_MAP_BUILDER_FUNCTION_NAME')
+CLAIM_NAME = os.getenv(
+    'CLAIM_NAME', 'id')
 
 METHOD_NOT_ALLOWED = {
     'headers': {'Content-Type': 'text/html'},
@@ -78,9 +80,9 @@ def validate_token(token, key):
     except exceptions.JWTError as e:
         logger.error('Invalid JWT signature : {}'.format(e))
         raise TokenValidationError('Invalid JWT signature')
-    if 'amr' not in id_token:
-        logger.error('amr claim missing from ID Token : {}'.format(id_token))
-        raise TokenValidationError('amr claim missing from ID Token')
+    if CLAIM_NAME not in id_token:
+        logger.error('{} claim missing from ID Token : {}'.format(CLAIM_NAME, id_token))
+        raise TokenValidationError('{} claim missing from ID Token'.format(CLAIM_NAME))
     return id_token
 
 
@@ -129,17 +131,18 @@ def get_roles_and_aliases(token, key, cache):
     roles = set()
     aliases = {}
     for group, mapped_roles in group_role_map.items():
-        if group in id_token['amr']:
+        if group in id_token[CLAIM_NAME]:
             for role in mapped_roles:
                 aws_account_id = role.split(':')[4]
                 if (aws_account_id in account_alias_map
                         and len(account_alias_map[aws_account_id]) > 0):
                     if aws_account_id not in aliases:
                         logger.debug(
-                            'Group {} found in AMR {} adding AWS Account '
+                            'Group {} found in {} {} adding AWS Account '
                             'alias {} for account {}'.format(
                                 group,
-                                id_token['amr'],
+                                CLAIM_NAME,
+                                id_token[CLAIM_NAME],
                                 account_alias_map[aws_account_id],
                                 aws_account_id))
                         aliases[aws_account_id] = (
@@ -148,8 +151,8 @@ def get_roles_and_aliases(token, key, cache):
                     aliases[aws_account_id] = [aws_account_id]
             roles.update(mapped_roles)
         else:
-            logger.debug('Group {} not in amr {}'.format(
-                group, id_token['amr']))
+            logger.debug('Group {} not in {} {}'.format(
+                group, CLAIM_NAME, id_token[CLAIM_NAME]))
     return {'roles': list(roles), 'aliases': aliases}
 
 
