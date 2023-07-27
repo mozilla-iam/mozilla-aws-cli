@@ -262,17 +262,24 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
                 'Skipping policy statement with Effect {}'.format(
                     statement.get("Effect")))
             continue
-        if (statement.get("Action", '').lower()
-                != "sts:AssumeRoleWithWebIdentity".lower()):
+        if type(statement.get("Action", '')) == str and statement.get("Action", '').lower() != "sts:AssumeRoleWithWebIdentity".lower():
             # logger.debug(
             #     'Skipping policy statement with Action {}'.format(
             #         statement.get("Action")))
             continue
+        if type(statement.get("Action")) == list:
+            matching_action_found = False
+            for action in statement["Action"]:
+                if action.lower() == "sts:AssumeRoleWithWebIdentity".lower():
+                    matching_action_found = True
+            if not matching_action_found:
+                # This action list does not contain sts:AssumeRoleWithWebIdentity
+                continue
 
         if not is_valid_identity_provider(
                 statement.get('Principal', {}).get('Federated'),
                 aws_account_id):
-            logger.error(
+            logger.debug(
                 'Skipping policy statement with Federated Principal {} which '
                 'is not valid'.format(
                     statement.get('Principal', {}).get('Federated')))
@@ -282,8 +289,8 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
             # StringNotLike, etc. are not supported
             if operator in UNSUPPORTED_OPERATORS:
                 logger.error(
-                    'UnsupportedPolicyError'
-                    ': Condition uses operator {}'.format(operator))
+                    f'UnsupportedPolicyError : {aws_account_id} '
+                    f': Condition uses operator {operator}')
                 raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
             elif operator in VALID_OPERATORS and any(
@@ -295,17 +302,17 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
         # Multiple operators are not supported
         if operator_count > 1:
             logger.error(
-                'UnsupportedPolicyError : Too many ({}) operators used'.format(
-                    operator_count))
+                f'UnsupportedPolicyError : {aws_account_id} : Too many '
+                f'({operator_count}) operators used')
             raise UnsupportedPolicyError
 
-        # An absence of operators means all users are permitted which isn't
+        # An absence of operators may mean all users are permitted which isn't
         # supported
         if operator_count == 0:
             logger.error(
-                'UnsupportedPolicyError : Statement has no amr conditions, '
-                'all users permitted access. At least one amr condition is '
-                'required')
+                f'UnsupportedPolicyError : {aws_account_id} : Statement has '
+                'no supported amr conditions, all users permitted access. At '
+                f'least one supported amr condition is required : {statement}')
             raise UnsupportedPolicyError
 
         # For clarity:

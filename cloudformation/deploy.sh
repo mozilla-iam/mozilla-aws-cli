@@ -27,7 +27,7 @@ fi
 # Confirm that we have access to AWS and we're in the right account
 set +e
 result="$(aws sts get-caller-identity --output text 2>&1)"
-if ! echo "$result" | grep 'arn:aws:sts' >/dev/null; then
+if ! echo "$result" | grep -E 'arn:aws:sts|arn:aws:iam::.*:root' >/dev/null; then
   echo "Error : $result"
   exit 1
 elif ! echo "$result" | grep "$ACCOUNT_ID" >/dev/null; then
