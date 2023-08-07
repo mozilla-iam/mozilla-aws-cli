@@ -173,12 +173,22 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
     for statement in policy["Statement"]:
         if statement.get("Effect", '').lower() != "Allow".lower():
             logger.debug(
-                'Skipping policy statement with Effect '
-                f'{statement.get("Effect")}')
+                'Skipping policy statement with Effect {}'.format(
+                    statement.get("Effect")))
             continue
-        if (statement.get("Action", '').lower()
-                != "sts:AssumeRoleWithWebIdentity".lower()):
+        if type(statement.get("Action", '')) == str and statement.get("Action", '').lower() != "sts:AssumeRoleWithWebIdentity".lower():
+            # logger.debug(
+            #     'Skipping policy statement with Action {}'.format(
+            #         statement.get("Action")))
             continue
+        if type(statement.get("Action")) == list:
+            matching_action_found = False
+            for action in statement["Action"]:
+                if action.lower() == "sts:AssumeRoleWithWebIdentity".lower():
+                    matching_action_found = True
+            if not matching_action_found:
+                # This action list does not contain sts:AssumeRoleWithWebIdentity
+                continue
 
         if not is_valid_identity_provider(
                 statement.get('Principal', {}).get('Federated'),
