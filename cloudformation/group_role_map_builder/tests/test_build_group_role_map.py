@@ -52,13 +52,13 @@ def test_get_role_group_map():
         AssumeRolePolicyDocument=assume_role_policy_document_with_conditions,
         Description='Test role with federated conditions',
     )
-    groups, aliases = build_group_role_map([role_to_assume_arn])
+    groups, aliases, roles_export = build_group_role_map([role_to_assume_arn])
 
     assert len(groups) == 0
     assert list(aliases.values()) == [[]]
 
     response = client.create_account_alias(AccountAlias='account-alias-test')
-    groups, aliases = build_group_role_map([role_to_assume_arn])
+    groups, aliases, roles_export = build_group_role_map([role_to_assume_arn])
     assert list(aliases.values()) == [['account-alias-test']]
 
     # Enable these tests once get_federated_groups_for_policy is written
@@ -68,3 +68,5 @@ def test_get_role_group_map():
 
     # TODO : Add a test to confirm that when 2 roles are encountered where one
     # is invalid/unsupported, the other role still gets processed
+
+    # TODO : Add a test for the roles_export
