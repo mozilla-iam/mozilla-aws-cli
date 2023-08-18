@@ -22,9 +22,11 @@ DEFAULTS = {
     'S3_BUCKET_NAME': None,
     'S3_FILE_PATH_GROUP_ROLE_MAP': 'access-group-iam-role-map.json',
     'S3_FILE_PATH_ALIAS_MAP': 'account-aliases.json',
+    'S3_FILE_PATH_ROLES_EXPORT': 'roles-export.json',
     'S3_FILE_PATH_MANUAL_ALIAS_MAP': 'manual-account-aliases.json',
     'VALID_AMRS': '',
     'VALID_FEDERATED_PRINCIPAL_URLS': '',
+    'EXPORT_ROLES': 'False'
 }
 COMMA_DELIMITED_VARIABLES = ['VALID_AMRS', 'VALID_FEDERATED_PRINCIPAL_URLS']
 UNGLOBBABLE_OPERATORS = ("StringEquals", "ForAnyValue:StringEquals")
@@ -50,7 +52,7 @@ S3_FILE_LINK_HEADER = os.getenv(
 
 SimpleDict = Dict[str, str]
 DictOfLists = Dict[str, list]
-TupleOfDictOflists = Tuple[DictOfLists, DictOfLists]
+CustomTuple = Tuple[DictOfLists, DictOfLists, List]
 
 
 class InvalidPolicyError(Exception):
@@ -67,6 +69,10 @@ def get_setting(name):
         return list(filter(None, value.split(',')))
     else:
         return value
+
+
+def get_account_id(arn: str) -> str:
+    return arn.split(':')[4]
 
 
 def is_valid_identity_provider(arn: str, aws_account_id: str) -> bool:
@@ -178,7 +184,9 @@ def get_groups_from_policy(policy, aws_account_id, role_name) -> list:
                 'Skipping policy statement with Effect {}'.format(
                     statement.get("Effect")))
             continue
-        if type(statement.get("Action", '')) == str and statement.get("Action", '').lower() != "sts:AssumeRoleWithWebIdentity".lower():
+        if (type(statement.get("Action", '')) == str
+                and statement.get("Action", '').lower() !=
+                "sts:AssumeRoleWithWebIdentity".lower()):
             # logger.debug(
             #     'Skipping policy statement with Action {}'.format(
             #         statement.get("Action")))
@@ -261,6 +269,51 @@ def get_groups_from_policy(policy, aws_account_id, role_name) -> list:
     return list(policy_groups)
 
 
+def get_role_policies(arn: str, credentials: Dict) -> List:
+    """Given an AWS IAM Role ARN and credential dictionary, return a list of policy dicts
+
+    :param arn: The ARN of the AWS IAM Role
+    :param credentials: A dictionary of AWS API key arguments
+    :return: A List of dicts containing info on each policy
+    """
+    policy_list = []
+    client = boto3.client('iam', **credentials)
+    role_name = arn.split(':')[5].split('/')[1]
+
+    # Inline policies
+    inline_policy_names = get_paginated_results(
+        'iam', 'list_role_policies', 'PolicyNames', credentials, {'RoleName': role_name})
+    for policy_name in inline_policy_names:
+        response = client.get_role_policy(
+            RoleName=role_name,
+            PolicyName=policy_name
+        )
+        policy_list.append({
+            'policy_name': policy_name,
+            'policy_type': 'inline',
+            'policy_payload': response['PolicyDocument']
+        })
+
+    # Managed policies
+    response = get_paginated_results(
+        'iam', 'list_attached_role_policies', 'AttachedPolicies', credentials, {'RoleName': role_name})
+    attached_policy_arns = [x['PolicyArn'] for x in response]
+    for policy_arn in attached_policy_arns:
+        policy_metadata = client.get_policy(PolicyArn=policy_arn)
+        policy_item = {
+            'policy_name': policy_metadata['Policy']['PolicyName'],
+            'policy_type': 'amazon_managed' if get_account_id(policy_arn) == 'aws' else 'customer_managed',
+            'policy_arn': policy_arn
+        }
+        if policy_item['policy_type'] == 'customer_managed':
+            policy_item['policy_payload'] = client.get_policy_version(
+                PolicyArn=policy_arn,
+                VersionId=policy_metadata['Policy']['DefaultVersionId']
+            )['PolicyVersion']['Document']
+        policy_list.append(policy_item)
+    return policy_list
+
+
 def get_s3_file(
     s3_bucket: str,
     s3_key: str,
@@ -333,7 +386,7 @@ def store_s3_file(s3_bucket: str,
         return False
 
 
-def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
+def build_group_role_map(assumed_role_arns: List[str]) -> CustomTuple:
     """Build map of IAM roles to OIDC groups used in assumption policies.
 
     Given a list of IAM Role ARNs to assume, iterate over those roles,
@@ -354,12 +407,14 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
     }
 
     :param list assumed_role_arns: list of IAM role ARN strings
-    :return: a tuple of the map of IAM ARNs to related OIDC claimed group names
-             followed by the map of AWS account IDs to account aliases
+    :return: a tuple of the map of IAM Role ARNs to related OIDC claimed group names
+             followed by the map of AWS account IDs to account aliases, followed
+             by a summary of all policies in all federated IAM Roles
     """
     assumed_role_credentials = {}
     role_group_map = {}
     alias_map = {}
+    roles_export = {}
     for assumed_role_arn in assumed_role_arns:
         aws_account_id = assumed_role_arn.split(':')[4]
         logger.debug(f'Fetching policies from {aws_account_id}')
@@ -368,7 +423,15 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
             'Version': '2012-10-17',
             'Statement': [
                 {'Effect': 'Allow',
-                 'Action': ['iam:ListRoles', 'iam:ListAccountAliases'],
+                 'Action': [
+                     'iam:ListRoles',
+                     'iam:ListRolePolicies',
+                     'iam:GetRolePolicy',
+                     'iam:ListAttachedRolePolicies',
+                     'iam:GetPolicyVersion',
+                     'iam:ListAccountAliases',
+                     'iam:GetPolicy'
+                 ],
                  'Resource': '*'}
             ],
         }
@@ -410,7 +473,18 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
                     f'{role["RoleName"]} in AWS account {aws_account_id}')
                 groups = get_groups_from_policy(
                     role['AssumeRolePolicyDocument'],
-                    aws_account_id)
+                    aws_account_id,
+                    role['RoleName']
+                )
+                if groups and get_setting('EXPORT_ROLES').lower() == 'true':
+                    if get_account_id(role['Arn']) not in roles_export:
+                        roles_export[get_account_id(role['Arn'])] = {}
+                    roles_export[get_account_id(role['Arn'])][role['Arn']] = {
+                        'trusted_entities_payload': role['AssumeRolePolicyDocument'],
+                        'policies': get_role_policies(
+                            role['Arn'],
+                            assumed_role_credentials[get_account_id(role['Arn'])])
+                    }
             except UnsupportedPolicyError:
                 # a policy intended to work with the right IdP but with
                 #   conditions beyond what we can handle
@@ -435,7 +509,7 @@ def build_group_role_map(assumed_role_arns: List[str]) -> TupleOfDictOflists:
                 continue
             role_group_map[role['Arn']] = groups
         alias_map[aws_account_id] = aliases
-    return flip_map(role_group_map), alias_map
+    return flip_map(role_group_map), alias_map, roles_export
 
 
 def get_security_audit_role_arns() -> List[str]:
@@ -471,7 +545,7 @@ def lambda_handler(event, context):
     security_audit_role_arns = get_security_audit_role_arns()
     logger.debug(
         f'IAM Role ARNs fetched from table : {security_audit_role_arns}')
-    group_role_map, generated_alias_map = build_group_role_map(
+    group_role_map, generated_alias_map, roles_export = build_group_role_map(
         security_audit_role_arns)
     manual_alias_map = manual_alias_map = get_s3_file(
         get_setting('S3_BUCKET_NAME'),
@@ -487,6 +561,11 @@ def lambda_handler(event, context):
         get_setting('S3_FILE_PATH_ALIAS_MAP'),
         alias_map,
         False)
+    if group_role_map_changed and roles_export:
+        store_s3_file(
+            get_setting('S3_BUCKET_NAME'),
+            get_setting('S3_FILE_PATH_ROLES_EXPORT'),
+            roles_export)
     if group_role_map_changed:
         logger.info(
             f'Group role map in S3 updated : {serialize_map(group_role_map)}')

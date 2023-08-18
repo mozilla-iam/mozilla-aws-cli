@@ -15,6 +15,7 @@ Metadata:
       Parameters:
       - S3BucketName
       - GroupRoleMapS3FilePath
+      - RolesExportS3FilePath
       - AccountAliasesS3FilePath
       - ManualAccountAliasesS3FilePath
     - Label:
@@ -31,6 +32,8 @@ Metadata:
         default: S3 Bucket Name
       GroupRoleMapS3FilePath:
         default: Group Role Map S3 File Path
+      RolesExportS3FilePath:
+        default: Roles Export File Path
       AccountAliasesS3FilePath:
         default: AWS Account Alias Map S3 File Path
       ManualAccountAliasesS3FilePath:
@@ -51,6 +54,10 @@ Parameters:
     Type: String
     Description: The path to the group role map file
     Default: access-group-iam-role-map.json
+  RolesExportS3FilePath:
+    Type: String
+    Description: The path to the role export file
+    Default: roles-export.json
   AccountAliasesS3FilePath:
     Type: String
     Description: The path to the account aliases map file
@@ -115,6 +122,7 @@ Resources:
                   - s3:PutObject
                 Resource:
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'RolesExportS3FilePath']]
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'ManualAccountAliasesS3FilePath']]
               - Effect: Allow
@@ -141,6 +149,7 @@ Resources:
           TABLE_REGION: !Ref StackEmissionDynamoDBTableRegion
           S3_BUCKET_NAME: !Ref S3BucketName
           S3_FILE_PATH_GROUP_ROLE_MAP: !Ref GroupRoleMapS3FilePath
+          S3_FILE_PATH_ROLES_EXPORT: !Ref RolesExportS3FilePath
           S3_FILE_PATH_ALIAS_MAP: !Ref AccountAliasesS3FilePath
           S3_FILE_PATH_MANUAL_ALIAS_MAP: !Ref ManualAccountAliasesS3FilePath
           VALID_FEDERATED_PRINCIPAL_URLS: !Ref ProviderUrls
@@ -195,6 +204,7 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'GroupRoleMapS3FilePath']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'RolesExportS3FilePath']]
                   - !Join ['', ['arn:aws:s3:::', !Ref 'S3BucketName', '/', !Ref 'AccountAliasesS3FilePath']]
               - Effect: Allow
                 Action:
