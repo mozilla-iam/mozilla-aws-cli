@@ -147,7 +147,7 @@ def flip_map(dict_of_lists: DictOfLists) -> DictOfLists:
     return group_arn_map
 
 
-def get_groups_from_policy(policy, aws_account_id) -> list:
+def get_groups_from_policy(policy, aws_account_id, role_name) -> list:
     # groups will be stored as a set to prevent duplicates and then return
     # a list when everything is finished
     policy_groups = set()
@@ -158,11 +158,13 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
         try:
             policy = json.loads(policy)
         except JSONDecodeError:
-            logger.error("InvalidPolicyError : Can't parse JSON")
+            logger.error(f"InvalidPolicyError : {aws_account_id} : "
+                         f"{role_name} : Can't parse JSON")
             raise InvalidPolicyError
 
     if not isinstance(policy, dict):
-        logger.error("InvalidPolicyError : Policy is not dict")
+        logger.error("InvalidPolicyError : {aws_account_id} : {role_name} : "
+                     "Policy is not dict")
         raise InvalidPolicyError
 
     # If policy lacks a statement, we can bail out
@@ -203,7 +205,7 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
             # StringNotLike, etc. are not supported
             if operator in UNSUPPORTED_OPERATORS:
                 logger.error(
-                    f'UnsupportedPolicyError : {aws_account_id} '
+                    f'UnsupportedPolicyError : {aws_account_id} : {role_name} '
                     f': Condition uses operator {operator}')
                 raise UnsupportedPolicyError
             # Is a valid operator and contains a valid :amr entry
@@ -216,17 +218,18 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
         # Multiple operators are not supported
         if operator_count > 1:
             logger.error(
-                f'UnsupportedPolicyError : {aws_account_id} : Too many '
-                f'({operator_count}) operators used')
+                f'UnsupportedPolicyError : {aws_account_id} : {role_name} : '
+                f'Too many ({operator_count}) operators used')
             raise UnsupportedPolicyError
 
         # An absence of operators may mean all users are permitted which isn't
         # supported
         if operator_count == 0:
             logger.error(
-                f'UnsupportedPolicyError : {aws_account_id} : Statement has '
-                'no supported amr conditions, all users permitted access. At '
-                f'least one supported amr condition is required : {statement}')
+                f'UnsupportedPolicyError : {aws_account_id} : {role_name} : '
+                f'Statement has no supported amr conditions, all users '
+                f'permitted access. At least one supported amr condition is '
+                f'required : {statement}')
             raise UnsupportedPolicyError
 
         # For clarity:
@@ -245,13 +248,14 @@ def get_groups_from_policy(policy, aws_account_id) -> list:
                     if (operator in UNGLOBBABLE_OPERATORS
                             and set('*?') & set(''.join(groups))):
                         logger.error(
-                            "InvalidPolicyError : Mismatched operator and "
+                            f"InvalidPolicyError : {aws_account_id} : "
+                            f"{role_name} : Mismatched operator and "
                             f"wildcards. Operator {operator} and groups "
                             f"{groups}")
                         raise InvalidPolicyError
                     logger.debug(
                         f'Valid groups {groups} found in a policy in '
-                        f'{aws_account_id}')
+                        f'{aws_account_id} in {role_name}')
                     policy_groups.update(groups)
 
     return list(policy_groups)
